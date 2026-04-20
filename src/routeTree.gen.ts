@@ -9,38 +9,194 @@
 // Additionally, you should also exclude this file from your linter and/or formatter to prevent it from being checked or modified.
 
 import { Route as rootRouteImport } from './routes/__root'
+import { Route as TrainingRouteImport } from './routes/training'
+import { Route as SegmentsRouteImport } from './routes/segments'
+import { Route as RecordRouteImport } from './routes/record'
+import { Route as ClubsRouteImport } from './routes/clubs'
+import { Route as ChallengesRouteImport } from './routes/challenges'
 import { Route as IndexRouteImport } from './routes/index'
+import { Route as SegmentIdRouteImport } from './routes/segment.$id'
+import { Route as ClubIdRouteImport } from './routes/club.$id'
+import { Route as AthleteIdRouteImport } from './routes/athlete.$id'
+import { Route as ActivityIdRouteImport } from './routes/activity.$id'
 
+const TrainingRoute = TrainingRouteImport.update({
+  id: '/training',
+  path: '/training',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const SegmentsRoute = SegmentsRouteImport.update({
+  id: '/segments',
+  path: '/segments',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const RecordRoute = RecordRouteImport.update({
+  id: '/record',
+  path: '/record',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const ClubsRoute = ClubsRouteImport.update({
+  id: '/clubs',
+  path: '/clubs',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const ChallengesRoute = ChallengesRouteImport.update({
+  id: '/challenges',
+  path: '/challenges',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const IndexRoute = IndexRouteImport.update({
   id: '/',
   path: '/',
   getParentRoute: () => rootRouteImport,
 } as any)
+const SegmentIdRoute = SegmentIdRouteImport.update({
+  id: '/segment/$id',
+  path: '/segment/$id',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const ClubIdRoute = ClubIdRouteImport.update({
+  id: '/club/$id',
+  path: '/club/$id',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const AthleteIdRoute = AthleteIdRouteImport.update({
+  id: '/athlete/$id',
+  path: '/athlete/$id',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const ActivityIdRoute = ActivityIdRouteImport.update({
+  id: '/activity/$id',
+  path: '/activity/$id',
+  getParentRoute: () => rootRouteImport,
+} as any)
 
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
+  '/challenges': typeof ChallengesRoute
+  '/clubs': typeof ClubsRoute
+  '/record': typeof RecordRoute
+  '/segments': typeof SegmentsRoute
+  '/training': typeof TrainingRoute
+  '/activity/$id': typeof ActivityIdRoute
+  '/athlete/$id': typeof AthleteIdRoute
+  '/club/$id': typeof ClubIdRoute
+  '/segment/$id': typeof SegmentIdRoute
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
+  '/challenges': typeof ChallengesRoute
+  '/clubs': typeof ClubsRoute
+  '/record': typeof RecordRoute
+  '/segments': typeof SegmentsRoute
+  '/training': typeof TrainingRoute
+  '/activity/$id': typeof ActivityIdRoute
+  '/athlete/$id': typeof AthleteIdRoute
+  '/club/$id': typeof ClubIdRoute
+  '/segment/$id': typeof SegmentIdRoute
 }
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
   '/': typeof IndexRoute
+  '/challenges': typeof ChallengesRoute
+  '/clubs': typeof ClubsRoute
+  '/record': typeof RecordRoute
+  '/segments': typeof SegmentsRoute
+  '/training': typeof TrainingRoute
+  '/activity/$id': typeof ActivityIdRoute
+  '/athlete/$id': typeof AthleteIdRoute
+  '/club/$id': typeof ClubIdRoute
+  '/segment/$id': typeof SegmentIdRoute
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
-  fullPaths: '/'
+  fullPaths:
+    | '/'
+    | '/challenges'
+    | '/clubs'
+    | '/record'
+    | '/segments'
+    | '/training'
+    | '/activity/$id'
+    | '/athlete/$id'
+    | '/club/$id'
+    | '/segment/$id'
   fileRoutesByTo: FileRoutesByTo
-  to: '/'
-  id: '__root__' | '/'
+  to:
+    | '/'
+    | '/challenges'
+    | '/clubs'
+    | '/record'
+    | '/segments'
+    | '/training'
+    | '/activity/$id'
+    | '/athlete/$id'
+    | '/club/$id'
+    | '/segment/$id'
+  id:
+    | '__root__'
+    | '/'
+    | '/challenges'
+    | '/clubs'
+    | '/record'
+    | '/segments'
+    | '/training'
+    | '/activity/$id'
+    | '/athlete/$id'
+    | '/club/$id'
+    | '/segment/$id'
   fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
   IndexRoute: typeof IndexRoute
+  ChallengesRoute: typeof ChallengesRoute
+  ClubsRoute: typeof ClubsRoute
+  RecordRoute: typeof RecordRoute
+  SegmentsRoute: typeof SegmentsRoute
+  TrainingRoute: typeof TrainingRoute
+  ActivityIdRoute: typeof ActivityIdRoute
+  AthleteIdRoute: typeof AthleteIdRoute
+  ClubIdRoute: typeof ClubIdRoute
+  SegmentIdRoute: typeof SegmentIdRoute
 }
 
 declare module '@tanstack/react-router' {
   interface FileRoutesByPath {
+    '/training': {
+      id: '/training'
+      path: '/training'
+      fullPath: '/training'
+      preLoaderRoute: typeof TrainingRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/segments': {
+      id: '/segments'
+      path: '/segments'
+      fullPath: '/segments'
+      preLoaderRoute: typeof SegmentsRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/record': {
+      id: '/record'
+      path: '/record'
+      fullPath: '/record'
+      preLoaderRoute: typeof RecordRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/clubs': {
+      id: '/clubs'
+      path: '/clubs'
+      fullPath: '/clubs'
+      preLoaderRoute: typeof ClubsRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/challenges': {
+      id: '/challenges'
+      path: '/challenges'
+      fullPath: '/challenges'
+      preLoaderRoute: typeof ChallengesRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/': {
       id: '/'
       path: '/'
@@ -48,21 +204,49 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof IndexRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/segment/$id': {
+      id: '/segment/$id'
+      path: '/segment/$id'
+      fullPath: '/segment/$id'
+      preLoaderRoute: typeof SegmentIdRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/club/$id': {
+      id: '/club/$id'
+      path: '/club/$id'
+      fullPath: '/club/$id'
+      preLoaderRoute: typeof ClubIdRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/athlete/$id': {
+      id: '/athlete/$id'
+      path: '/athlete/$id'
+      fullPath: '/athlete/$id'
+      preLoaderRoute: typeof AthleteIdRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/activity/$id': {
+      id: '/activity/$id'
+      path: '/activity/$id'
+      fullPath: '/activity/$id'
+      preLoaderRoute: typeof ActivityIdRouteImport
+      parentRoute: typeof rootRouteImport
+    }
   }
 }
 
 const rootRouteChildren: RootRouteChildren = {
   IndexRoute: IndexRoute,
+  ChallengesRoute: ChallengesRoute,
+  ClubsRoute: ClubsRoute,
+  RecordRoute: RecordRoute,
+  SegmentsRoute: SegmentsRoute,
+  TrainingRoute: TrainingRoute,
+  ActivityIdRoute: ActivityIdRoute,
+  AthleteIdRoute: AthleteIdRoute,
+  ClubIdRoute: ClubIdRoute,
+  SegmentIdRoute: SegmentIdRoute,
 }
 export const routeTree = rootRouteImport
   ._addFileChildren(rootRouteChildren)
   ._addFileTypes<FileRouteTypes>()
-
-import type { getRouter } from './router.tsx'
-import type { createStart } from '@tanstack/react-start'
-declare module '@tanstack/react-start' {
-  interface Register {
-    ssr: true
-    router: Awaited<ReturnType<typeof getRouter>>
-  }
-}
