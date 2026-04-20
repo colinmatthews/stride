@@ -34,13 +34,14 @@ export const Route = createFileRoute("/activity/$id")({
 });
 
 function ActivityDetail() {
-  const { activity } = Route.useLoaderData();
+  const { activity } = Route.useLoaderData() as { activity: import("@/lib/mock-data").Activity };
   const router = useRouter();
   const ath = getAthlete(activity.athleteId);
   const [kudoed, setKudoed] = useState(activity.kudoed ?? false);
   const [kudosCount, setKudosCount] = useState(activity.kudos);
   const [comment, setComment] = useState("");
-  const [comments, setComments] = useState(activity.comments);
+  type Comment = { id: string; athleteId: string; text: string };
+  const [comments, setComments] = useState<Comment[]>(activity.comments);
 
   const elev = elevationProfile(activity.routeSeed);
   const splits = activity.splits ?? [];
@@ -152,7 +153,7 @@ function ActivityDetail() {
                       <XAxis dataKey="km" tick={{ fontSize: 11, fill: "var(--muted-foreground)" }} axisLine={false} tickLine={false} />
                       <YAxis tick={{ fontSize: 11, fill: "var(--muted-foreground)" }} axisLine={false} tickLine={false} width={36} />
                       <Tooltip contentStyle={{ background: "var(--surface)", border: "1px solid var(--border)", borderRadius: 8, fontSize: 12 }}
-                        formatter={(v: number) => fmtPace(v)} />
+                        formatter={(v) => fmtPace(Number(v))} />
                       <Bar dataKey="paceSec" fill="var(--primary)" radius={[4, 4, 0, 0]} />
                     </BarChart>
                   </ResponsiveContainer>
