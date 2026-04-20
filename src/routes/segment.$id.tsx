@@ -24,7 +24,7 @@ export const Route = createFileRoute("/segment/$id")({
 });
 
 function SegmentDetail() {
-  const { segment } = Route.useLoaderData();
+  const { segment } = Route.useLoaderData() as { segment: import("@/lib/mock-data").Segment };
   // fake leaderboard
   const leaderboard = ATHLETES.filter((a) => a.id !== "me").slice(0, 8).map((a, i) => ({
     rank: i + 1,

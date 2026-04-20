@@ -24,7 +24,7 @@ export const Route = createFileRoute("/club/$id")({
 });
 
 function ClubDetail() {
-  const { club } = Route.useLoaderData();
+  const { club } = Route.useLoaderData() as { club: import("@/lib/mock-data").Club };
   const [joined, setJoined] = useState(!!club.joined);
   const members = ATHLETES.filter((a) => a.id !== "me").slice(0, 6);
   const feed = ACTIVITIES.slice(0, 6);

@@ -25,7 +25,7 @@ export const Route = createFileRoute("/athlete/$id")({
 });
 
 function AthletePage() {
-  const { athlete } = Route.useLoaderData();
+  const { athlete } = Route.useLoaderData() as { athlete: import("@/lib/mock-data").Athlete };
   const [following, setFollowing] = useState(athlete.id !== "me");
   const acts = ACTIVITIES.filter((a) => a.athleteId === athlete.id);
   const weeks = weeklyStats(athlete.id);
