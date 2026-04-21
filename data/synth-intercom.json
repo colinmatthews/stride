@@ -1,0 +1,1750 @@
+{
+  "cohortId": "cohort-2026-q2",
+  "contacts": [
+    {
+      "userId": "f659edf0-19d4-43c0-a588-b5998a41138d",
+      "intercomId": "69e7cdae62921f6fdd784736",
+      "email": "kane.christiansen@yahoo.com"
+    },
+    {
+      "userId": "2bafcfb4-1ca0-45f8-a673-550c6dd3a7e3",
+      "intercomId": "69e7cdae914eb41d847071bd",
+      "email": "jenifer.prosacco@gmail.com"
+    },
+    {
+      "userId": "30edb211-be61-4855-b9b1-0f30306c57a8",
+      "intercomId": "69e7cdae3fab44149af5d6f8",
+      "email": "tim.doyle@outlook.com"
+    },
+    {
+      "userId": "89691128-346c-40aa-8ce0-2e79aaefb4e0",
+      "intercomId": "69e7cdaef20cba0d8528bdd3",
+      "email": "clint.franecki@hotmail.com"
+    },
+    {
+      "userId": "99e8f010-28a0-4fd4-a122-1835faf26810",
+      "intercomId": "69e7cdaef51c897dbfe822bc",
+      "email": "ruth.berge@gmail.com"
+    },
+    {
+      "userId": "151cffd9-b4a7-47c4-95e0-7e9835d8810f",
+      "intercomId": "69e7cdaecea1cbe55eaf8b60",
+      "email": "joanna.hartmann@hotmail.com"
+    },
+    {
+      "userId": "6dd114d2-b195-4c3a-a3bd-2d9262bc18de",
+      "intercomId": "69e7cdaefa8bfa9f45f462bf",
+      "email": "philip.lockman@gmail.com"
+    },
+    {
+      "userId": "92b237e3-2c8e-42a3-b2a9-c476f44594e4",
+      "intercomId": "69e7cdaf309f7e419f1e2545",
+      "email": "edwardo.williamson@gmail.com"
+    },
+    {
+      "userId": "3a9e2c94-759e-49a8-b037-4285472edb1c",
+      "intercomId": "69e7cdafeaf889f25ae6b748",
+      "email": "eleazar.pouros@icloud.com"
+    },
+    {
+      "userId": "880087d2-0730-4b19-b426-c6c2c3a9e610",
+      "intercomId": "69e7cdafadd0a4b3329f476d",
+      "email": "darla.morar@icloud.com"
+    },
+    {
+      "userId": "f75c74cd-a09c-423e-90c7-70d58abf86fa",
+      "intercomId": "69e7cdafadd0a4cbba9f3a73",
+      "email": "london.keebler@gmail.com"
+    },
+    {
+      "userId": "9ab1f293-4862-426c-be16-10a9230df23d",
+      "intercomId": "69e7cdaf3fab44f674f5eac4",
+      "email": "guadalupe.zboncak@gmail.com"
+    },
+    {
+      "userId": "a6de1840-ad2c-4de4-9e58-00b743a0c136",
+      "intercomId": "69e7cdb0cf4cea059e733925",
+      "email": "lauren.morar@icloud.com"
+    },
+    {
+      "userId": "e82bc5de-4f23-42ea-8279-1ec8f6faa2e6",
+      "intercomId": "69e7cdb0309f7e537b1e230c",
+      "email": "rick.schmeler@outlook.com"
+    },
+    {
+      "userId": "7b920479-d32f-4179-b810-1983ad07b449",
+      "intercomId": "69e7cdb07c3b0817bfe316b3",
+      "email": "kyle.romaguera@icloud.com"
+    },
+    {
+      "userId": "3cc563fa-e4cc-4bf6-b2ab-93846ab3643c",
+      "intercomId": "69e7cdb0960064c1d9df70fc",
+      "email": "darrel.kutch@proton.me"
+    },
+    {
+      "userId": "ee71fd1e-d896-405c-b056-8e55b7372276",
+      "intercomId": "69e7cdb0e3fe04ffb03e02ec",
+      "email": "cali.kassulke@proton.me"
+    },
+    {
+      "userId": "a4882fcf-e9e1-4305-a64d-5482c1fc30db",
+      "intercomId": "69e7cdb0c8f8dcf0218827ea",
+      "email": "bryan.vandervort@hotmail.com"
+    },
+    {
+      "userId": "6018a6b8-13db-4e1f-830f-4a29e5a39535",
+      "intercomId": "69e7cdb0c8f8dcd60e882bd0",
+      "email": "lola.purdy@proton.me"
+    },
+    {
+      "userId": "181c38ea-855a-4fa8-bb70-8f2b3817c5ac",
+      "intercomId": "69e7cdb0c8f8dce3d8882d2a",
+      "email": "sophie.farrell@outlook.com"
+    },
+    {
+      "userId": "f7d6c9e6-9a62-410d-933b-582fdd6c2009",
+      "intercomId": "69e7cdb11094356d942130f2",
+      "email": "franklin.hettinger@yahoo.com"
+    },
+    {
+      "userId": "c22456a0-06b3-4a4e-8e43-63adad62b5a4",
+      "intercomId": "69e7cdb141e40846c303520d",
+      "email": "irene.marquardt@proton.me"
+    },
+    {
+      "userId": "d2ecfa5f-45bc-4e3c-8b16-44fabf6c6d2f",
+      "intercomId": "69e7cdb1650e3681307fbe9c",
+      "email": "shannon.veum@outlook.com"
+    },
+    {
+      "userId": "39495dd7-55c5-4317-97d3-6cd674e1ea80",
+      "intercomId": "69e7cdb1cea1cbd998af8de7",
+      "email": "fernando.pouros@outlook.com"
+    },
+    {
+      "userId": "b5d37c21-e5a0-4b50-8936-1241e0714e2f",
+      "intercomId": "69e7cdb2e3fe041f943df435",
+      "email": "cynthia.nolan@yahoo.com"
+    },
+    {
+      "userId": "00f66a3f-c16e-4f79-b2f3-fa983232c50f",
+      "intercomId": "69e7cdb2c8f8dce2fd882aa1",
+      "email": "brendan.gulgowski@hotmail.com"
+    },
+    {
+      "userId": "18297903-7f66-4b94-b63f-2503c31701cc",
+      "intercomId": "69e7cdb23e9f28aa6df4de41",
+      "email": "rebeca.ratkewalsh@yahoo.com"
+    },
+    {
+      "userId": "32141b08-fd94-4986-82e7-356dbc06704c",
+      "intercomId": "69e7cdb2dd2175fb9fe00774",
+      "email": "jadon.beerpowlowski@icloud.com"
+    },
+    {
+      "userId": "4c85504a-fd0e-4cc7-8641-337b70ffcf8f",
+      "intercomId": "69e7cdb2914eb406237079dd",
+      "email": "patricia.gleason@gmail.com"
+    },
+    {
+      "userId": "0c9bdcf8-7629-44e9-9950-0619eea3de3b",
+      "intercomId": "69e7cdb2960064a392df7de8",
+      "email": "nelson.smitham@hotmail.com"
+    },
+    {
+      "userId": "782cff3e-b78d-4757-b93e-aa1911869162",
+      "intercomId": "69e7cdb22e6fa5ec91956168",
+      "email": "judith.harber@gmail.com"
+    },
+    {
+      "userId": "408df981-8696-4315-812f-78df9c546aa5",
+      "intercomId": "69e7cdb2c9992285a7ad19b5",
+      "email": "ole.rath@outlook.com"
+    },
+    {
+      "userId": "a7b5a2b8-34b7-43fb-bf67-e8b471300f3a",
+      "intercomId": "69e7cdb310943550312136a8",
+      "email": "pietro.bechtelar@outlook.com"
+    },
+    {
+      "userId": "a95d0d86-7a0d-4752-b776-a6f9c1659d11",
+      "intercomId": "69e7cdb3345ac9e4daaebc3a",
+      "email": "tabitha.hoppe@icloud.com"
+    },
+    {
+      "userId": "dfaf2799-6526-42b3-9089-d95c819e6422",
+      "intercomId": "69e7cdb33aefa4610385952d",
+      "email": "gerard.oconner@gmail.com"
+    },
+    {
+      "userId": "5e08b71f-8937-4611-9d33-8c09100d107d",
+      "intercomId": "69e7cdb3e908b2fa63406af1",
+      "email": "jessy.bashirian@outlook.com"
+    },
+    {
+      "userId": "953f7b27-08f6-4006-920c-74e1f5e9df4f",
+      "intercomId": "69e7cdb3914eb420e3706dee",
+      "email": "evans.hahn@proton.me"
+    },
+    {
+      "userId": "b85e050c-b5a6-4c76-8e41-9f60582af756",
+      "intercomId": "69e7cdb38ef94f8bcb181bbb",
+      "email": "mittie.konopelski@hotmail.com"
+    },
+    {
+      "userId": "e49a5dfe-b44f-40bb-89f4-51745de25e01",
+      "intercomId": "69e7cdb4650e36931a7fbd79",
+      "email": "darion.willms@proton.me"
+    },
+    {
+      "userId": "619fa158-6dd9-4541-a56a-a1622d062e83",
+      "intercomId": "69e7cdb4add0a4be349f4a3c",
+      "email": "marlene.rau@gmail.com"
+    },
+    {
+      "userId": "ca25e356-79f3-413e-ba4d-dde4c7dbca28",
+      "intercomId": "69e7cdb4fb7c8836109ec295",
+      "email": "eldridge.mccullough@proton.me"
+    },
+    {
+      "userId": "f0494bc1-885e-4dbb-b7eb-bd4c355fdbb8",
+      "intercomId": "69e7cdb4f20cba004228ccf4",
+      "email": "juan.sauer@yahoo.com"
+    },
+    {
+      "userId": "95c8dac9-6f89-43a9-a209-c83a17223606",
+      "intercomId": "69e7cdb40c0ff10ccc6fb3b0",
+      "email": "darin.schuster@proton.me"
+    },
+    {
+      "userId": "dd65793c-7513-4f42-a740-58857f6437c3",
+      "intercomId": "69e7cdb471700ae464c9d139",
+      "email": "gilberto.kozey@outlook.com"
+    },
+    {
+      "userId": "d7443054-f859-427a-a76f-e999360783fe",
+      "intercomId": "69e7cdb5e3fe0400343e0144",
+      "email": "laura.littel@proton.me"
+    },
+    {
+      "userId": "e88cabce-5619-4078-a490-0d528c391088",
+      "intercomId": "69e7cdb5e8c31f4811247d6d",
+      "email": "flossie.schroeder@icloud.com"
+    },
+    {
+      "userId": "1749c298-2947-4174-8d06-7b9acd58dfe5",
+      "intercomId": "69e7cdb5fb7c8846bb9ec1af",
+      "email": "renee.stracke@gmail.com"
+    },
+    {
+      "userId": "f550ad22-c909-445c-9c6f-6c7ee1edc3cd",
+      "intercomId": "69e7cdb51094356a102132c9",
+      "email": "elvira.aufderhar@icloud.com"
+    },
+    {
+      "userId": "44e0bbdf-f1da-4a2a-8fe7-05db7067ea48",
+      "intercomId": "69e7cdb53fab4409d8f5e5dc",
+      "email": "patrick.heaney@icloud.com"
+    },
+    {
+      "userId": "04cb2357-957b-404b-ae88-17834605351e",
+      "intercomId": "69e7cdb58ef94f8623181ec1",
+      "email": "robert.swift@icloud.com"
+    },
+    {
+      "userId": "009d5594-0ba9-4ba3-8522-adfa21d99cbd",
+      "intercomId": "69e7cdb64cd08fed11f5cf86",
+      "email": "colin.mckenzie@icloud.com"
+    },
+    {
+      "userId": "83194927-8052-41f5-8c4a-c9765edf1bf2",
+      "intercomId": "69e7cdb6fb7c883e3b9ec1b3",
+      "email": "dwayne.hane@outlook.com"
+    },
+    {
+      "userId": "7adc4f1e-f2b0-4689-aea7-cf0f1d427a60",
+      "intercomId": "69e7cdb6fa8bfa9886f46744",
+      "email": "tony.shields@gmail.com"
+    },
+    {
+      "userId": "44af911f-4199-4a40-8f4a-b9549df12fbe",
+      "intercomId": "69e7cdb6f20cba04c028ccf2",
+      "email": "felix.dubuque@outlook.com"
+    },
+    {
+      "userId": "b4b00655-7534-4f67-99f3-ab91a19b3d0d",
+      "intercomId": "69e7cdb6ffa6729a9ebfca8c",
+      "email": "fernando.kihnhammes@yahoo.com"
+    },
+    {
+      "userId": "b6dac4b4-fa54-43b3-894a-dcc31b56040e",
+      "intercomId": "69e7cdb62e6fa5efec955eb9",
+      "email": "jeanne.dibbert@gmail.com"
+    },
+    {
+      "userId": "72469840-74b0-49f2-a71a-868e30d9e9c6",
+      "intercomId": "69e7cdb6cc92e8d101359e4e",
+      "email": "myron.rice@yahoo.com"
+    },
+    {
+      "userId": "41c99029-3884-4fdb-b117-2f275a264e0e",
+      "intercomId": "69e7cdb7350f8bd43d4a1ae6",
+      "email": "verna.keeling@icloud.com"
+    },
+    {
+      "userId": "c3b3ab30-29d0-4b57-be57-0140a6824af0",
+      "intercomId": "69e7cdb7c8f8dce4ba882b2a",
+      "email": "lavina.keebler@hotmail.com"
+    },
+    {
+      "userId": "95a1e15d-967d-45d1-9cd2-62b8a33058da",
+      "intercomId": "69e7cdb79d355dcddbb66758",
+      "email": "oscar.russel@icloud.com"
+    },
+    {
+      "userId": "e5136dd0-8631-45f5-88b5-ff474409804e",
+      "intercomId": "69e7cdb7add0a4bedd9f4604",
+      "email": "phoebe.lindgren@proton.me"
+    },
+    {
+      "userId": "e62b48be-caaf-4404-83aa-90b5a8521dea",
+      "intercomId": "69e7cdb762921f751e7843e5",
+      "email": "jerry.mills@outlook.com"
+    },
+    {
+      "userId": "c849b461-2a28-4b19-b4f7-c80af9de3396",
+      "intercomId": "69e7cdb7fb7c8836889ec436",
+      "email": "boyd.graham@hotmail.com"
+    },
+    {
+      "userId": "14899269-fbec-493a-9997-8583c216a748",
+      "intercomId": "69e7cdb7c8f8dcf668881d6e",
+      "email": "torrance.bechtelar@proton.me"
+    },
+    {
+      "userId": "b1725068-9ad3-41d2-bfd8-f14a5e189a45",
+      "intercomId": "69e7cdb8f20cba098b28c877",
+      "email": "nettie.cummerata@proton.me"
+    },
+    {
+      "userId": "d20b7d62-d83b-4897-addb-1dab5eb16e0f",
+      "intercomId": "69e7cdb8e3fe04278b3dd609",
+      "email": "brayan.pagac@hotmail.com"
+    },
+    {
+      "userId": "2ccf65c5-ed6c-4c1e-98d5-e60e15ff9a74",
+      "intercomId": "69e7cdb8eaf889f8f2e6b5e6",
+      "email": "lilla.schneider@hotmail.com"
+    },
+    {
+      "userId": "95b61c46-a505-4faa-aa36-c1446f182f16",
+      "intercomId": "69e7cdb8f51c89982ce81ea3",
+      "email": "alysha.hackett@outlook.com"
+    },
+    {
+      "userId": "b40a2ffe-50e6-4ffd-a46d-528eb919f28e",
+      "intercomId": "69e7cdb8309f7e50ef1e24b4",
+      "email": "paige.kulas@hotmail.com"
+    },
+    {
+      "userId": "acc9edc0-03a6-46ee-ae5b-43256d1b8474",
+      "intercomId": "69e7cdb9f20cbaf99a28cf59",
+      "email": "walter.franecki@outlook.com"
+    },
+    {
+      "userId": "0409a167-516c-4115-8faa-590ae9db1e18",
+      "intercomId": "69e7cdb9cea1cbdb9daf8bc4",
+      "email": "elton.schusterabbott@yahoo.com"
+    },
+    {
+      "userId": "56139bfe-a6ac-416d-b699-25500d484f46",
+      "intercomId": "69e7cdb9309f7e55ad1e2674",
+      "email": "maybell.kiehn@gmail.com"
+    },
+    {
+      "userId": "785926f4-a5c2-4f73-b128-5d639b220ba7",
+      "intercomId": "69e7cdb9dd2175fd8be00654",
+      "email": "chauncey.franecki@icloud.com"
+    },
+    {
+      "userId": "72de716c-e31e-468f-a1a1-6c6f85355157",
+      "intercomId": "69e7cdb92e6fa5f72c955bfe",
+      "email": "rasheed.hartmann@proton.me"
+    },
+    {
+      "userId": "5fad2de7-9c28-4625-8102-f8f64871a39a",
+      "intercomId": "69e7cdb9c999227112ad1d99",
+      "email": "elmore.daniel@proton.me"
+    },
+    {
+      "userId": "1047dbb6-55f0-4d97-8b7d-e649e39ab2be",
+      "intercomId": "69e7cdb9650e3688d37fbcf1",
+      "email": "woodrow.dooley@proton.me"
+    },
+    {
+      "userId": "1f0a7f38-7b13-43b3-a93d-f85304a8f6b7",
+      "intercomId": "69e7cdbafb7c8846bb9ec1be",
+      "email": "alek.gutmann@outlook.com"
+    },
+    {
+      "userId": "6b3e4501-84d0-4650-b167-68907f8a4cc8",
+      "intercomId": "69e7cdbac9992285a7ad19cd",
+      "email": "carlos.halvorson@yahoo.com"
+    },
+    {
+      "userId": "d338991e-42ef-4dca-b816-54b713a1d779",
+      "intercomId": "69e7cdba2e6fa5dc129563ca",
+      "email": "cecile.predovic@gmail.com"
+    },
+    {
+      "userId": "0c8402ea-31b9-4653-aaf2-9674d78421b3",
+      "intercomId": "69e7cdbaf51c8984a6e82190",
+      "email": "ephraim.grantkassulk@yahoo.com"
+    },
+    {
+      "userId": "f0209ead-0877-41a8-bc72-a2d92f81a4cd",
+      "intercomId": "69e7cdba41e408662c033ce7",
+      "email": "cesar.oconnell@gmail.com"
+    },
+    {
+      "userId": "fe8c2ff2-414d-4615-afa6-2fd41019e7d7",
+      "intercomId": "69e7cdbaef02c11960378597",
+      "email": "dion.effertzgleason@yahoo.com"
+    },
+    {
+      "userId": "507135ce-4ddc-42bf-ba58-a814cd2f5acc",
+      "intercomId": "69e7cdbbd6dca28d96c2f410",
+      "email": "skyla.will@outlook.com"
+    },
+    {
+      "userId": "1f9b5631-2ca8-47e1-945c-f3dd366f2c5b",
+      "intercomId": "69e7cdbbfa8bfa9886f46757",
+      "email": "jerald.harvey@hotmail.com"
+    },
+    {
+      "userId": "0d3d5b5e-2271-43ff-a6e8-4baf4a010fcc",
+      "intercomId": "69e7cdbb6c4f922b980aeb94",
+      "email": "patti.doyle@proton.me"
+    },
+    {
+      "userId": "208f5558-7e88-42f3-a1a9-66c3da674c85",
+      "intercomId": "69e7cdbb960064a72edf7c79",
+      "email": "devin.ryan@outlook.com"
+    },
+    {
+      "userId": "1e3d81f3-d2d0-48ce-aede-3446682b248c",
+      "intercomId": "69e7cdbb54ea36381ac81481",
+      "email": "chelsea.nicolas@gmail.com"
+    },
+    {
+      "userId": "85badb6a-44c7-4cdd-8e65-959bb5262e52",
+      "intercomId": "69e7cdbb3fab440e57f5e506",
+      "email": "erma.baumbach@gmail.com"
+    },
+    {
+      "userId": "efdd3911-f5bc-4df3-b062-05c95a30c9c0",
+      "intercomId": "69e7cdbb8ef94f86c4181cd1",
+      "email": "matthew.towne@hotmail.com"
+    },
+    {
+      "userId": "27960c0c-e687-46ee-a59e-f874f29446f0",
+      "intercomId": "69e7cdbcfb7c88622e9ea323",
+      "email": "earnestine.bahringer@proton.me"
+    },
+    {
+      "userId": "56c7c95c-3384-40a8-b7f9-d29d9b5176d3",
+      "intercomId": "69e7cdbc6c4f923eb30ae435",
+      "email": "lelah.damore@outlook.com"
+    },
+    {
+      "userId": "187d1725-b766-47ce-8fc5-b74d0e7aaea9",
+      "intercomId": "69e7cdbcf51c8998f7e81f63",
+      "email": "al.schmittwilliamson@outlook.com"
+    },
+    {
+      "userId": "a6c8a6bd-2d8d-466e-a4d7-8495040ff6b5",
+      "intercomId": "69e7cdbcadd0a4cabf9f3bab",
+      "email": "dagmar.von@yahoo.com"
+    },
+    {
+      "userId": "a47330e3-342a-412a-95b8-4a18649df963",
+      "intercomId": "69e7cdbccf4cea20c4733792",
+      "email": "juanita.hagenes@yahoo.com"
+    },
+    {
+      "userId": "c4742a0b-5080-44b1-bd03-b5154d5ce6e6",
+      "intercomId": "69e7cdbc8e1cda0ab51c7125",
+      "email": "reagan.lebsack@gmail.com"
+    },
+    {
+      "userId": "01c2a313-bdd6-4a34-ae01-30296ed54694",
+      "intercomId": "69e7cdbcffa672c08ebfbbcf",
+      "email": "maci.feeney@proton.me"
+    },
+    {
+      "userId": "824336b3-56ff-4c31-b548-cdd5a50b065b",
+      "intercomId": "69e7cdbdffa672af1dbfc736",
+      "email": "tricia.heidenreich@yahoo.com"
+    },
+    {
+      "userId": "8bb286da-8191-452b-a36e-3860c178ab40",
+      "intercomId": "69e7cdbd6c4f9229ee0aec29",
+      "email": "vera.johns@outlook.com"
+    },
+    {
+      "userId": "0c4096f8-4b4e-4580-96dc-33de175d13c0",
+      "intercomId": "69e7cdbd6c4f922b980aeb9a",
+      "email": "angela.barrows@yahoo.com"
+    },
+    {
+      "userId": "d7ec6048-a42d-4f82-a40e-1948ad302ed9",
+      "intercomId": "69e7cdbdf51c898fbfe82241",
+      "email": "jenny.runolfsdottir@gmail.com"
+    },
+    {
+      "userId": "452a09de-771a-4d36-bde3-831edc0d7581",
+      "intercomId": "69e7cdbd5e520f9090d19a37",
+      "email": "javier.olson@proton.me"
+    },
+    {
+      "userId": "addb792a-2b31-420b-9b82-102e35138930",
+      "intercomId": "69e7cdbd309f7e49021e24af",
+      "email": "gilbert.dickinson@icloud.com"
+    },
+    {
+      "userId": "3d340dca-c275-417e-b043-3e77c2769fc6",
+      "intercomId": "69e7cdbe650e36994d7fbcbc",
+      "email": "sally.pacocha@hotmail.com"
+    },
+    {
+      "userId": "87e512c9-11b1-4db1-91f5-5dffc61c86e1",
+      "intercomId": "69e7cdbe67c7c3d7c717a23d",
+      "email": "otho.kunde@gmail.com"
+    },
+    {
+      "userId": "2c0680f3-4430-4bf3-aabd-645bd25ecfc6",
+      "intercomId": "69e7cdc0914eb420e3706e1e",
+      "email": "shawn.kautzer@gmail.com"
+    },
+    {
+      "userId": "ce6a674c-ef2d-4b41-84ea-b4b06a2d3a69",
+      "intercomId": "69e7cdc0760a66cba03b571c",
+      "email": "xzavier.schmeler@gmail.com"
+    },
+    {
+      "userId": "6868f2a6-22fe-4ef3-b5a7-659927893b05",
+      "intercomId": "69e7cdc0cea1cbde28af8bda",
+      "email": "pierce.pouros@gmail.com"
+    },
+    {
+      "userId": "c6eae924-3eca-442c-8739-0572f323c690",
+      "intercomId": "69e7cdc0e8c31f6cc8247296",
+      "email": "mike.cassin@yahoo.com"
+    },
+    {
+      "userId": "4341216c-22a3-412e-ad5a-8aaa407e9df2",
+      "intercomId": "69e7cdc154ea363f32c8111d",
+      "email": "sven.klingwest@proton.me"
+    },
+    {
+      "userId": "657c23f2-997a-4385-9a29-2432d4ef925c",
+      "intercomId": "69e7cdc1ef02c1024337879d",
+      "email": "jefferey.hessel@icloud.com"
+    },
+    {
+      "userId": "d90eba3a-6a1a-4f0f-a6dc-9be65accc6d1",
+      "intercomId": "69e7cdc2fa8bfaa4f0f45fa4",
+      "email": "rico.kuphal@yahoo.com"
+    },
+    {
+      "userId": "cc81c9cc-c82a-49b2-93eb-ec9ae9a27b43",
+      "intercomId": "69e7cdc23fab44068ff5e60d",
+      "email": "adan.kub@gmail.com"
+    },
+    {
+      "userId": "4ff5026f-2c1f-46c5-ba32-feeac155a529",
+      "intercomId": "69e7cdc34cd08f0872f5ccea",
+      "email": "julian.jerde@gmail.com"
+    },
+    {
+      "userId": "e55c5fb9-e047-43be-b65f-775e9cc56d5c",
+      "intercomId": "69e7cdc362921f72197846f7",
+      "email": "simon.dietrich@gmail.com"
+    },
+    {
+      "userId": "7165cc25-52cb-4351-ba1f-c69e826daade",
+      "intercomId": "69e7cdc3960064acb5df7a86",
+      "email": "tyler.jacobson@gmail.com"
+    },
+    {
+      "userId": "3dbf233c-21f0-4d5d-88ee-014ae793cf47",
+      "intercomId": "69e7cdc44cd08ffdeef5ce66",
+      "email": "alyson.schmeler@yahoo.com"
+    },
+    {
+      "userId": "2840b098-f718-4df6-b5e3-96054af4c081",
+      "intercomId": "69e7cdc55e520f9168d19bbd",
+      "email": "jordane.lueilwitz@gmail.com"
+    },
+    {
+      "userId": "418cb016-434c-4e6e-a573-af95a1e87991",
+      "intercomId": "69e7cdc56c4f9225550aed4e",
+      "email": "renee.wilkinson@yahoo.com"
+    },
+    {
+      "userId": "6245a95f-9312-4322-b42e-186f16fdd42a",
+      "intercomId": "69e7cdc6c1772cfbab1e0edb",
+      "email": "jermey.mcglynn@proton.me"
+    },
+    {
+      "userId": "f20c4dbf-6a7a-4738-a8cb-a1b8ee0d0582",
+      "intercomId": "69e7cdc65e520f9453d1984a",
+      "email": "grant.beier@yahoo.com"
+    },
+    {
+      "userId": "145bae71-bc8c-4786-b010-a58e36c3142e",
+      "intercomId": "69e7cdc7e3fe04fe583e04d8",
+      "email": "frankie.mueller@hotmail.com"
+    },
+    {
+      "userId": "4ab84304-afdc-4ca4-9ea8-177d86f160be",
+      "intercomId": "69e7cdc871700aeae1c9ce97",
+      "email": "annabel.farrell@icloud.com"
+    },
+    {
+      "userId": "5d1d26c2-3bba-4b84-a52e-967f29890de9",
+      "intercomId": "69e7cdc8760a66cba03b573a",
+      "email": "nichole.ruecker@icloud.com"
+    },
+    {
+      "userId": "38fd1b50-63d5-4d04-9331-28466ee751f0",
+      "intercomId": "69e7cdc86c4f9224540aed4f",
+      "email": "ray.kubyost@proton.me"
+    },
+    {
+      "userId": "d933ad64-da77-43a5-bf77-9ec7b97373e5",
+      "intercomId": "69e7cdc9cea1cbd8cfaf8d22",
+      "email": "harry.reynolds@hotmail.com"
+    },
+    {
+      "userId": "9f54d3f0-f0e8-4f18-8f8a-b7a9e04fe794",
+      "intercomId": "69e7cdc95e520f9168d19bcb",
+      "email": "annette.ohara@proton.me"
+    },
+    {
+      "userId": "b110fb54-5ca2-421a-8c40-1f4c96319ca8",
+      "intercomId": "69e7cdca0c0ff12e4a6faa2a",
+      "email": "patrick.bauch@gmail.com"
+    },
+    {
+      "userId": "94380030-15c9-484e-b619-158d7bf24666",
+      "intercomId": "69e7cdcaf51c897d47e8215d",
+      "email": "eloise.kub@hotmail.com"
+    },
+    {
+      "userId": "2ca6a45e-47eb-4020-8a72-f838a14c7860",
+      "intercomId": "69e7cdcb3fab44ef0bf5e82a",
+      "email": "crystal.sauer@yahoo.com"
+    },
+    {
+      "userId": "aed9ae65-0dc1-4971-9f31-9b0a81294fdf",
+      "intercomId": "69e7cdcbeaf889f14be6b894",
+      "email": "brenda.heathcote@proton.me"
+    },
+    {
+      "userId": "04725609-e29a-46b6-980b-a05f68eb9cd7",
+      "intercomId": "69e7cdcc67c7c3e6ab17a0da",
+      "email": "gonzalo.roberts@hotmail.com"
+    },
+    {
+      "userId": "b62a8a5e-917c-4c7e-946e-ead1d5236452",
+      "intercomId": "69e7cdccadd0a4a6079f46bc",
+      "email": "rochelle.pouros@yahoo.com"
+    },
+    {
+      "userId": "b76bc292-caf1-4044-93e3-4c7c1701e286",
+      "intercomId": "69e7cdcc650e3698867fbcea",
+      "email": "roberto.collier@gmail.com"
+    },
+    {
+      "userId": "47016794-bdc0-4713-af27-9b8058150162",
+      "intercomId": "69e7cdcdcea1cbe834af8c9c",
+      "email": "katherine.glover@proton.me"
+    },
+    {
+      "userId": "80a16482-bc21-42e8-b71a-dda1104246f9",
+      "intercomId": "69e7cdce8ef94f999d181bf1",
+      "email": "marcos.oconnell@outlook.com"
+    },
+    {
+      "userId": "f3ffbf94-6919-4f3c-9eff-8fc27b3aa29c",
+      "intercomId": "69e7cdcec99922925bad16fd",
+      "email": "ann.schimmelstehr@hotmail.com"
+    },
+    {
+      "userId": "10fdb622-48ba-44fb-9896-35c0100db717",
+      "intercomId": "69e7cdcf914eb4fdbc707bf3",
+      "email": "jordon.goldner@outlook.com"
+    },
+    {
+      "userId": "a8da21a0-9f96-4a78-9f6f-e31101a15d0d",
+      "intercomId": "69e7cdcf71700aef0dc9cdf3",
+      "email": "irma.bayer@outlook.com"
+    },
+    {
+      "userId": "f9698c45-efe6-4c77-b392-5d311f86cd5b",
+      "intercomId": "69e7cdd02e6fa5fb0b955a54",
+      "email": "alton.streich@hotmail.com"
+    },
+    {
+      "userId": "7c326eb6-81fa-4491-af2a-3bca9e153f6b",
+      "intercomId": "69e7cdd041e40845300351a6",
+      "email": "kane.boyle@yahoo.com"
+    },
+    {
+      "userId": "747f75a3-1222-42a2-a5e7-a23024211735",
+      "intercomId": "69e7cdd162921f695f7849a6",
+      "email": "lucas.corkery@icloud.com"
+    },
+    {
+      "userId": "016eac75-1ec2-487a-9f98-0120bb2d2435",
+      "intercomId": "69e7cdd19d355ddfcdb667c7",
+      "email": "emily.lindgren@gmail.com"
+    },
+    {
+      "userId": "2b193645-b497-4aeb-8304-90795c11b7b6",
+      "intercomId": "69e7cdd2760a66bd583b5431",
+      "email": "terrence.leannon@gmail.com"
+    },
+    {
+      "userId": "13f6700b-883b-4237-b43a-ad614f9b0809",
+      "intercomId": "69e7cdd2760a66b6433b5867",
+      "email": "alec.lockman@outlook.com"
+    },
+    {
+      "userId": "0d888235-931f-40cc-b422-baceb23d31b6",
+      "intercomId": "69e7cdd39d355dde01b6671f",
+      "email": "wendy.bechtelar@yahoo.com"
+    }
+  ],
+  "conversations": [
+    {
+      "userId": "f659edf0-19d4-43c0-a588-b5998a41138d",
+      "intercomContactId": "69e7cdae62921f6fdd784736",
+      "conversationId": "215474010933637",
+      "scenario": "billing-overcharge",
+      "title": "Charged twice after cancelling subscription"
+    },
+    {
+      "userId": "2bafcfb4-1ca0-45f8-a673-550c6dd3a7e3",
+      "intercomContactId": "69e7cdae914eb41d847071bd",
+      "conversationId": "215474010933654",
+      "scenario": "gps-drift",
+      "title": "GPS track cut through building, distance way off"
+    },
+    {
+      "userId": "30edb211-be61-4855-b9b1-0f30306c57a8",
+      "intercomContactId": "69e7cdae3fab44149af5d6f8",
+      "conversationId": "215474010933660",
+      "scenario": "kudos-missing",
+      "title": "Missing kudos from friend on activity"
+    },
+    {
+      "userId": "89691128-346c-40aa-8ce0-2e79aaefb4e0",
+      "intercomContactId": "69e7cdaef20cba0d8528bdd3",
+      "conversationId": "215474010933696",
+      "scenario": "segment-mismatch",
+      "title": "Nørrebro Hill Run segment not recorded"
+    },
+    {
+      "userId": "151cffd9-b4a7-47c4-95e0-7e9835d8810f",
+      "intercomContactId": "69e7cdaecea1cbe55eaf8b60",
+      "conversationId": "215474010933849",
+      "scenario": "account-password",
+      "title": "Password reset email never arrived"
+    },
+    {
+      "userId": "99e8f010-28a0-4fd4-a122-1835faf26810",
+      "intercomContactId": "69e7cdaef51c897dbfe822bc",
+      "conversationId": "215474010933846",
+      "scenario": "account-password",
+      "title": "Password reset email not arriving"
+    },
+    {
+      "userId": "6dd114d2-b195-4c3a-a3bd-2d9262bc18de",
+      "intercomContactId": "69e7cdaefa8bfa9f45f462bf",
+      "conversationId": "215474010933868",
+      "scenario": "account-deletion",
+      "title": "Request permanent account deletion with all data"
+    },
+    {
+      "userId": "92b237e3-2c8e-42a3-b2a9-c476f44594e4",
+      "intercomContactId": "69e7cdaf309f7e419f1e2545",
+      "conversationId": "215474010933920",
+      "scenario": "gps-drift",
+      "title": "GPS track cuts through buildings on sunset ride"
+    },
+    {
+      "userId": "880087d2-0730-4b19-b426-c6c2c3a9e610",
+      "intercomContactId": "69e7cdafadd0a4b3329f476d",
+      "conversationId": "215474010934034",
+      "scenario": "account-password",
+      "title": "Password reset email never arrived"
+    },
+    {
+      "userId": "3a9e2c94-759e-49a8-b037-4285472edb1c",
+      "intercomContactId": "69e7cdafeaf889f25ae6b748",
+      "conversationId": "215474010934035",
+      "scenario": "feature-request",
+      "title": "Power zones for cycling analysis please"
+    },
+    {
+      "userId": "f75c74cd-a09c-423e-90c7-70d58abf86fa",
+      "intercomContactId": "69e7cdafadd0a4cbba9f3a73",
+      "conversationId": "215474010934054",
+      "scenario": "kudos-missing",
+      "title": "Kudos from friend disappeared?"
+    },
+    {
+      "userId": "9ab1f293-4862-426c-be16-10a9230df23d",
+      "intercomContactId": "69e7cdaf3fab44f674f5eac4",
+      "conversationId": "215474010934088",
+      "scenario": "app-crash",
+      "title": "App keeps crashing when I open the feed"
+    },
+    {
+      "userId": "a6de1840-ad2c-4de4-9e58-00b743a0c136",
+      "intercomContactId": "69e7cdb0cf4cea059e733925",
+      "conversationId": "215474010934189",
+      "scenario": "elevation-wrong",
+      "title": "Elevation data way off on lunchtime loop"
+    },
+    {
+      "userId": "e82bc5de-4f23-42ea-8279-1ec8f6faa2e6",
+      "intercomContactId": "69e7cdb0309f7e537b1e230c",
+      "conversationId": "215474010934224",
+      "scenario": "billing-refund",
+      "title": "Refund request for April premium charge"
+    },
+    {
+      "userId": "7b920479-d32f-4179-b810-1983ad07b449",
+      "intercomContactId": "69e7cdb07c3b0817bfe316b3",
+      "conversationId": "215474010934244",
+      "scenario": "gps-drift",
+      "title": "GPS track went straight through a building"
+    },
+    {
+      "userId": "3cc563fa-e4cc-4bf6-b2ab-93846ab3643c",
+      "intercomContactId": "69e7cdb0960064c1d9df70fc",
+      "conversationId": "215474010934272",
+      "scenario": "segment-mismatch",
+      "title": "Monsanto Park Run segment not recording"
+    },
+    {
+      "userId": "ee71fd1e-d896-405c-b056-8e55b7372276",
+      "intercomContactId": "69e7cdb0e3fe04ffb03e02ec",
+      "conversationId": "215474010934378",
+      "scenario": "sync-failure",
+      "title": "Garmin run from yesterday missing from feed"
+    },
+    {
+      "userId": "a4882fcf-e9e1-4305-a64d-5482c1fc30db",
+      "intercomContactId": "69e7cdb0c8f8dcf0218827ea",
+      "conversationId": "215474010934421",
+      "scenario": "billing-downgrade",
+      "title": "How do I downgrade from premium to free?"
+    },
+    {
+      "userId": "6018a6b8-13db-4e1f-830f-4a29e5a39535",
+      "intercomContactId": "69e7cdb0c8f8dcd60e882bd0",
+      "conversationId": "215474010934435",
+      "scenario": "segment-mismatch",
+      "title": "Djurgården Loop segment not recorded on ride"
+    },
+    {
+      "userId": "181c38ea-855a-4fa8-bb70-8f2b3817c5ac",
+      "intercomContactId": "69e7cdb0c8f8dce3d8882d2a",
+      "conversationId": "215474010934462",
+      "scenario": "gps-drift",
+      "title": "GPS track went straight through the building??"
+    },
+    {
+      "userId": "f7d6c9e6-9a62-410d-933b-582fdd6c2009",
+      "intercomContactId": "69e7cdb11094356d942130f2",
+      "conversationId": "215474010934607",
+      "scenario": "sync-failure",
+      "title": "Garmin Forerunner 265 workout disappeared from feed"
+    },
+    {
+      "userId": "c22456a0-06b3-4a4e-8e43-63adad62b5a4",
+      "intercomContactId": "69e7cdb141e40846c303520d",
+      "conversationId": "215474010934623",
+      "scenario": "elevation-wrong",
+      "title": "Elevation gain showing as zero on mountain ride"
+    },
+    {
+      "userId": "d2ecfa5f-45bc-4e3c-8b16-44fabf6c6d2f",
+      "intercomContactId": "69e7cdb1650e3681307fbe9c",
+      "conversationId": "215474010934651",
+      "scenario": "kudos-missing",
+      "title": "Friend's kudos not showing up on my run"
+    },
+    {
+      "userId": "39495dd7-55c5-4317-97d3-6cd674e1ea80",
+      "intercomContactId": "69e7cdb1cea1cbd998af8de7",
+      "conversationId": "215474010934712",
+      "scenario": "feature-request",
+      "title": "Can we get swim stroke type breakdown?"
+    },
+    {
+      "userId": "b5d37c21-e5a0-4b50-8936-1241e0714e2f",
+      "intercomContactId": "69e7cdb2e3fe041f943df435",
+      "conversationId": "215474010934792",
+      "scenario": "sync-failure",
+      "title": "Trail run from yesterday morning disappeared"
+    },
+    {
+      "userId": "00f66a3f-c16e-4f79-b2f3-fa983232c50f",
+      "intercomContactId": "69e7cdb2c8f8dce2fd882aa1",
+      "conversationId": "215474010934821",
+      "scenario": "kudos-missing",
+      "title": "Friend's kudos not showing up on my run"
+    },
+    {
+      "userId": "18297903-7f66-4b94-b63f-2503c31701cc",
+      "intercomContactId": "69e7cdb23e9f28aa6df4de41",
+      "conversationId": "215474010934847",
+      "scenario": "challenge-progress",
+      "title": "Activity not counting toward elevation challenge"
+    },
+    {
+      "userId": "32141b08-fd94-4986-82e7-356dbc06704c",
+      "intercomContactId": "69e7cdb2dd2175fb9fe00774",
+      "conversationId": "215474010934913",
+      "scenario": "billing-overcharge",
+      "title": "Charged twice for premium subscription in April"
+    },
+    {
+      "userId": "4c85504a-fd0e-4cc7-8641-337b70ffcf8f",
+      "intercomContactId": "69e7cdb2914eb406237079dd",
+      "conversationId": "215474010934993",
+      "scenario": "sync-failure",
+      "title": "20-mile ride yesterday missing from feed"
+    },
+    {
+      "userId": "0c9bdcf8-7629-44e9-9950-0619eea3de3b",
+      "intercomContactId": "69e7cdb2960064a392df7de8",
+      "conversationId": "215474010935025",
+      "scenario": "gps-drift",
+      "title": "GPS track went through a building downtown"
+    },
+    {
+      "userId": "782cff3e-b78d-4757-b93e-aa1911869162",
+      "intercomContactId": "69e7cdb22e6fa5ec91956168",
+      "conversationId": "215474010935064",
+      "scenario": "segment-mismatch",
+      "title": "Bear Creek Trail segment not recorded on ride"
+    },
+    {
+      "userId": "408df981-8696-4315-812f-78df9c546aa5",
+      "intercomContactId": "69e7cdb2c9992285a7ad19b5",
+      "conversationId": "215474010935110",
+      "scenario": "segment-mismatch",
+      "title": "Whitefield Loop segment not recorded on swim"
+    },
+    {
+      "userId": "a7b5a2b8-34b7-43fb-bf67-e8b471300f3a",
+      "intercomContactId": "69e7cdb310943550312136a8",
+      "conversationId": "215474010935195",
+      "scenario": "gps-drift",
+      "title": "GPS track went straight through a building"
+    },
+    {
+      "userId": "a95d0d86-7a0d-4752-b776-a6f9c1659d11",
+      "intercomContactId": "69e7cdb3345ac9e4daaebc3a",
+      "conversationId": "215474010935230",
+      "scenario": "billing-cancel",
+      "title": "Can't cancel premium, keep getting charged"
+    },
+    {
+      "userId": "dfaf2799-6526-42b3-9089-d95c819e6422",
+      "intercomContactId": "69e7cdb33aefa4610385952d",
+      "conversationId": "215474010935266",
+      "scenario": "account-deletion",
+      "title": "Request to delete my account and all data"
+    },
+    {
+      "userId": "5e08b71f-8937-4611-9d33-8c09100d107d",
+      "intercomContactId": "69e7cdb3e908b2fa63406af1",
+      "conversationId": "215474010935301",
+      "scenario": "sync-failure",
+      "title": "Apple Watch Ultra 2 workout missing from feed"
+    },
+    {
+      "userId": "953f7b27-08f6-4006-920c-74e1f5e9df4f",
+      "intercomContactId": "69e7cdb3914eb420e3706dee",
+      "conversationId": "215474010935350",
+      "scenario": "account-deletion",
+      "title": "Delete my account and all data permanently"
+    },
+    {
+      "userId": "b85e050c-b5a6-4c76-8e41-9f60582af756",
+      "intercomContactId": "69e7cdb38ef94f8bcb181bbb",
+      "conversationId": "215474010935395",
+      "scenario": "notifications",
+      "title": "Getting bombarded with notifications, can't find settings"
+    },
+    {
+      "userId": "619fa158-6dd9-4541-a56a-a1622d062e83",
+      "intercomContactId": "69e7cdb4add0a4be349f4a3c",
+      "conversationId": "215474010935466",
+      "scenario": "sync-failure",
+      "title": "Garmin Forerunner 265 swim workout missing from feed"
+    },
+    {
+      "userId": "e49a5dfe-b44f-40bb-89f4-51745de25e01",
+      "intercomContactId": "69e7cdb4650e36931a7fbd79",
+      "conversationId": "215474010935470",
+      "scenario": "gps-drift",
+      "title": "GPS track went through a building, distance way off"
+    },
+    {
+      "userId": "ca25e356-79f3-413e-ba4d-dde4c7dbca28",
+      "intercomContactId": "69e7cdb4fb7c8836109ec295",
+      "conversationId": "215474010935556",
+      "scenario": "sync-failure",
+      "title": "Hill repeats workout missing from feed"
+    },
+    {
+      "userId": "f0494bc1-885e-4dbb-b7eb-bd4c355fdbb8",
+      "intercomContactId": "69e7cdb4f20cba004228ccf4",
+      "conversationId": "215474010935582",
+      "scenario": "account-password",
+      "title": "Password reset email never arrived"
+    },
+    {
+      "userId": "95c8dac9-6f89-43a9-a209-c83a17223606",
+      "intercomContactId": "69e7cdb40c0ff10ccc6fb3b0",
+      "conversationId": "215474010935644",
+      "scenario": "kudos-missing",
+      "title": "Kudos from my friend disappeared?"
+    },
+    {
+      "userId": "dd65793c-7513-4f42-a740-58857f6437c3",
+      "intercomContactId": "69e7cdb471700ae464c9d139",
+      "conversationId": "215474010935656",
+      "scenario": "sync-failure",
+      "title": "Apple Watch Ultra 2 workout disappeared from feed"
+    },
+    {
+      "userId": "d7443054-f859-427a-a76f-e999360783fe",
+      "intercomContactId": "69e7cdb5e3fe0400343e0144",
+      "conversationId": "215474010935745",
+      "scenario": "feature-request",
+      "title": "Dark mode for evening workout logging"
+    },
+    {
+      "userId": "e88cabce-5619-4078-a490-0d528c391088",
+      "intercomContactId": "69e7cdb5e8c31f4811247d6d",
+      "conversationId": "215474010935786",
+      "scenario": "notifications",
+      "title": "Getting way too many notifications lately"
+    },
+    {
+      "userId": "1749c298-2947-4174-8d06-7b9acd58dfe5",
+      "intercomContactId": "69e7cdb5fb7c8846bb9ec1af",
+      "conversationId": "215474010935823",
+      "scenario": "billing-overcharge",
+      "title": "Charged twice for April premium subscription"
+    },
+    {
+      "userId": "f550ad22-c909-445c-9c6f-6c7ee1edc3cd",
+      "intercomContactId": "69e7cdb51094356a102132c9",
+      "conversationId": "215474010935829",
+      "scenario": "gps-drift",
+      "title": "GPS track went straight through a building"
+    },
+    {
+      "userId": "44e0bbdf-f1da-4a2a-8fe7-05db7067ea48",
+      "intercomContactId": "69e7cdb53fab4409d8f5e5dc",
+      "conversationId": "215474010935917",
+      "scenario": "feature-request",
+      "title": "Request: Pace zone calibration for tempo runs"
+    },
+    {
+      "userId": "009d5594-0ba9-4ba3-8522-adfa21d99cbd",
+      "intercomContactId": "69e7cdb64cd08fed11f5cf86",
+      "conversationId": "215474010936003",
+      "scenario": "sync-failure",
+      "title": "Tempo Tuesday run missing from feed"
+    },
+    {
+      "userId": "83194927-8052-41f5-8c4a-c9765edf1bf2",
+      "intercomContactId": "69e7cdb6fb7c883e3b9ec1b3",
+      "conversationId": "215474010936021",
+      "scenario": "kudos-missing",
+      "title": "Friend's kudos disappeared from my run"
+    },
+    {
+      "userId": "04cb2357-957b-404b-ae88-17834605351e",
+      "intercomContactId": "69e7cdb58ef94f8623181ec1",
+      "conversationId": "215474010936008",
+      "scenario": "account-password",
+      "title": "Password reset email never arrived"
+    },
+    {
+      "userId": "7adc4f1e-f2b0-4689-aea7-cf0f1d427a60",
+      "intercomContactId": "69e7cdb6fa8bfa9886f46744",
+      "conversationId": "215474010936100",
+      "scenario": "sync-failure",
+      "title": "Hill repeats workout from yesterday missing"
+    },
+    {
+      "userId": "44af911f-4199-4a40-8f4a-b9549df12fbe",
+      "intercomContactId": "69e7cdb6f20cba04c028ccf2",
+      "conversationId": "215474010936192",
+      "scenario": "feature-request",
+      "title": "Can we get elevation gain breakdown by segment?"
+    },
+    {
+      "userId": "b6dac4b4-fa54-43b3-894a-dcc31b56040e",
+      "intercomContactId": "69e7cdb62e6fa5efec955eb9",
+      "conversationId": "215474010936203",
+      "scenario": "sync-failure",
+      "title": "Garmin Forerunner 265 workout missing from feed"
+    },
+    {
+      "userId": "b4b00655-7534-4f67-99f3-ab91a19b3d0d",
+      "intercomContactId": "69e7cdb6ffa6729a9ebfca8c",
+      "conversationId": "215474010936202",
+      "scenario": "billing-cancel",
+      "title": "Can't find where to cancel premium"
+    },
+    {
+      "userId": "72469840-74b0-49f2-a71a-868e30d9e9c6",
+      "intercomContactId": "69e7cdb6cc92e8d101359e4e",
+      "conversationId": "215474010936273",
+      "scenario": "sync-failure",
+      "title": "Workout from yesterday morning not syncing"
+    },
+    {
+      "userId": "41c99029-3884-4fdb-b117-2f275a264e0e",
+      "intercomContactId": "69e7cdb7350f8bd43d4a1ae6",
+      "conversationId": "215474010936366",
+      "scenario": "billing-cancel",
+      "title": "Can't find how to cancel premium subscription"
+    },
+    {
+      "userId": "c3b3ab30-29d0-4b57-be57-0140a6824af0",
+      "intercomContactId": "69e7cdb7c8f8dce4ba882b2a",
+      "conversationId": "215474010936378",
+      "scenario": "gps-drift",
+      "title": "GPS track goes through buildings on my ride"
+    },
+    {
+      "userId": "95a1e15d-967d-45d1-9cd2-62b8a33058da",
+      "intercomContactId": "69e7cdb79d355dcddbb66758",
+      "conversationId": "215474010936396",
+      "scenario": "sync-failure",
+      "title": "Run from yesterday morning disappeared from feed"
+    },
+    {
+      "userId": "e5136dd0-8631-45f5-88b5-ff474409804e",
+      "intercomContactId": "69e7cdb7add0a4bedd9f4604",
+      "conversationId": "215474010936443",
+      "scenario": "app-crash",
+      "title": "App keeps crashing when I open the feed"
+    },
+    {
+      "userId": "e62b48be-caaf-4404-83aa-90b5a8521dea",
+      "intercomContactId": "69e7cdb762921f751e7843e5",
+      "conversationId": "215474010936543",
+      "scenario": "billing-downgrade",
+      "title": "Can I downgrade to free without losing my data?"
+    },
+    {
+      "userId": "14899269-fbec-493a-9997-8583c216a748",
+      "intercomContactId": "69e7cdb7c8f8dcf668881d6e",
+      "conversationId": "215474010936558",
+      "scenario": "app-crash",
+      "title": "App keeps crashing when I open the feed"
+    },
+    {
+      "userId": "c849b461-2a28-4b19-b4f7-c80af9de3396",
+      "intercomContactId": "69e7cdb7fb7c8836889ec436",
+      "conversationId": "215474010936556",
+      "scenario": "sync-failure",
+      "title": "Garmin workout from yesterday disappeared"
+    },
+    {
+      "userId": "b1725068-9ad3-41d2-bfd8-f14a5e189a45",
+      "intercomContactId": "69e7cdb8f20cba098b28c877",
+      "conversationId": "215474010936608",
+      "scenario": "account-password",
+      "title": "Password reset email never arrived, locked out"
+    },
+    {
+      "userId": "2ccf65c5-ed6c-4c1e-98d5-e60e15ff9a74",
+      "intercomContactId": "69e7cdb8eaf889f8f2e6b5e6",
+      "conversationId": "215474010936704",
+      "scenario": "sync-failure",
+      "title": "Trail run from yesterday morning disappeared"
+    },
+    {
+      "userId": "d20b7d62-d83b-4897-addb-1dab5eb16e0f",
+      "intercomContactId": "69e7cdb8e3fe04278b3dd609",
+      "conversationId": "215474010936706",
+      "scenario": "challenge-progress",
+      "title": "Challenge progress not updating after walk"
+    },
+    {
+      "userId": "95b61c46-a505-4faa-aa36-c1446f182f16",
+      "intercomContactId": "69e7cdb8f51c89982ce81ea3",
+      "conversationId": "215474010936732",
+      "scenario": "account-password",
+      "title": "Password reset email never arrived"
+    },
+    {
+      "userId": "b40a2ffe-50e6-4ffd-a46d-528eb919f28e",
+      "intercomContactId": "69e7cdb8309f7e50ef1e24b4",
+      "conversationId": "215474010936765",
+      "scenario": "segment-mismatch",
+      "title": "Lakefront 10K segment not recording efforts"
+    },
+    {
+      "userId": "acc9edc0-03a6-46ee-ae5b-43256d1b8474",
+      "intercomContactId": "69e7cdb9f20cbaf99a28cf59",
+      "conversationId": "215474010936845",
+      "scenario": "sync-failure",
+      "title": "Garmin workout from Sunday morning not syncing"
+    },
+    {
+      "userId": "0409a167-516c-4115-8faa-590ae9db1e18",
+      "intercomContactId": "69e7cdb9cea1cbdb9daf8bc4",
+      "conversationId": "215474010936862",
+      "scenario": "sync-failure",
+      "title": "Garmin workout from Sunday morning disappeared"
+    },
+    {
+      "userId": "56139bfe-a6ac-416d-b699-25500d484f46",
+      "intercomContactId": "69e7cdb9309f7e55ad1e2674",
+      "conversationId": "215474010936885",
+      "scenario": "kudos-missing",
+      "title": "Missing kudos from friend on commute run"
+    },
+    {
+      "userId": "785926f4-a5c2-4f73-b128-5d639b220ba7",
+      "intercomContactId": "69e7cdb9dd2175fd8be00654",
+      "conversationId": "215474010936937",
+      "scenario": "account-deletion",
+      "title": "Delete my account and all my data permanently"
+    },
+    {
+      "userId": "5fad2de7-9c28-4625-8102-f8f64871a39a",
+      "intercomContactId": "69e7cdb9c999227112ad1d99",
+      "conversationId": "215474010937011",
+      "scenario": "account-deletion",
+      "title": "Delete my account and all my data permanently"
+    },
+    {
+      "userId": "72de716c-e31e-468f-a1a1-6c6f85355157",
+      "intercomContactId": "69e7cdb92e6fa5f72c955bfe",
+      "conversationId": "215474010937013",
+      "scenario": "sync-failure",
+      "title": "Garmin Forerunner 265 workout disappeared from feed"
+    },
+    {
+      "userId": "1f0a7f38-7b13-43b3-a93d-f85304a8f6b7",
+      "intercomContactId": "69e7cdbafb7c8846bb9ec1be",
+      "conversationId": "215474010937086",
+      "scenario": "sync-failure",
+      "title": "Lost my lunchtime ride from yesterday, already unsubscribed"
+    },
+    {
+      "userId": "1047dbb6-55f0-4d97-8b7d-e649e39ab2be",
+      "intercomContactId": "69e7cdb9650e3688d37fbcf1",
+      "conversationId": "215474010937107",
+      "scenario": "account-password",
+      "title": "Password reset email never arrived"
+    },
+    {
+      "userId": "6b3e4501-84d0-4650-b167-68907f8a4cc8",
+      "intercomContactId": "69e7cdbac9992285a7ad19cd",
+      "conversationId": "215474010937164",
+      "scenario": "segment-mismatch",
+      "title": "Didn't capture Ravine Run segment effort today"
+    },
+    {
+      "userId": "d338991e-42ef-4dca-b816-54b713a1d779",
+      "intercomContactId": "69e7cdba2e6fa5dc129563ca",
+      "conversationId": "215474010937201",
+      "scenario": "sync-failure",
+      "title": "Workout from yesterday morning not syncing"
+    },
+    {
+      "userId": "f0209ead-0877-41a8-bc72-a2d92f81a4cd",
+      "intercomContactId": "69e7cdba41e408662c033ce7",
+      "conversationId": "215474010937283",
+      "scenario": "elevation-wrong",
+      "title": "Elevation gain way off on today's run"
+    },
+    {
+      "userId": "0c8402ea-31b9-4653-aaf2-9674d78421b3",
+      "intercomContactId": "69e7cdbaf51c8984a6e82190",
+      "conversationId": "215474010937281",
+      "scenario": "app-crash",
+      "title": "App keeps crashing, already wasted my time"
+    },
+    {
+      "userId": "fe8c2ff2-414d-4615-afa6-2fd41019e7d7",
+      "intercomContactId": "69e7cdbaef02c11960378597",
+      "conversationId": "215474010937323",
+      "scenario": "billing-cancel",
+      "title": "Can't find the cancel subscription button"
+    },
+    {
+      "userId": "507135ce-4ddc-42bf-ba58-a814cd2f5acc",
+      "intercomContactId": "69e7cdbbd6dca28d96c2f410",
+      "conversationId": "215474010937376",
+      "scenario": "segment-mismatch",
+      "title": "Lakefront 10K segment not recorded on my run"
+    },
+    {
+      "userId": "1f9b5631-2ca8-47e1-945c-f3dd366f2c5b",
+      "intercomContactId": "69e7cdbbfa8bfa9886f46757",
+      "conversationId": "215474010937436",
+      "scenario": "segment-mismatch",
+      "title": "Coogee to Bondi coastal run not tracking segment"
+    },
+    {
+      "userId": "0d3d5b5e-2271-43ff-a6e8-4baf4a010fcc",
+      "intercomContactId": "69e7cdbb6c4f922b980aeb94",
+      "conversationId": "215474010937449",
+      "scenario": "sync-failure",
+      "title": "My Garmin Forerunner 265 ride disappeared"
+    },
+    {
+      "userId": "208f5558-7e88-42f3-a1a9-66c3da674c85",
+      "intercomContactId": "69e7cdbb960064a72edf7c79",
+      "conversationId": "215474010937489",
+      "scenario": "segment-mismatch",
+      "title": "Capitol Hill Run segment not recorded"
+    },
+    {
+      "userId": "1e3d81f3-d2d0-48ce-aede-3446682b248c",
+      "intercomContactId": "69e7cdbb54ea36381ac81481",
+      "conversationId": "215474010937536",
+      "scenario": "segment-mismatch",
+      "title": "Trail run didn't record Montmartre segment effort"
+    },
+    {
+      "userId": "85badb6a-44c7-4cdd-8e65-959bb5262e52",
+      "intercomContactId": "69e7cdbb3fab440e57f5e506",
+      "conversationId": "215474010937586",
+      "scenario": "sync-failure",
+      "title": "Hiking workout from Sunday morning disappeared"
+    },
+    {
+      "userId": "efdd3911-f5bc-4df3-b062-05c95a30c9c0",
+      "intercomContactId": "69e7cdbb8ef94f86c4181cd1",
+      "conversationId": "215474010937627",
+      "scenario": "account-password",
+      "title": "Password reset email never arrived"
+    },
+    {
+      "userId": "27960c0c-e687-46ee-a59e-f874f29446f0",
+      "intercomContactId": "69e7cdbcfb7c88622e9ea323",
+      "conversationId": "215474010937646",
+      "scenario": "sync-failure",
+      "title": "Garmin Forerunner 265 workout disappeared from feed"
+    },
+    {
+      "userId": "56c7c95c-3384-40a8-b7f9-d29d9b5176d3",
+      "intercomContactId": "69e7cdbc6c4f923eb30ae435",
+      "conversationId": "215474010937697",
+      "scenario": "gps-drift",
+      "title": "GPS track went through building on my long run"
+    },
+    {
+      "userId": "187d1725-b766-47ce-8fc5-b74d0e7aaea9",
+      "intercomContactId": "69e7cdbcf51c8998f7e81f63",
+      "conversationId": "215474010937743",
+      "scenario": "account-password",
+      "title": "Password reset email never arrived"
+    },
+    {
+      "userId": "a47330e3-342a-412a-95b8-4a18649df963",
+      "intercomContactId": "69e7cdbccf4cea20c4733792",
+      "conversationId": "215474010937857",
+      "scenario": "billing-overcharge",
+      "title": "Charged $9.99 after canceling subscription"
+    },
+    {
+      "userId": "a6c8a6bd-2d8d-466e-a4d7-8495040ff6b5",
+      "intercomContactId": "69e7cdbcadd0a4cabf9f3bab",
+      "conversationId": "215474010937861",
+      "scenario": "club-join",
+      "title": "Can't join my friend's club, button won't work"
+    },
+    {
+      "userId": "c4742a0b-5080-44b1-bd03-b5154d5ce6e6",
+      "intercomContactId": "69e7cdbc8e1cda0ab51c7125",
+      "conversationId": "215474010937911",
+      "scenario": "billing-refund",
+      "title": "Request refund for April charge"
+    },
+    {
+      "userId": "01c2a313-bdd6-4a34-ae01-30296ed54694",
+      "intercomContactId": "69e7cdbcffa672c08ebfbbcf",
+      "conversationId": "215474010937937",
+      "scenario": "sync-failure",
+      "title": "Hill repeats workout disappeared from feed"
+    },
+    {
+      "userId": "824336b3-56ff-4c31-b548-cdd5a50b065b",
+      "intercomContactId": "69e7cdbdffa672af1dbfc736",
+      "conversationId": "215474010938029",
+      "scenario": "gps-drift",
+      "title": "GPS track went through building on forest loop"
+    },
+    {
+      "userId": "8bb286da-8191-452b-a36e-3860c178ab40",
+      "intercomContactId": "69e7cdbd6c4f9229ee0aec29",
+      "conversationId": "215474010938046",
+      "scenario": "feature-request",
+      "title": "Request: Elevation gain breakdown by mile"
+    },
+    {
+      "userId": "0c4096f8-4b4e-4580-96dc-33de175d13c0",
+      "intercomContactId": "69e7cdbd6c4f922b980aeb9a",
+      "conversationId": "215474010938076",
+      "scenario": "segment-mismatch",
+      "title": "Signal Hill segment didn't record my effort"
+    },
+    {
+      "userId": "d7ec6048-a42d-4f82-a40e-1948ad302ed9",
+      "intercomContactId": "69e7cdbdf51c898fbfe82241",
+      "conversationId": "215474010938134",
+      "scenario": "app-crash",
+      "title": "App keeps crashing when I open the feed"
+    }
+  ],
+  "tickets": [
+    {
+      "userId": "452a09de-771a-4d36-bde3-831edc0d7581",
+      "intercomContactId": "69e7cdbd5e520f9090d19a37",
+      "ticketId": "215474010938216",
+      "scenario": "notifications",
+      "title": "Too many notifications, can't find settings"
+    },
+    {
+      "userId": "87e512c9-11b1-4db1-91f5-5dffc61c86e1",
+      "intercomContactId": "69e7cdbe67c7c3d7c717a23d",
+      "ticketId": "215474010938290",
+      "scenario": "account-deletion",
+      "title": "Delete my account and all my data"
+    },
+    {
+      "userId": "addb792a-2b31-420b-9b82-102e35138930",
+      "intercomContactId": "69e7cdbd309f7e49021e24af",
+      "ticketId": "215474010938213",
+      "scenario": "elevation-wrong",
+      "title": "Elevation gain way off on Long run"
+    },
+    {
+      "userId": "3d340dca-c275-417e-b043-3e77c2769fc6",
+      "intercomContactId": "69e7cdbe650e36994d7fbcbc",
+      "ticketId": "215474010938227",
+      "scenario": "account-password",
+      "title": "Password reset email never arrived, can't log in"
+    },
+    {
+      "userId": "6868f2a6-22fe-4ef3-b5a7-659927893b05",
+      "intercomContactId": "69e7cdc0cea1cbde28af8bda",
+      "ticketId": "215474010938810",
+      "scenario": "privacy-report",
+      "title": "How do I report a user making inappropriate comments?"
+    },
+    {
+      "userId": "ce6a674c-ef2d-4b41-84ea-b4b06a2d3a69",
+      "intercomContactId": "69e7cdc0760a66cba03b571c",
+      "ticketId": "215474010938812",
+      "scenario": "elevation-wrong",
+      "title": "Elevation data completely wrong on today's ride"
+    },
+    {
+      "userId": "c6eae924-3eca-442c-8739-0572f323c690",
+      "intercomContactId": "69e7cdc0e8c31f6cc8247296",
+      "ticketId": "215474010938829",
+      "scenario": "sync-failure",
+      "title": "Walk workout from yesterday not syncing to feed"
+    },
+    {
+      "userId": "2c0680f3-4430-4bf3-aabd-645bd25ecfc6",
+      "intercomContactId": "69e7cdc0914eb420e3706e1e",
+      "ticketId": "215474010938808",
+      "scenario": "sync-failure",
+      "title": "Marathon run from Sunday missing from feed"
+    },
+    {
+      "userId": "4341216c-22a3-412e-ad5a-8aaa407e9df2",
+      "intercomContactId": "69e7cdc154ea363f32c8111d",
+      "ticketId": "215474010939233",
+      "scenario": "elevation-wrong",
+      "title": "Elevation gain way off on yesterday's ride"
+    },
+    {
+      "userId": "657c23f2-997a-4385-9a29-2432d4ef925c",
+      "intercomContactId": "69e7cdc1ef02c1024337879d",
+      "ticketId": "215474010939260",
+      "scenario": "feature-request",
+      "title": "Power zones for cycling workouts please"
+    },
+    {
+      "userId": "d90eba3a-6a1a-4f0f-a6dc-9be65accc6d1",
+      "intercomContactId": "69e7cdc2fa8bfaa4f0f45fa4",
+      "ticketId": "215474010939263",
+      "scenario": "notifications",
+      "title": "Too many push notifications, can't find settings"
+    },
+    {
+      "userId": "cc81c9cc-c82a-49b2-93eb-ec9ae9a27b43",
+      "intercomContactId": "69e7cdc23fab44068ff5e60d",
+      "ticketId": "215474010939282",
+      "scenario": "feature-request",
+      "title": "Power zones feature for cycling please"
+    },
+    {
+      "userId": "4ff5026f-2c1f-46c5-ba32-feeac155a529",
+      "intercomContactId": "69e7cdc34cd08f0872f5ccea",
+      "ticketId": "215474010939423",
+      "scenario": "app-crash",
+      "title": "App keeps crashing when I open the feed"
+    },
+    {
+      "userId": "7165cc25-52cb-4351-ba1f-c69e826daade",
+      "intercomContactId": "69e7cdc3960064acb5df7a86",
+      "ticketId": "215474010939485",
+      "scenario": "feature-request",
+      "title": "Power zones for cycling workouts please"
+    },
+    {
+      "userId": "e55c5fb9-e047-43be-b65f-775e9cc56d5c",
+      "intercomContactId": "69e7cdc362921f72197846f7",
+      "ticketId": "215474010939489",
+      "scenario": "account-deletion",
+      "title": "Delete my account and all data please"
+    },
+    {
+      "userId": "3dbf233c-21f0-4d5d-88ee-014ae793cf47",
+      "intercomContactId": "69e7cdc44cd08ffdeef5ce66",
+      "ticketId": "215474010939555",
+      "scenario": "sync-failure",
+      "title": "Garmin Forerunner 265 workout disappeared from feed"
+    },
+    {
+      "userId": "2840b098-f718-4df6-b5e3-96054af4c081",
+      "intercomContactId": "69e7cdc55e520f9168d19bbd",
+      "ticketId": "215474010939667",
+      "scenario": "kudos-missing",
+      "title": "Kudos from my friend disappeared?"
+    },
+    {
+      "userId": "418cb016-434c-4e6e-a573-af95a1e87991",
+      "intercomContactId": "69e7cdc56c4f9225550aed4e",
+      "ticketId": "215474010939720",
+      "scenario": "app-crash",
+      "title": "App keeps crashing when I open the feed"
+    },
+    {
+      "userId": "6245a95f-9312-4322-b42e-186f16fdd42a",
+      "intercomContactId": "69e7cdc6c1772cfbab1e0edb",
+      "ticketId": "215474010939778",
+      "scenario": "feature-request",
+      "title": "Dark mode for night running sessions"
+    },
+    {
+      "userId": "f20c4dbf-6a7a-4738-a8cb-a1b8ee0d0582",
+      "intercomContactId": "69e7cdc65e520f9453d1984a",
+      "ticketId": "215474010939803",
+      "scenario": "gps-drift",
+      "title": "GPS track went through a building, lost 1.5km"
+    },
+    {
+      "userId": "145bae71-bc8c-4786-b010-a58e36c3142e",
+      "intercomContactId": "69e7cdc7e3fe04fe583e04d8",
+      "ticketId": "215474010939874",
+      "scenario": "challenge-progress",
+      "title": "Marathon run not counting toward distance challenge"
+    },
+    {
+      "userId": "4ab84304-afdc-4ca4-9ea8-177d86f160be",
+      "intercomContactId": "69e7cdc871700aeae1c9ce97",
+      "ticketId": "215474010939972",
+      "scenario": "app-crash",
+      "title": "App keeps crashing when I open the feed"
+    },
+    {
+      "userId": "5d1d26c2-3bba-4b84-a52e-967f29890de9",
+      "intercomContactId": "69e7cdc8760a66cba03b573a",
+      "ticketId": "215474010940032",
+      "scenario": "segment-mismatch",
+      "title": "Twin Peaks segment not recorded on my run"
+    },
+    {
+      "userId": "38fd1b50-63d5-4d04-9331-28466ee751f0",
+      "intercomContactId": "69e7cdc86c4f9224540aed4f",
+      "ticketId": "215474010940076",
+      "scenario": "account-password",
+      "title": "Password reset email never arrived"
+    },
+    {
+      "userId": "d933ad64-da77-43a5-bf77-9ec7b97373e5",
+      "intercomContactId": "69e7cdc9cea1cbd8cfaf8d22",
+      "ticketId": "215474010940108",
+      "scenario": "challenge-progress",
+      "title": "Group ride not counting toward challenge"
+    },
+    {
+      "userId": "9f54d3f0-f0e8-4f18-8f8a-b7a9e04fe794",
+      "intercomContactId": "69e7cdc95e520f9168d19bcb",
+      "ticketId": "215474010940203",
+      "scenario": "segment-mismatch",
+      "title": "Seymour Mountain segment not recorded on tempo run"
+    },
+    {
+      "userId": "b110fb54-5ca2-421a-8c40-1f4c96319ca8",
+      "intercomContactId": "69e7cdca0c0ff12e4a6faa2a",
+      "ticketId": "215474010940283",
+      "scenario": "sync-failure",
+      "title": "My interval workout from yesterday vanished"
+    },
+    {
+      "userId": "94380030-15c9-484e-b619-158d7bf24666",
+      "intercomContactId": "69e7cdcaf51c897d47e8215d",
+      "ticketId": "215474010940358",
+      "scenario": "app-crash",
+      "title": "App keeps crashing when I open the feed"
+    },
+    {
+      "userId": "2ca6a45e-47eb-4020-8a72-f838a14c7860",
+      "intercomContactId": "69e7cdcb3fab44ef0bf5e82a",
+      "ticketId": "215474010940409",
+      "scenario": "elevation-wrong",
+      "title": "Elevation gain way off on today's hike"
+    },
+    {
+      "userId": "aed9ae65-0dc1-4971-9f31-9b0a81294fdf",
+      "intercomContactId": "69e7cdcbeaf889f14be6b894",
+      "ticketId": "215474010940492",
+      "scenario": "challenge-progress",
+      "title": "Challenge progress not updating after climb activity"
+    },
+    {
+      "userId": "04725609-e29a-46b6-980b-a05f68eb9cd7",
+      "intercomContactId": "69e7cdcc67c7c3e6ab17a0da",
+      "ticketId": "215474010940592",
+      "scenario": "account-password",
+      "title": "Password reset email never arrived"
+    },
+    {
+      "userId": "b62a8a5e-917c-4c7e-946e-ead1d5236452",
+      "intercomContactId": "69e7cdccadd0a4a6079f46bc",
+      "ticketId": "215474010940622",
+      "scenario": "feature-request",
+      "title": "Power zones for cycling workouts please"
+    },
+    {
+      "userId": "b76bc292-caf1-4044-93e3-4c7c1701e286",
+      "intercomContactId": "69e7cdcc650e3698867fbcea",
+      "ticketId": "215474010940671",
+      "scenario": "gps-drift",
+      "title": "GPS tracked me through a building wtf"
+    },
+    {
+      "userId": "47016794-bdc0-4713-af27-9b8058150162",
+      "intercomContactId": "69e7cdcdcea1cbe834af8c9c",
+      "ticketId": "215474010940763",
+      "scenario": "app-crash",
+      "title": "App keeps crashing when I open the feed"
+    },
+    {
+      "userId": "80a16482-bc21-42e8-b71a-dda1104246f9",
+      "intercomContactId": "69e7cdce8ef94f999d181bf1",
+      "ticketId": "215474010940876",
+      "scenario": "gps-drift",
+      "title": "GPS track went straight through building on lunchtime run"
+    },
+    {
+      "userId": "f3ffbf94-6919-4f3c-9eff-8fc27b3aa29c",
+      "intercomContactId": "69e7cdcec99922925bad16fd",
+      "ticketId": "215474010940886",
+      "scenario": "kudos-missing",
+      "title": "Kudos from friend disappeared after ride"
+    },
+    {
+      "userId": "10fdb622-48ba-44fb-9896-35c0100db717",
+      "intercomContactId": "69e7cdcf914eb4fdbc707bf3",
+      "ticketId": "215474010940921",
+      "scenario": "account-password",
+      "title": "Password reset email never arrived"
+    },
+    {
+      "userId": "a8da21a0-9f96-4a78-9f6f-e31101a15d0d",
+      "intercomContactId": "69e7cdcf71700aef0dc9cdf3",
+      "ticketId": "215474010940982",
+      "scenario": "billing-cancel",
+      "title": "Can't find where to cancel premium"
+    },
+    {
+      "userId": "7c326eb6-81fa-4491-af2a-3bca9e153f6b",
+      "intercomContactId": "69e7cdd041e40845300351a6",
+      "ticketId": "215474010941091",
+      "scenario": "feature-request",
+      "title": "Can we get power zones for running?"
+    },
+    {
+      "userId": "f9698c45-efe6-4c77-b392-5d311f86cd5b",
+      "intercomContactId": "69e7cdd02e6fa5fb0b955a54",
+      "ticketId": "215474010941093",
+      "scenario": "kudos-missing",
+      "title": "Kudos from friend disappeared after run"
+    },
+    {
+      "userId": "747f75a3-1222-42a2-a5e7-a23024211735",
+      "intercomContactId": "69e7cdd162921f695f7849a6",
+      "ticketId": "215474010941162",
+      "scenario": "segment-mismatch",
+      "title": "Nandi Hills segment not recorded on my run"
+    },
+    {
+      "userId": "016eac75-1ec2-487a-9f98-0120bb2d2435",
+      "intercomContactId": "69e7cdd19d355ddfcdb667c7",
+      "ticketId": "215474010941201",
+      "scenario": "notifications",
+      "title": "Too many notifications, can't find settings"
+    },
+    {
+      "userId": "2b193645-b497-4aeb-8304-90795c11b7b6",
+      "intercomContactId": "69e7cdd2760a66bd583b5431",
+      "ticketId": "215474010941336",
+      "scenario": "billing-refund",
+      "title": "Refund request for accidental premium charge"
+    },
+    {
+      "userId": "13f6700b-883b-4237-b43a-ad614f9b0809",
+      "intercomContactId": "69e7cdd2760a66b6433b5867",
+      "ticketId": "215474010941442",
+      "scenario": "challenge-progress",
+      "title": "Challenge progress not updating after long run"
+    },
+    {
+      "userId": "0d888235-931f-40cc-b422-baceb23d31b6",
+      "intercomContactId": "69e7cdd39d355dde01b6671f",
+      "ticketId": "215474010941543",
+      "scenario": "account-password",
+      "title": "Password reset email never arrived"
+    }
+  ],
+  "failures": []
+}

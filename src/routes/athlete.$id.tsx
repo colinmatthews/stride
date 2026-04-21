@@ -1,5 +1,6 @@
 import { createFileRoute, Link, notFound } from "@tanstack/react-router";
 import { useState } from "react";
+import { usePostHog } from "@posthog/react";
 import {
   ACTIVITIES,
   ATHLETES,
@@ -34,6 +35,7 @@ export const Route = createFileRoute("/athlete/$id")({
 
 function AthletePage() {
   const { athlete } = Route.useLoaderData() as { athlete: import("@/lib/mock-data").Athlete };
+  const posthog = usePostHog();
   const [following, setFollowing] = useState(Boolean(athlete.isFollowing));
   const [followers, setFollowers] = useState(athlete.followers);
   const acts = ACTIVITIES.filter((a) => a.athleteId === athlete.id);
@@ -79,6 +81,10 @@ function AthletePage() {
                   const result = await toggleAthleteFollow(athlete.id);
                   setFollowing(result.following);
                   setFollowers(result.followers);
+                  posthog.capture(result.following ? "athlete_followed" : "athlete_unfollowed", {
+                    athlete_id: athlete.id,
+                    athlete_name: athlete.name,
+                  });
                 }}
                 className={`inline-flex h-10 items-center gap-2 px-4 text-sm font-medium transition-colors ${
                   following

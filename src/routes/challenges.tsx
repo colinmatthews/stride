@@ -4,6 +4,7 @@ import { CHALLENGES } from "@/lib/mock-data";
 import { AppShell } from "@/components/AppShell";
 import { Trophy, Users, Calendar, Check } from "lucide-react";
 import { toggleChallengeJoin } from "@/lib/api";
+import { usePostHog } from "@posthog/react";
 
 export const Route = createFileRoute("/challenges")({
   head: () => ({
@@ -16,6 +17,7 @@ export const Route = createFileRoute("/challenges")({
 });
 
 function ChallengesPage() {
+  const posthog = usePostHog();
   const [joined, setJoined] = useState<Record<string, boolean>>(
     Object.fromEntries(CHALLENGES.map((c) => [c.id, !!c.joined])),
   );
@@ -117,7 +119,8 @@ function ChallengesPage() {
                         <>
                           {c.myProgressKm.toFixed(1)}
                           <span className="text-muted-foreground">
-                            {" "}/ {c.goalKm} {unit}
+                            {" "}
+                            / {c.goalKm} {unit}
                           </span>
                         </>
                       ) : (
@@ -148,6 +151,12 @@ function ChallengesPage() {
                     const result = await toggleChallengeJoin(c.id);
                     setJoined((state) => ({ ...state, [c.id]: result.joined }));
                     setParticipants((state) => ({ ...state, [c.id]: result.participants }));
+                    posthog.capture(result.joined ? "challenge_joined" : "challenge_left", {
+                      challenge_id: c.id,
+                      challenge_name: c.name,
+                      sport: c.sport,
+                      goal_km: c.goalKm,
+                    });
                   }}
                   className={`mt-6 inline-flex h-11 w-full items-center justify-center gap-2 text-sm font-medium transition-opacity hover:opacity-95 ${
                     isJoined

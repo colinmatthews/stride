@@ -3,6 +3,7 @@ import { useEffect, useState } from "react";
 import { ArrowRight, LoaderCircle, Lock, Mail, MapPin, User } from "lucide-react";
 import { ApiError, login, register } from "@/lib/api";
 import { ME } from "@/lib/mock-data";
+import { usePostHog } from "@posthog/react";
 
 const ONBOARDING_STORAGE_KEY = "stride:onboarding:v1";
 
@@ -24,6 +25,7 @@ export const Route = createFileRoute("/auth")({
 });
 
 function AuthPage() {
+  const posthog = usePostHog();
   const [mode, setMode] = useState<"login" | "register">("login");
   const [name, setName] = useState("");
   const [email, setEmail] = useState("");
@@ -46,8 +48,12 @@ function AuthPage() {
     try {
       if (mode === "login") {
         await login(email, password);
+        posthog.identify(email, { email });
+        posthog.capture("user_logged_in", { email });
       } else {
         await register(name, email, password);
+        posthog.identify(email, { email, name });
+        posthog.capture("user_signed_up", { email, name });
       }
 
       if (mode === "register") {
@@ -59,6 +65,7 @@ function AuthPage() {
       if (err instanceof ApiError) {
         setError(err.message);
       } else {
+        posthog.captureException(err);
         setError("Something went wrong. Please try again.");
       }
     } finally {

@@ -2,6 +2,7 @@ import { createFileRoute, useRouter } from "@tanstack/react-router";
 import { useEffect, useRef, useState } from "react";
 import { fmtDuration, fmtPace, type Sport } from "@/lib/mock-data";
 import { AppShell } from "@/components/AppShell";
+import { usePostHog } from "@posthog/react";
 import {
   Play,
   Pause,
@@ -37,7 +38,12 @@ function Record() {
       <div className="mx-auto max-w-3xl">
         <div className="border-b border-border pb-8">
           <div className="font-mono text-[10px] uppercase tracking-[0.22em] text-muted-foreground">
-            Log effort · {new Date().toLocaleDateString("en-US", { weekday: "long", month: "short", day: "numeric" })}
+            Log effort ·{" "}
+            {new Date().toLocaleDateString("en-US", {
+              weekday: "long",
+              month: "short",
+              day: "numeric",
+            })}
           </div>
           <h1 className="mt-3 font-display text-4xl font-bold leading-tight tracking-[-0.02em]">
             Record activity
@@ -63,11 +69,7 @@ function Record() {
 
         <SportPicker sport={sport} setSport={setSport} />
 
-        {mode === "manual" ? (
-          <ManualForm sport={sport} />
-        ) : (
-          <TimerMode sport={sport} />
-        )}
+        {mode === "manual" ? <ManualForm sport={sport} /> : <TimerMode sport={sport} />}
       </div>
     </AppShell>
   );
@@ -142,6 +144,7 @@ function SportPicker({ sport, setSport }: { sport: Sport; setSport: (s: Sport) =
 }
 
 function ManualForm({ sport }: { sport: Sport }) {
+  const posthog = usePostHog();
   const router = useRouter();
   const [title, setTitle] = useState("");
   const [description, setDescription] = useState("");
@@ -176,15 +179,12 @@ function ManualForm({ sport }: { sport: Sport }) {
     setError("");
     setBusy(true);
     try {
-      const paceSecPerKm =
-        sport === "Ride" ? undefined : Math.round(totalSeconds / distanceKm);
+      const paceSecPerKm = sport === "Ride" ? undefined : Math.round(totalSeconds / distanceKm);
       const speedKmh =
         sport === "Ride" ? Math.round((distanceKm / (totalSeconds / 3600)) * 10) / 10 : undefined;
       const activity = await saveActivity({
         sport,
-        title:
-          title.trim() ||
-          defaultTitle(sport, new Date()),
+        title: title.trim() || defaultTitle(sport, new Date()),
         description: description.trim() || undefined,
         distanceKm: Math.round(distanceKm * 100) / 100,
         movingSeconds: totalSeconds,
@@ -194,8 +194,16 @@ function ManualForm({ sport }: { sport: Sport }) {
         avgSpeedKmh: speedKmh,
         routeSeed: Math.floor(Math.random() * 1000),
       });
+      posthog.capture("activity_saved", {
+        sport,
+        distance_km: Math.round(distanceKm * 100) / 100,
+        moving_seconds: totalSeconds,
+        elevation_m: Number(elevation) || 0,
+        entry_mode: "manual",
+      });
       router.navigate({ to: "/activity/$id", params: { id: activity.id } });
-    } catch {
+    } catch (err) {
+      posthog.captureException(err);
       setError("Couldn't save activity. Try again.");
       setBusy(false);
     }
@@ -445,9 +453,25 @@ function DurationCell({
 function defaultTitle(sport: Sport, date: Date) {
   const hour = date.getHours();
   const window =
-    hour < 6 ? "Pre-dawn" : hour < 11 ? "Morning" : hour < 14 ? "Midday" : hour < 18 ? "Afternoon" : "Evening";
+    hour < 6
+      ? "Pre-dawn"
+      : hour < 11
+        ? "Morning"
+        : hour < 14
+          ? "Midday"
+          : hour < 18
+            ? "Afternoon"
+            : "Evening";
   const noun =
-    sport === "Ride" ? "ride" : sport === "Swim" ? "swim" : sport === "Hike" ? "hike" : sport === "Walk" ? "walk" : "run";
+    sport === "Ride"
+      ? "ride"
+      : sport === "Swim"
+        ? "swim"
+        : sport === "Hike"
+          ? "hike"
+          : sport === "Walk"
+            ? "walk"
+            : "run";
   return `${window} ${noun}`;
 }
 
@@ -455,6 +479,7 @@ function defaultTitle(sport: Sport, date: Date) {
  *   Timer mode — existing live-tracking flow, restyled to match aesthetic
  * ---------------------------------------------------------------------*/
 function TimerMode({ sport }: { sport: Sport }) {
+  const posthog = usePostHog();
   const router = useRouter();
   const [running, setRunning] = useState(false);
   const [paused, setPaused] = useState(false);
@@ -497,9 +522,7 @@ function TimerMode({ sport }: { sport: Sport }) {
     setSaving(true);
     try {
       const pace =
-        sport === "Ride"
-          ? undefined
-          : Math.max(180, Math.floor(elapsed / Math.max(0.1, distance)));
+        sport === "Ride" ? undefined : Math.max(180, Math.floor(elapsed / Math.max(0.1, distance)));
       const speed =
         sport === "Ride" ? Math.round((distance / (elapsed / 3600)) * 10) / 10 : undefined;
       const activity = await saveActivity({
@@ -514,8 +537,16 @@ function TimerMode({ sport }: { sport: Sport }) {
         avgSpeedKmh: speed,
         routeSeed: Math.floor(Math.random() * 1000),
       });
+      posthog.capture("activity_saved", {
+        sport,
+        distance_km: Math.round(distance * 100) / 100,
+        moving_seconds: elapsed,
+        elevation_m: Math.floor(distance * 12),
+        entry_mode: "timer",
+      });
       router.navigate({ to: "/activity/$id", params: { id: activity.id } });
-    } catch {
+    } catch (err) {
+      posthog.captureException(err);
       setSaving(false);
     }
   };
@@ -536,9 +567,7 @@ function TimerMode({ sport }: { sport: Sport }) {
       <div className="bg-secondary p-10 text-center text-secondary-foreground">
         <div className="inline-flex items-center gap-2 font-mono text-[10px] uppercase tracking-[0.22em] text-secondary-foreground/70">
           <ActivityIcon className="h-3 w-3" /> {sport}
-          {running && !paused && (
-            <span className="h-2 w-2 rounded-full bg-primary animate-pulse" />
-          )}
+          {running && !paused && <span className="h-2 w-2 rounded-full bg-primary animate-pulse" />}
         </div>
         <div className="stat-num mt-4 text-7xl text-primary">{fmtDuration(elapsed)}</div>
         <div className="mt-8 grid grid-cols-3 gap-6">

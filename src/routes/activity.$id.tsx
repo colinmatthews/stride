@@ -1,5 +1,6 @@
 import { createFileRoute, Link, useRouter, notFound } from "@tanstack/react-router";
 import { useState } from "react";
+import { usePostHog } from "@posthog/react";
 import {
   ResponsiveContainer,
   LineChart,
@@ -73,6 +74,7 @@ export const Route = createFileRoute("/activity/$id")({
 
 function ActivityDetail() {
   const { activity } = Route.useLoaderData() as { activity: import("@/lib/mock-data").Activity };
+  const posthog = usePostHog();
   const router = useRouter();
   const ath = getAthlete(activity.athleteId);
   const [kudoed, setKudoed] = useState(activity.kudoed ?? false);
@@ -88,6 +90,11 @@ function ActivityDetail() {
     if (!comment.trim()) return;
     const c = await addActivityComment(activity.id, comment.trim());
     setComments((cs) => [...cs, c]);
+    posthog.capture("activity_comment_posted", {
+      activity_id: activity.id,
+      sport: activity.sport,
+      activity_athlete_id: activity.athleteId,
+    });
     setComment("");
   };
 
@@ -95,6 +102,12 @@ function ActivityDetail() {
     const result = await toggleActivityKudo(activity.id);
     setKudoed(result.kudoed);
     setKudosCount(result.kudos);
+    posthog.capture("activity_kudoed", {
+      activity_id: activity.id,
+      sport: activity.sport,
+      activity_athlete_id: activity.athleteId,
+      kudoed: result.kudoed,
+    });
   };
 
   return (

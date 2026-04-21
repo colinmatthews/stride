@@ -12,6 +12,7 @@ import {
 } from "lucide-react";
 import { ATHLETES, ME } from "@/lib/mock-data";
 import { toggleAthleteFollow } from "@/lib/api";
+import { usePostHog } from "@posthog/react";
 
 export const ONBOARDING_STORAGE_KEY = "stride:onboarding:v1";
 
@@ -39,6 +40,7 @@ const DONE_IMG =
 const STEPS = ["Discipline", "Weekly target", "Your circle", "Ready"] as const;
 
 function OnboardingPage() {
+  const posthog = usePostHog();
   const [ready, setReady] = useState(false);
   useEffect(() => {
     if (!ME.id) {
@@ -85,6 +87,12 @@ function OnboardingPage() {
     const ids = followed.size > 0 ? Array.from(followed) : baseline;
     try {
       await Promise.all(ids.map((id) => toggleAthleteFollow(id).catch(() => null)));
+      posthog.capture("onboarding_completed", {
+        sport,
+        goal_km: goalKm,
+        follow_count: ids.length,
+        auto_followed: followed.size === 0,
+      });
     } finally {
       localStorage.setItem(
         ONBOARDING_STORAGE_KEY,
@@ -138,7 +146,11 @@ function OnboardingPage() {
       <main className="flex flex-1 items-start justify-center px-6 py-12 lg:px-10 lg:py-16">
         <div className="w-full max-w-2xl">
           {step === 0 && (
-            <SportStep sport={sport} setSport={setSport} name={ME.name.split(" ")[0] || "athlete"} />
+            <SportStep
+              sport={sport}
+              setSport={setSport}
+              name={ME.name.split(" ")[0] || "athlete"}
+            />
           )}
           {step === 1 && <GoalStep goalKm={goalKm} setGoalKm={setGoalKm} sport={sport} />}
           {step === 2 && (
@@ -220,11 +232,7 @@ function StepIndicator({ step }: { step: number }) {
           <div key={label} className="flex-1">
             <div
               className={`h-[3px] w-full ${
-                index < step
-                  ? "bg-foreground"
-                  : index === step
-                    ? "bg-primary"
-                    : "bg-border"
+                index < step ? "bg-foreground" : index === step ? "bg-primary" : "bg-border"
               }`}
             />
             <div
@@ -471,15 +479,14 @@ function DoneStep({
       <div className="mt-10 grid gap-0 border border-border bg-surface sm:grid-cols-3">
         <RecapCell label="Discipline" value={sportLabel} />
         <RecapCell label="Weekly target" value={`${goalKm} km`} />
-        <RecapCell label="Following" value={`${followCount} athlete${followCount === 1 ? "" : "s"}`} />
+        <RecapCell
+          label="Following"
+          value={`${followCount} athlete${followCount === 1 ? "" : "s"}`}
+        />
       </div>
 
       <div className="mt-10 relative overflow-hidden border border-border">
-        <img
-          src={DONE_IMG}
-          alt="Runner silhouette at dawn"
-          className="h-56 w-full object-cover"
-        />
+        <img src={DONE_IMG} alt="Runner silhouette at dawn" className="h-56 w-full object-cover" />
         <div className="absolute inset-0 bg-gradient-to-t from-secondary/80 via-secondary/10 to-transparent" />
         <div className="absolute inset-x-6 bottom-6 text-secondary-foreground">
           <div className="font-mono text-[10px] uppercase tracking-[0.22em] text-secondary-foreground/80">

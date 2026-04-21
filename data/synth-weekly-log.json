@@ -1,0 +1,22 @@
+[
+  {
+    "runAt": "2026-04-21T20:04:31.661Z",
+    "weekStart": "2026-04-14",
+    "newUsers": 8,
+    "newActivities": 628,
+    "newPosthogEvents": 3937,
+    "newConversations": 8,
+    "newTickets": 2,
+    "newLinearIssues": 4
+  },
+  {
+    "runAt": "2026-04-21T20:08:05.687Z",
+    "weekStart": "2026-04-14",
+    "newUsers": 8,
+    "newActivities": 655,
+    "newPosthogEvents": 4060,
+    "newConversations": 8,
+    "newTickets": 2,
+    "newLinearIssues": 4
+  }
+]
