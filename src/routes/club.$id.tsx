@@ -5,6 +5,7 @@ import { AppShell } from "@/components/AppShell";
 import { ActivityCard } from "@/components/ActivityCard";
 import { Users, Check, MapPin } from "lucide-react";
 import { toggleClubJoin } from "@/lib/api";
+import { usePostHog } from "@posthog/react";
 
 export const Route = createFileRoute("/club/$id")({
   loader: ({ params }) => {
@@ -26,6 +27,7 @@ export const Route = createFileRoute("/club/$id")({
 
 function ClubDetail() {
   const { club } = Route.useLoaderData() as { club: import("@/lib/mock-data").Club };
+  const posthog = usePostHog();
   const [joined, setJoined] = useState(!!club.joined);
   const [membersCount, setMembersCount] = useState(club.members);
   const members = ATHLETES.filter((a) => a.id !== "me").slice(0, 6);
@@ -62,6 +64,12 @@ function ClubDetail() {
             const result = await toggleClubJoin(club.id);
             setJoined(result.joined);
             setMembersCount(result.members);
+            posthog.capture(result.joined ? "club_joined" : "club_left", {
+              club_id: club.id,
+              club_name: club.name,
+              sport: club.sport,
+              city: club.city,
+            });
           }}
           className={`h-10 px-5 rounded-md text-sm font-medium inline-flex items-center gap-2 ${
             joined ? "bg-secondary text-secondary-foreground" : "bg-primary text-primary-foreground"

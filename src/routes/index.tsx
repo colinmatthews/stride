@@ -1,5 +1,6 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
 import { useMemo, useState } from "react";
+import { usePostHog } from "@posthog/react";
 import {
   ArrowRight,
   ArrowUpRight,
@@ -40,6 +41,7 @@ function Index() {
 }
 
 function FeedPage() {
+  const posthog = usePostHog();
   const [filter, setFilter] = useState<Filter>("Following");
   const visible = useMemo(() => {
     if (filter === "You") return ACTIVITIES.filter((activity) => activity.athleteId === "me");
@@ -77,7 +79,10 @@ function FeedPage() {
               {FILTERS.map((filterName) => (
                 <button
                   key={filterName}
-                  onClick={() => setFilter(filterName)}
+                  onClick={() => {
+                    setFilter(filterName);
+                    posthog.capture("feed_filter_changed", { filter: filterName });
+                  }}
                   className={`rounded px-3 py-1.5 text-sm transition-colors ${
                     filter === filterName
                       ? "bg-surface text-foreground shadow-sm"
@@ -240,13 +245,22 @@ function LandingPage() {
             </div>
           </Link>
           <nav className="hidden items-center gap-8 md:flex">
-            <a className="text-sm text-muted-foreground transition-colors hover:text-foreground" href="#features">
+            <a
+              className="text-sm text-muted-foreground transition-colors hover:text-foreground"
+              href="#features"
+            >
               Training
             </a>
-            <a className="text-sm text-muted-foreground transition-colors hover:text-foreground" href="#segments">
+            <a
+              className="text-sm text-muted-foreground transition-colors hover:text-foreground"
+              href="#segments"
+            >
               Segments
             </a>
-            <a className="text-sm text-muted-foreground transition-colors hover:text-foreground" href="#proof">
+            <a
+              className="text-sm text-muted-foreground transition-colors hover:text-foreground"
+              href="#proof"
+            >
               Athletes
             </a>
           </nav>
@@ -472,7 +486,8 @@ function LandingPage() {
                 </dl>
               </div>
               <div className="text-sm text-muted-foreground">
-                Data rolling 30-day window · Updated {new Date().toLocaleDateString("en-US", {
+                Data rolling 30-day window · Updated{" "}
+                {new Date().toLocaleDateString("en-US", {
                   month: "short",
                   day: "numeric",
                 })}

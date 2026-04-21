@@ -1,0 +1,1088 @@
+{
+  "teamId": "dcfe9768-4b9b-4f49-a0b2-b8a18168e97d",
+  "teamKey": "STR",
+  "labelsCreated": [
+    "bug",
+    "feature",
+    "tech-debt",
+    "design",
+    "activity-sync",
+    "mobile",
+    "web",
+    "gps",
+    "segments",
+    "social",
+    "notifications",
+    "billing",
+    "account",
+    "auth",
+    "privacy",
+    "stability",
+    "features",
+    "integrations",
+    "clubs",
+    "challenges",
+    "infra",
+    "performance"
+  ],
+  "cyclesCreated": [
+    {
+      "name": "Current cycle",
+      "id": "459b9db3-8ec6-4925-87d5-a79dad8a9599",
+      "startsAt": "2026-04-14T19:28:43.577Z",
+      "endsAt": "2026-04-28T19:28:43.577Z"
+    },
+    {
+      "name": "Next cycle",
+      "id": "28c6a7cb-bfc5-42d5-a1fd-7afc7d8c1f94",
+      "startsAt": "2026-04-28T19:28:43.577Z",
+      "endsAt": "2026-05-12T19:28:43.577Z"
+    }
+  ],
+  "projectsCreated": [
+    {
+      "name": "Q2 Reliability",
+      "id": "4cd951f2-6fa5-4897-8430-d6a8b3825626"
+    },
+    {
+      "name": "New Metrics",
+      "id": "2fdd5f82-eb66-4241-843d-22145e893ad4"
+    },
+    {
+      "name": "Platform Foundations",
+      "id": "3d61071d-e47f-4af0-8ec2-432bcbbf9883"
+    }
+  ],
+  "issues": [
+    {
+      "id": "f09d030b-4969-41dd-aeb4-65e09133587f",
+      "identifier": "STR-1",
+      "title": "Add per-mile elevation gain metrics to activity analysis",
+      "kind": "bug-from-intercom",
+      "priority": 4,
+      "stateType": "backlog",
+      "projectName": null,
+      "areaLabels": [
+        "features"
+      ],
+      "conversationId": "215474010938046"
+    },
+    {
+      "id": "5e5506ac-026f-4891-8d99-b51be44acaac",
+      "identifier": "STR-3",
+      "title": "Account deletion request not processing — data retention after user removal",
+      "kind": "bug-from-intercom",
+      "priority": 3,
+      "stateType": "unstarted",
+      "projectName": "Q2 Reliability",
+      "areaLabels": [
+        "account",
+        "privacy"
+      ],
+      "conversationId": "215474010935266"
+    },
+    {
+      "id": "70d909e0-c2d1-40de-b830-faa9f799ba36",
+      "identifier": "STR-4",
+      "title": "Account deletion flow doesn't purge all user data from system",
+      "kind": "bug-from-intercom",
+      "priority": 3,
+      "stateType": "completed",
+      "projectName": "Q2 Reliability",
+      "areaLabels": [
+        "account",
+        "privacy"
+      ],
+      "conversationId": "215474010935350"
+    },
+    {
+      "id": "524bb11f-bc0f-4401-8110-5bd3dcb36073",
+      "identifier": "STR-5",
+      "title": "Clarify data retention policy on free tier downgrade",
+      "kind": "bug-from-intercom",
+      "priority": 3,
+      "stateType": "canceled",
+      "projectName": null,
+      "areaLabels": [
+        "billing",
+        "account"
+      ],
+      "conversationId": "215474010936543"
+    },
+    {
+      "id": "617aa5af-7b87-451a-8b7c-b3d98638baee",
+      "identifier": "STR-6",
+      "title": "Password reset email delivery failure",
+      "kind": "bug-from-intercom",
+      "priority": 1,
+      "stateType": "backlog",
+      "projectName": null,
+      "areaLabels": [
+        "account",
+        "auth"
+      ],
+      "conversationId": "215474010936732"
+    },
+    {
+      "id": "576fa042-2932-4683-a75e-a9a00e8ed1c9",
+      "identifier": "STR-2",
+      "title": "Whitefield Loop segment fails to record on swim activities",
+      "kind": "bug-from-intercom",
+      "priority": 3,
+      "stateType": "completed",
+      "projectName": "Q2 Reliability",
+      "areaLabels": [
+        "segments"
+      ],
+      "conversationId": "215474010935110"
+    },
+    {
+      "id": "95ac0602-a939-4942-b8aa-c932414416a7",
+      "identifier": "STR-7",
+      "title": "Lakefront 10K segment fails to record on completed run",
+      "kind": "bug-from-intercom",
+      "priority": 3,
+      "stateType": "unstarted",
+      "projectName": "Platform Foundations",
+      "areaLabels": [
+        "segments"
+      ],
+      "conversationId": "215474010937376"
+    },
+    {
+      "id": "8000e8a4-2a1a-4602-bcb0-c58e490af300",
+      "identifier": "STR-8",
+      "title": "Password reset email delivery failure in auth flow",
+      "kind": "bug-from-intercom",
+      "priority": 3,
+      "stateType": "completed",
+      "projectName": "Q2 Reliability",
+      "areaLabels": [
+        "account",
+        "auth"
+      ],
+      "conversationId": "215474010937743"
+    },
+    {
+      "id": "3b2a1fd0-c771-47c8-8c47-3305eb0bb64f",
+      "identifier": "STR-9",
+      "title": "Notification delivery rate exceeds expected frequency",
+      "kind": "bug-from-intercom",
+      "priority": 3,
+      "stateType": "backlog",
+      "projectName": null,
+      "areaLabels": [
+        "notifications"
+      ],
+      "conversationId": "215474010935786"
+    },
+    {
+      "id": "34a4ad18-af7d-4c2b-96ca-99498aaa0099",
+      "identifier": "STR-10",
+      "title": "Account deletion flow missing permanent data purge option",
+      "kind": "bug-from-intercom",
+      "priority": 2,
+      "stateType": "backlog",
+      "projectName": "Platform Foundations",
+      "areaLabels": [
+        "account",
+        "privacy"
+      ],
+      "conversationId": "215474010933868"
+    },
+    {
+      "id": "799da9da-3051-466b-a577-4be31ec0c42b",
+      "identifier": "STR-11",
+      "title": "Subscription charge processed post-cancellation",
+      "kind": "bug-from-intercom",
+      "priority": 3,
+      "stateType": "started",
+      "projectName": null,
+      "areaLabels": [
+        "billing"
+      ],
+      "conversationId": "215474010937857"
+    },
+    {
+      "id": "8bde3a70-06e8-4b35-93e0-f1ab641f7f2d",
+      "identifier": "STR-12",
+      "title": "Capitol Hill Run segment fails to record activity completion",
+      "kind": "bug-from-intercom",
+      "priority": 2,
+      "stateType": "backlog",
+      "projectName": "Q2 Reliability",
+      "areaLabels": [
+        "segments"
+      ],
+      "conversationId": "215474010937489"
+    },
+    {
+      "id": "fff6186d-f1ee-4b55-9fd8-03ead4ddfb9b",
+      "identifier": "STR-13",
+      "title": "Add swim stroke type segmentation to activity analytics",
+      "kind": "bug-from-intercom",
+      "priority": 2,
+      "stateType": "started",
+      "projectName": "Platform Foundations",
+      "areaLabels": [
+        "features"
+      ],
+      "conversationId": "215474010934712"
+    },
+    {
+      "id": "b3755cd5-724c-4344-8990-7aa76ef21f17",
+      "identifier": "STR-14",
+      "title": "Password reset email delivery failure",
+      "kind": "bug-from-intercom",
+      "priority": 1,
+      "stateType": "backlog",
+      "projectName": null,
+      "areaLabels": [
+        "account",
+        "auth"
+      ],
+      "conversationId": "215474010934034"
+    },
+    {
+      "id": "726d1b19-6a4f-48eb-8d0f-2a785b5213c6",
+      "identifier": "STR-15",
+      "title": "Account deletion flow missing permanent data purge confirmation",
+      "kind": "bug-from-intercom",
+      "priority": 2,
+      "stateType": "started",
+      "projectName": "Q2 Reliability",
+      "areaLabels": [
+        "account",
+        "privacy"
+      ],
+      "conversationId": "215474010937011"
+    },
+    {
+      "id": "b3b15393-6082-4170-a61c-3de3f14f94f8",
+      "identifier": "STR-16",
+      "title": "Activity sync drops Apple Watch Ultra 2 workouts from feed",
+      "kind": "bug-from-intercom",
+      "priority": 2,
+      "stateType": "started",
+      "projectName": "Q2 Reliability",
+      "areaLabels": [
+        "activity-sync",
+        "mobile"
+      ],
+      "conversationId": "215474010935301"
+    },
+    {
+      "id": "b2a11009-5226-4892-ac39-78c5333c680d",
+      "identifier": "STR-17",
+      "title": "Feed view causes app crash on launch",
+      "kind": "bug-from-intercom",
+      "priority": 3,
+      "stateType": "completed",
+      "projectName": null,
+      "areaLabels": [
+        "mobile",
+        "stability"
+      ],
+      "conversationId": "215474010934088"
+    },
+    {
+      "id": "b12ec036-8b79-4f6d-b005-55b644781d45",
+      "identifier": "STR-18",
+      "title": "Elevation challenge progress not updating for completed activities",
+      "kind": "bug-from-intercom",
+      "priority": 3,
+      "stateType": "completed",
+      "projectName": "Q2 Reliability",
+      "areaLabels": [
+        "challenges"
+      ],
+      "conversationId": "215474010934847"
+    },
+    {
+      "id": "7bd09de7-edc2-458b-ada9-4377f20a53fd",
+      "identifier": "STR-19",
+      "title": "Garmin Forerunner 265 workout lost after successful initial sync",
+      "kind": "bug-from-intercom",
+      "priority": 3,
+      "stateType": "started",
+      "projectName": "Q2 Reliability",
+      "areaLabels": [
+        "activity-sync",
+        "mobile"
+      ],
+      "conversationId": "215474010937646"
+    },
+    {
+      "id": "0d2adf17-7d76-472d-b031-49c03345e4b9",
+      "identifier": "STR-20",
+      "title": "GPS drift causes track to penetrate buildings, inflates distance calc",
+      "kind": "bug-from-intercom",
+      "priority": 3,
+      "stateType": "unstarted",
+      "projectName": "Q2 Reliability",
+      "areaLabels": [
+        "gps",
+        "mobile"
+      ],
+      "conversationId": "215474010935470"
+    },
+    {
+      "id": "e57dc789-8bd0-4f56-a5ea-2ee7898fa8ab",
+      "identifier": "STR-21",
+      "title": "Activity sync fails to retrieve workouts from previous day",
+      "kind": "bug-from-intercom",
+      "priority": 1,
+      "stateType": "unstarted",
+      "projectName": "Q2 Reliability",
+      "areaLabels": [
+        "activity-sync",
+        "mobile"
+      ],
+      "conversationId": "215474010936273"
+    },
+    {
+      "id": "be05992e-41ac-498f-812d-f028fc691b97",
+      "identifier": "STR-22",
+      "title": "Premium subscription cancellation UI not discoverable",
+      "kind": "bug-from-intercom",
+      "priority": 3,
+      "stateType": "canceled",
+      "projectName": "Q2 Reliability",
+      "areaLabels": [
+        "billing",
+        "account"
+      ],
+      "conversationId": "215474010936202"
+    },
+    {
+      "id": "03f3ab4a-56bd-4e47-b25b-70508258e926",
+      "identifier": "STR-23",
+      "title": "Activity sync: Garmin Forerunner 265 ride lost during upload",
+      "kind": "bug-from-intercom",
+      "priority": 1,
+      "stateType": "started",
+      "projectName": "Q2 Reliability",
+      "areaLabels": [
+        "activity-sync",
+        "mobile"
+      ],
+      "conversationId": "215474010937449"
+    },
+    {
+      "id": "f27191af-cdbf-437f-97c3-f3abf573abf0",
+      "identifier": "STR-24",
+      "title": "Djurgården Loop segment fails to record on completed rides",
+      "kind": "bug-from-intercom",
+      "priority": 3,
+      "stateType": "unstarted",
+      "projectName": "Q2 Reliability",
+      "areaLabels": [
+        "segments"
+      ],
+      "conversationId": "215474010934435"
+    },
+    {
+      "id": "e8f36cc8-2978-404a-9544-af25d9479c65",
+      "identifier": "STR-25",
+      "title": "Duplicate premium subscription charge in April billing cycle",
+      "kind": "bug-from-intercom",
+      "priority": 1,
+      "stateType": "canceled",
+      "projectName": "Q2 Reliability",
+      "areaLabels": [
+        "billing"
+      ],
+      "conversationId": "215474010934913"
+    },
+    {
+      "id": "12ac63e7-cd3e-4cb1-9e3e-143e10e8c468",
+      "identifier": "STR-26",
+      "title": "Feed query p95 latency spike to 2s in challenges",
+      "kind": "bug-eng",
+      "priority": 4,
+      "stateType": "started",
+      "projectName": "Q2 Reliability",
+      "areaLabels": [
+        "challenges"
+      ]
+    },
+    {
+      "id": "7af44d61-8744-4b70-a40d-1da4f9f892c8",
+      "identifier": "STR-27",
+      "title": "Missing Sentry breadcrumb on activity sync failures",
+      "kind": "bug-eng",
+      "priority": 2,
+      "stateType": "unstarted",
+      "projectName": "Q2 Reliability",
+      "areaLabels": [
+        "notifications",
+        "privacy"
+      ]
+    },
+    {
+      "id": "fb948e51-49b5-4ff9-a31e-6a23f2816e73",
+      "identifier": "STR-28",
+      "title": "Missing Sentry breadcrumb for activity sync failures",
+      "kind": "bug-eng",
+      "priority": 4,
+      "stateType": "unstarted",
+      "projectName": "Q2 Reliability",
+      "areaLabels": [
+        "account",
+        "mobile"
+      ]
+    },
+    {
+      "id": "36c4dfc5-dab6-4eb0-80a2-c53c3adecb1b",
+      "identifier": "STR-29",
+      "title": "GraphQL cache not invalidated after club membership mutation",
+      "kind": "bug-eng",
+      "priority": 2,
+      "stateType": "unstarted",
+      "projectName": "Platform Foundations",
+      "areaLabels": [
+        "gps",
+        "billing"
+      ]
+    },
+    {
+      "id": "9883e124-3cff-4d8e-93a4-95d73cd07571",
+      "identifier": "STR-30",
+      "title": "Activity upload retries ignoring exponential backoff configuration",
+      "kind": "bug-eng",
+      "priority": 3,
+      "stateType": "unstarted",
+      "projectName": "Platform Foundations",
+      "areaLabels": [
+        "social",
+        "auth"
+      ]
+    },
+    {
+      "id": "fa8a4693-ed8f-4f3a-a038-44b08d3036fb",
+      "identifier": "STR-31",
+      "title": "GraphQL cache not invalidating after club membership mutation",
+      "kind": "bug-eng",
+      "priority": 1,
+      "stateType": "backlog",
+      "projectName": "Q2 Reliability",
+      "areaLabels": [
+        "activity-sync",
+        "social"
+      ]
+    },
+    {
+      "id": "95c22432-a96f-46de-9cdf-be37f5b7df70",
+      "identifier": "STR-32",
+      "title": "Session tokens remain valid after password change in billing",
+      "kind": "bug-eng",
+      "priority": 3,
+      "stateType": "backlog",
+      "projectName": "Q2 Reliability",
+      "areaLabels": [
+        "billing"
+      ]
+    },
+    {
+      "id": "f828741b-1fc4-480b-8d3d-04b834403ddd",
+      "identifier": "STR-33",
+      "title": "Cron job executes twice during DST transition",
+      "kind": "bug-eng",
+      "priority": 3,
+      "stateType": "backlog",
+      "projectName": "Q2 Reliability",
+      "areaLabels": [
+        "clubs"
+      ]
+    },
+    {
+      "id": "6658ebd7-15da-4dd1-ac29-84d007224651",
+      "identifier": "STR-34",
+      "title": "Activity sync failures not captured in Sentry breadcrumbs",
+      "kind": "bug-eng",
+      "priority": 2,
+      "stateType": "canceled",
+      "projectName": null,
+      "areaLabels": [
+        "web"
+      ]
+    },
+    {
+      "id": "bac6bbd9-52b5-4885-9e04-252ab6d89e5f",
+      "identifier": "STR-35",
+      "title": "Activity upload retries ignoring exponential backoff config",
+      "kind": "bug-eng",
+      "priority": 3,
+      "stateType": "completed",
+      "projectName": "Q2 Reliability",
+      "areaLabels": [
+        "clubs"
+      ]
+    },
+    {
+      "id": "56b766fa-66d3-464d-8ab4-53de3cd323c8",
+      "identifier": "STR-36",
+      "title": "Activity upload retries not respecting exponential backoff",
+      "kind": "bug-eng",
+      "priority": 2,
+      "stateType": "completed",
+      "projectName": "Q2 Reliability",
+      "areaLabels": [
+        "clubs"
+      ]
+    },
+    {
+      "id": "3c3f4b4d-322d-4922-84ff-15a3524a48ac",
+      "identifier": "STR-37",
+      "title": "Cron job for challenge progress runs twice on DST transition",
+      "kind": "bug-eng",
+      "priority": 3,
+      "stateType": "unstarted",
+      "projectName": "Q2 Reliability",
+      "areaLabels": [
+        "stability",
+        "gps"
+      ]
+    },
+    {
+      "id": "92a29158-bfea-4b72-bfa2-3af945febc34",
+      "identifier": "STR-38",
+      "title": "GraphQL cache stale after club membership mutation",
+      "kind": "bug-eng",
+      "priority": 3,
+      "stateType": "started",
+      "projectName": "Q2 Reliability",
+      "areaLabels": [
+        "activity-sync",
+        "social"
+      ]
+    },
+    {
+      "id": "87122968-2ce8-4ddb-b88a-8bebd446914a",
+      "identifier": "STR-39",
+      "title": "Memory leak in background activity ingest worker",
+      "kind": "bug-eng",
+      "priority": 2,
+      "stateType": "started",
+      "projectName": "Q2 Reliability",
+      "areaLabels": [
+        "notifications",
+        "auth"
+      ]
+    },
+    {
+      "id": "4eb124bb-2691-407b-b2ee-410a6ab65f44",
+      "identifier": "STR-40",
+      "title": "Add Polar and Suunto watch notifications for segment achievements",
+      "kind": "feature",
+      "priority": 3,
+      "stateType": "unstarted",
+      "projectName": null,
+      "areaLabels": [
+        "notifications",
+        "segments"
+      ]
+    },
+    {
+      "id": "d09a9067-a4cc-4cca-a267-5be8565c6c63",
+      "identifier": "STR-41",
+      "title": "Automatic injury-risk alerts from training load metrics",
+      "kind": "feature",
+      "priority": 2,
+      "stateType": "completed",
+      "projectName": "New Metrics",
+      "areaLabels": [
+        "web",
+        "clubs"
+      ]
+    },
+    {
+      "id": "83a977f2-5fea-4820-9bce-4afc726a3b22",
+      "identifier": "STR-42",
+      "title": "3D replay visualization for challenge runs",
+      "kind": "feature",
+      "priority": 3,
+      "stateType": "backlog",
+      "projectName": null,
+      "areaLabels": [
+        "challenges"
+      ]
+    },
+    {
+      "id": "cd559204-def4-48c9-b50d-8e54879a63c9",
+      "identifier": "STR-43",
+      "title": "Add Polar and Suunto watch data to billing usage tracking",
+      "kind": "feature",
+      "priority": 3,
+      "stateType": "unstarted",
+      "projectName": null,
+      "areaLabels": [
+        "billing"
+      ]
+    },
+    {
+      "id": "bcbac64d-0d80-4a3d-a1f8-73ff6af22e85",
+      "identifier": "STR-44",
+      "title": "Memory leak in background activity ingest worker",
+      "kind": "bug-eng",
+      "priority": 4,
+      "stateType": "completed",
+      "projectName": null,
+      "areaLabels": [
+        "integrations"
+      ]
+    },
+    {
+      "id": "6088a53b-6510-4023-90c4-80252b7fa2fd",
+      "identifier": "STR-45",
+      "title": "Nutrition tracking per activity",
+      "kind": "feature",
+      "priority": 2,
+      "stateType": "unstarted",
+      "projectName": "New Metrics",
+      "areaLabels": [
+        "infra"
+      ]
+    },
+    {
+      "id": "7bb7b8d1-3031-4c2d-9197-71163b04283b",
+      "identifier": "STR-46",
+      "title": "Stroke breakdown analytics for swim challenges on mobile",
+      "kind": "feature",
+      "priority": 0,
+      "stateType": "backlog",
+      "projectName": null,
+      "areaLabels": [
+        "challenges",
+        "mobile"
+      ]
+    },
+    {
+      "id": "c8ce9eb9-f27c-49e5-bc6a-130557b555d0",
+      "identifier": "STR-47",
+      "title": "3D replay visualization for completed runs",
+      "kind": "feature",
+      "priority": 3,
+      "stateType": "completed",
+      "projectName": "New Metrics",
+      "areaLabels": [
+        "web"
+      ]
+    },
+    {
+      "id": "755444bf-2a00-4017-8d50-49042f89141a",
+      "identifier": "STR-48",
+      "title": "Automatic injury-risk alerts from training load",
+      "kind": "feature",
+      "priority": 0,
+      "stateType": "backlog",
+      "projectName": "New Metrics",
+      "areaLabels": [
+        "segments",
+        "infra"
+      ]
+    },
+    {
+      "id": "8a5361c0-f91e-48cb-8ff2-45308b6b4a98",
+      "identifier": "STR-49",
+      "title": "Social nutrition tracking: Share activity-specific meal logging with friends",
+      "kind": "feature",
+      "priority": 4,
+      "stateType": "backlog",
+      "projectName": "New Metrics",
+      "areaLabels": [
+        "social"
+      ]
+    },
+    {
+      "id": "b542022d-bf8c-41fb-9266-42dc9feacbf7",
+      "identifier": "STR-50",
+      "title": "Add running form metrics to Apple Health integration",
+      "kind": "feature",
+      "priority": 4,
+      "stateType": "started",
+      "projectName": "New Metrics",
+      "areaLabels": [
+        "integrations",
+        "privacy"
+      ]
+    },
+    {
+      "id": "a01337ba-4b97-4efd-ba5f-fd53bde3d5ce",
+      "identifier": "STR-51",
+      "title": "Power zones privacy controls for cycling activity sharing",
+      "kind": "feature",
+      "priority": 0,
+      "stateType": "unstarted",
+      "projectName": "New Metrics",
+      "areaLabels": [
+        "privacy",
+        "social"
+      ]
+    },
+    {
+      "id": "6ee96593-e7bb-464a-ba84-a77fe19ec013",
+      "identifier": "STR-53",
+      "title": "Add RSVP management to club event planning",
+      "kind": "feature",
+      "priority": 4,
+      "stateType": "completed",
+      "projectName": null,
+      "areaLabels": [
+        "features"
+      ]
+    },
+    {
+      "id": "2936f866-5884-450f-9eb0-9a926fce4686",
+      "identifier": "STR-52",
+      "title": "Automatic injury-risk alerts based on training load patterns",
+      "kind": "feature",
+      "priority": 2,
+      "stateType": "unstarted",
+      "projectName": null,
+      "areaLabels": [
+        "social"
+      ]
+    },
+    {
+      "id": "e3192f37-7a13-4e1e-865d-de32b1024333",
+      "identifier": "STR-54",
+      "title": "Add per-activity nutrition tracking with privacy controls",
+      "kind": "feature",
+      "priority": 4,
+      "stateType": "backlog",
+      "projectName": null,
+      "areaLabels": [
+        "privacy",
+        "infra"
+      ]
+    },
+    {
+      "id": "52fe73e9-e657-4e5a-9103-15921403663a",
+      "identifier": "STR-55",
+      "title": "Add heatmap visualization for personal activity history",
+      "kind": "feature",
+      "priority": 3,
+      "stateType": "started",
+      "projectName": null,
+      "areaLabels": [
+        "activity-sync"
+      ]
+    },
+    {
+      "id": "18c9db48-3fa2-479b-a97a-ebe1c7365b4c",
+      "identifier": "STR-56",
+      "title": "Automatic injury-risk alerts from training load monitoring",
+      "kind": "feature",
+      "priority": 2,
+      "stateType": "unstarted",
+      "projectName": "New Metrics",
+      "areaLabels": [
+        "clubs",
+        "billing"
+      ]
+    },
+    {
+      "id": "65ccd098-e8b9-49ea-9a85-ef4ef2d320f7",
+      "identifier": "STR-57",
+      "title": "Enable Polar and Suunto watch activity sharing to social feed",
+      "kind": "feature",
+      "priority": 3,
+      "stateType": "completed",
+      "projectName": "New Metrics",
+      "areaLabels": [
+        "social"
+      ]
+    },
+    {
+      "id": "187210cb-770e-471b-95af-4b0b02588410",
+      "identifier": "STR-58",
+      "title": "AI-suggested segments for club member targeting",
+      "kind": "feature",
+      "priority": 2,
+      "stateType": "unstarted",
+      "projectName": null,
+      "areaLabels": [
+        "clubs"
+      ]
+    },
+    {
+      "id": "749ed066-396d-4471-995d-a023f7cee4c3",
+      "identifier": "STR-59",
+      "title": "3D replay visualization of run activity",
+      "kind": "feature",
+      "priority": 2,
+      "stateType": "unstarted",
+      "projectName": "New Metrics",
+      "areaLabels": [
+        "account",
+        "clubs"
+      ]
+    },
+    {
+      "id": "8420a56b-320f-47b6-bc78-1f25709da0ef",
+      "identifier": "STR-60",
+      "title": "Real-time route sharing for group activities",
+      "kind": "feature",
+      "priority": 3,
+      "stateType": "unstarted",
+      "projectName": "New Metrics",
+      "areaLabels": [
+        "clubs",
+        "social"
+      ]
+    },
+    {
+      "id": "f39bd0e5-8cd6-4e06-b68a-6d91e6ff14fc",
+      "identifier": "STR-62",
+      "title": "Batch export activities to CSV and FIT formats",
+      "kind": "feature",
+      "priority": 3,
+      "stateType": "started",
+      "projectName": null,
+      "areaLabels": [
+        "gps",
+        "performance"
+      ]
+    },
+    {
+      "id": "79ae7277-9ecc-4688-afcd-f8fbcd644090",
+      "identifier": "STR-63",
+      "title": "Power zones visualization in cycling challenges with GPS tracking",
+      "kind": "feature",
+      "priority": 3,
+      "stateType": "backlog",
+      "projectName": null,
+      "areaLabels": [
+        "challenges",
+        "gps"
+      ]
+    },
+    {
+      "id": "866c5b3a-7112-40cb-a188-6fbb423e6001",
+      "identifier": "STR-64",
+      "title": "Integrate power zone training data from cycling platforms",
+      "kind": "feature",
+      "priority": 4,
+      "stateType": "unstarted",
+      "projectName": "New Metrics",
+      "areaLabels": [
+        "integrations"
+      ]
+    },
+    {
+      "id": "7459ad11-8a18-4e09-9ec8-1f01d1a85f3d",
+      "identifier": "STR-61",
+      "title": "Batch export activities to CSV/FIT formats",
+      "kind": "feature",
+      "priority": 3,
+      "stateType": "backlog",
+      "projectName": "New Metrics",
+      "areaLabels": [
+        "performance",
+        "stability"
+      ]
+    },
+    {
+      "id": "d0246dbb-42df-41e8-b6d2-fa3dc30f67e0",
+      "identifier": "STR-65",
+      "title": "Add contract tests for Garmin, Polar, Apple Watch webhooks",
+      "kind": "tech-debt",
+      "priority": 4,
+      "stateType": "started",
+      "projectName": "Platform Foundations",
+      "areaLabels": [
+        "web",
+        "features"
+      ]
+    },
+    {
+      "id": "b2cf3c26-e259-422f-aaf1-5ea739de59a1",
+      "identifier": "STR-66",
+      "title": "Migrate from Moment.js to date-fns in mobile app",
+      "kind": "tech-debt",
+      "priority": 0,
+      "stateType": "backlog",
+      "projectName": "Platform Foundations",
+      "areaLabels": [
+        "features"
+      ]
+    },
+    {
+      "id": "ac038703-5d81-46cf-979f-fa880a6997e9",
+      "identifier": "STR-67",
+      "title": "Set up Sentry source map upload in CI pipeline",
+      "kind": "tech-debt",
+      "priority": 3,
+      "stateType": "unstarted",
+      "projectName": "Platform Foundations",
+      "areaLabels": [
+        "notifications",
+        "infra"
+      ]
+    },
+    {
+      "id": "480a7ae9-b490-4569-90dd-eb6982a3d395",
+      "identifier": "STR-68",
+      "title": "Migrate feature flags from environment variables to GrowthBook",
+      "kind": "tech-debt",
+      "priority": 3,
+      "stateType": "backlog",
+      "projectName": "Platform Foundations",
+      "areaLabels": [
+        "activity-sync",
+        "notifications"
+      ]
+    },
+    {
+      "id": "550d29d2-77e6-4a9e-b7af-61b45aaae202",
+      "identifier": "STR-69",
+      "title": "Drop iOS 16 support and modernize notification/activity-sync APIs",
+      "kind": "tech-debt",
+      "priority": 3,
+      "stateType": "backlog",
+      "projectName": "Platform Foundations",
+      "areaLabels": [
+        "notifications",
+        "activity-sync"
+      ]
+    },
+    {
+      "id": "2825bccd-1177-461a-82ab-8c4a0ecb4271",
+      "identifier": "STR-70",
+      "title": "Extract duplicate segment detection into shared library",
+      "kind": "tech-debt",
+      "priority": 2,
+      "stateType": "canceled",
+      "projectName": null,
+      "areaLabels": [
+        "performance"
+      ]
+    },
+    {
+      "id": "d985eb75-2d4b-4ad7-a359-2c53dfea4f14",
+      "identifier": "STR-71",
+      "title": "Implement route-level code splitting to reduce JS bundle by 200KB",
+      "kind": "tech-debt",
+      "priority": 4,
+      "stateType": "unstarted",
+      "projectName": "Platform Foundations",
+      "areaLabels": [
+        "mobile"
+      ]
+    },
+    {
+      "id": "a8b16038-c10a-4a7f-a535-cfb251bf14a6",
+      "identifier": "STR-73",
+      "title": "Add comprehensive test coverage for segment effort matching logic",
+      "kind": "tech-debt",
+      "priority": 4,
+      "stateType": "backlog",
+      "projectName": "Platform Foundations",
+      "areaLabels": [
+        "segments"
+      ]
+    },
+    {
+      "id": "810183f5-6673-42b8-9e36-e75ede40c6de",
+      "identifier": "STR-74",
+      "title": "Add OpenTelemetry tracing to API and ingestion services",
+      "kind": "tech-debt",
+      "priority": 4,
+      "stateType": "backlog",
+      "projectName": null,
+      "areaLabels": [
+        "integrations"
+      ]
+    },
+    {
+      "id": "d34f14d3-1f68-4aa2-87e5-be0338f4ccc3",
+      "identifier": "STR-72",
+      "title": "Enable Sentry source map upload in CI pipeline",
+      "kind": "tech-debt",
+      "priority": 2,
+      "stateType": "backlog",
+      "projectName": "Platform Foundations",
+      "areaLabels": [
+        "notifications",
+        "privacy"
+      ]
+    },
+    {
+      "id": "63510c9d-b3ce-465e-bb1b-21eb42d25620",
+      "identifier": "STR-75",
+      "title": "Migrate authentication sessions from custom scrypt to Lucia",
+      "kind": "tech-debt",
+      "priority": 3,
+      "stateType": "started",
+      "projectName": "Q2 Reliability",
+      "areaLabels": [
+        "mobile",
+        "auth"
+      ]
+    },
+    {
+      "id": "05d386e2-3893-4825-8cc6-4b794799ca3d",
+      "identifier": "STR-76",
+      "title": "Add test coverage for segment effort matching logic",
+      "kind": "tech-debt",
+      "priority": 0,
+      "stateType": "started",
+      "projectName": "Platform Foundations",
+      "areaLabels": [
+        "activity-sync"
+      ]
+    },
+    {
+      "id": "e0dee46f-5a0d-48a5-9524-0522f36a5034",
+      "identifier": "STR-77",
+      "title": "Implement route-level code splitting to reduce JS bundle by 200KB",
+      "kind": "tech-debt",
+      "priority": 4,
+      "stateType": "started",
+      "projectName": "Platform Foundations",
+      "areaLabels": [
+        "segments",
+        "social"
+      ]
+    },
+    {
+      "id": "c5cbdf8f-fb40-4d83-b26e-d7524e34dfca",
+      "identifier": "STR-78",
+      "title": "Add composite index on (athlete_id, date) for feed queries",
+      "kind": "tech-debt",
+      "priority": 0,
+      "stateType": "unstarted",
+      "projectName": "Platform Foundations",
+      "areaLabels": [
+        "gps",
+        "features"
+      ]
+    },
+    {
+      "id": "0712e641-4d9b-4ec0-87ba-f14b9be2ac2c",
+      "identifier": "STR-80",
+      "title": "Replace Moment.js with date-fns in account module",
+      "kind": "tech-debt",
+      "priority": 3,
+      "stateType": "unstarted",
+      "projectName": null,
+      "areaLabels": [
+        "account"
+      ]
+    },
+    {
+      "id": "a01d8517-c93b-491e-8b0b-3f1ea596054d",
+      "identifier": "STR-79",
+      "title": "Migrate auth sessions from custom scrypt to Lucia",
+      "kind": "tech-debt",
+      "priority": 0,
+      "stateType": "unstarted",
+      "projectName": "Platform Foundations",
+      "areaLabels": [
+        "web"
+      ]
+    }
+  ],
+  "failures": []
+}
