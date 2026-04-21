@@ -12,8 +12,10 @@ import { Route as rootRouteImport } from './routes/__root'
 import { Route as TrainingRouteImport } from './routes/training'
 import { Route as SegmentsRouteImport } from './routes/segments'
 import { Route as RecordRouteImport } from './routes/record'
+import { Route as OnboardingRouteImport } from './routes/onboarding'
 import { Route as ClubsRouteImport } from './routes/clubs'
 import { Route as ChallengesRouteImport } from './routes/challenges'
+import { Route as AuthRouteImport } from './routes/auth'
 import { Route as IndexRouteImport } from './routes/index'
 import { Route as SegmentIdRouteImport } from './routes/segment.$id'
 import { Route as ClubIdRouteImport } from './routes/club.$id'
@@ -35,6 +37,11 @@ const RecordRoute = RecordRouteImport.update({
   path: '/record',
   getParentRoute: () => rootRouteImport,
 } as any)
+const OnboardingRoute = OnboardingRouteImport.update({
+  id: '/onboarding',
+  path: '/onboarding',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const ClubsRoute = ClubsRouteImport.update({
   id: '/clubs',
   path: '/clubs',
@@ -43,6 +50,11 @@ const ClubsRoute = ClubsRouteImport.update({
 const ChallengesRoute = ChallengesRouteImport.update({
   id: '/challenges',
   path: '/challenges',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const AuthRoute = AuthRouteImport.update({
+  id: '/auth',
+  path: '/auth',
   getParentRoute: () => rootRouteImport,
 } as any)
 const IndexRoute = IndexRouteImport.update({
@@ -73,8 +85,10 @@ const ActivityIdRoute = ActivityIdRouteImport.update({
 
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
+  '/auth': typeof AuthRoute
   '/challenges': typeof ChallengesRoute
   '/clubs': typeof ClubsRoute
+  '/onboarding': typeof OnboardingRoute
   '/record': typeof RecordRoute
   '/segments': typeof SegmentsRoute
   '/training': typeof TrainingRoute
@@ -85,8 +99,10 @@ export interface FileRoutesByFullPath {
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
+  '/auth': typeof AuthRoute
   '/challenges': typeof ChallengesRoute
   '/clubs': typeof ClubsRoute
+  '/onboarding': typeof OnboardingRoute
   '/record': typeof RecordRoute
   '/segments': typeof SegmentsRoute
   '/training': typeof TrainingRoute
@@ -98,8 +114,10 @@ export interface FileRoutesByTo {
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
   '/': typeof IndexRoute
+  '/auth': typeof AuthRoute
   '/challenges': typeof ChallengesRoute
   '/clubs': typeof ClubsRoute
+  '/onboarding': typeof OnboardingRoute
   '/record': typeof RecordRoute
   '/segments': typeof SegmentsRoute
   '/training': typeof TrainingRoute
@@ -112,8 +130,10 @@ export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
   fullPaths:
     | '/'
+    | '/auth'
     | '/challenges'
     | '/clubs'
+    | '/onboarding'
     | '/record'
     | '/segments'
     | '/training'
@@ -124,8 +144,10 @@ export interface FileRouteTypes {
   fileRoutesByTo: FileRoutesByTo
   to:
     | '/'
+    | '/auth'
     | '/challenges'
     | '/clubs'
+    | '/onboarding'
     | '/record'
     | '/segments'
     | '/training'
@@ -136,8 +158,10 @@ export interface FileRouteTypes {
   id:
     | '__root__'
     | '/'
+    | '/auth'
     | '/challenges'
     | '/clubs'
+    | '/onboarding'
     | '/record'
     | '/segments'
     | '/training'
@@ -149,8 +173,10 @@ export interface FileRouteTypes {
 }
 export interface RootRouteChildren {
   IndexRoute: typeof IndexRoute
+  AuthRoute: typeof AuthRoute
   ChallengesRoute: typeof ChallengesRoute
   ClubsRoute: typeof ClubsRoute
+  OnboardingRoute: typeof OnboardingRoute
   RecordRoute: typeof RecordRoute
   SegmentsRoute: typeof SegmentsRoute
   TrainingRoute: typeof TrainingRoute
@@ -183,6 +209,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof RecordRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/onboarding': {
+      id: '/onboarding'
+      path: '/onboarding'
+      fullPath: '/onboarding'
+      preLoaderRoute: typeof OnboardingRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/clubs': {
       id: '/clubs'
       path: '/clubs'
@@ -195,6 +228,13 @@ declare module '@tanstack/react-router' {
       path: '/challenges'
       fullPath: '/challenges'
       preLoaderRoute: typeof ChallengesRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/auth': {
+      id: '/auth'
+      path: '/auth'
+      fullPath: '/auth'
+      preLoaderRoute: typeof AuthRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/': {
@@ -237,8 +277,10 @@ declare module '@tanstack/react-router' {
 
 const rootRouteChildren: RootRouteChildren = {
   IndexRoute: IndexRoute,
+  AuthRoute: AuthRoute,
   ChallengesRoute: ChallengesRoute,
   ClubsRoute: ClubsRoute,
+  OnboardingRoute: OnboardingRoute,
   RecordRoute: RecordRoute,
   SegmentsRoute: SegmentsRoute,
   TrainingRoute: TrainingRoute,

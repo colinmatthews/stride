@@ -1,6 +1,4 @@
-import { Outlet, Link, createRootRoute, HeadContent, Scripts } from "@tanstack/react-router";
-
-import appCss from "../styles.css?url";
+import { Outlet, Link, createRootRoute, HeadContent } from "@tanstack/react-router";
 
 function NotFoundComponent() {
   return (
@@ -30,19 +28,21 @@ export const Route = createRootRoute({
       { charSet: "utf-8" },
       { name: "viewport", content: "width=device-width, initial-scale=1" },
       { title: "Stride — Where every effort counts" },
-      { name: "description", content: "Track runs, rides, swims and more. Connect with athletes, chase segments, conquer challenges." },
+      {
+        name: "description",
+        content:
+          "Track runs, rides, swims and more. Connect with athletes, chase segments, conquer challenges.",
+      },
       { name: "author", content: "Stride" },
       { property: "og:title", content: "Stride — Where every effort counts" },
-      { property: "og:description", content: "Track runs, rides, swims and more. Connect with athletes, chase segments, conquer challenges." },
+      {
+        property: "og:description",
+        content:
+          "Track runs, rides, swims and more. Connect with athletes, chase segments, conquer challenges.",
+      },
       { property: "og:type", content: "website" },
       { name: "twitter:card", content: "summary" },
       { name: "twitter:site", content: "@Lovable" },
-    ],
-    links: [
-      {
-        rel: "stylesheet",
-        href: appCss,
-      },
     ],
   }),
   shellComponent: RootShell,
@@ -52,15 +52,10 @@ export const Route = createRootRoute({
 
 function RootShell({ children }: { children: React.ReactNode }) {
   return (
-    <html lang="en">
-      <head>
-        <HeadContent />
-      </head>
-      <body>
-        {children}
-        <Scripts />
-      </body>
-    </html>
+    <>
+      <HeadContent />
+      {children}
+    </>
   );
 }
 
