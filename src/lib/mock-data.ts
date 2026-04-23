@@ -268,6 +268,52 @@ export function routePath(seed: number, width = 600, height = 300): string {
     .join(" ");
 }
 
+// ── Billing ────────────────────────────────────────────────────────────────
+
+export type ChargeStatus = "paid" | "refunded" | "failed";
+
+export interface BillingCharge {
+  id: string;
+  date: string;
+  amount: number;
+  description: string;
+  status: ChargeStatus;
+  isDuplicate?: boolean;
+}
+
+export interface PremiumBenefit {
+  label: string;
+  description: string;
+}
+
+export const PLAN = {
+  name: "Stride Premium",
+  price: 9.99,
+  currency: "USD",
+  nextBillingDate: "May 23, 2026",
+  accessEndsDate: "May 22, 2026",
+  memberSince: "Jan 2024",
+};
+
+export const PREMIUM_BENEFITS: PremiumBenefit[] = [
+  { label: "Segment leaderboards", description: "Full KOM/QOM rankings and filtering" },
+  { label: "Training analysis", description: "Weekly load, fitness & freshness charts" },
+  { label: "Route builder", description: "Advanced route creation with heatmaps" },
+  { label: "Live feedback", description: "Real-time pace and effort during activities" },
+  { label: "Beacon safety", description: "Share live location with contacts while recording" },
+];
+
+export const BILLING_HISTORY: BillingCharge[] = [
+  { id: "chg_001", date: "Apr 23, 2026", amount: 9.99, description: "Stride Premium — Monthly", status: "paid", isDuplicate: true },
+  { id: "chg_002", date: "Apr 23, 2026", amount: 9.99, description: "Stride Premium — Monthly", status: "paid", isDuplicate: true },
+  { id: "chg_003", date: "Mar 23, 2026", amount: 9.99, description: "Stride Premium — Monthly", status: "paid" },
+  { id: "chg_004", date: "Feb 23, 2026", amount: 9.99, description: "Stride Premium — Monthly", status: "paid" },
+  { id: "chg_005", date: "Jan 23, 2026", amount: 9.99, description: "Stride Premium — Monthly", status: "paid" },
+  { id: "chg_006", date: "Dec 23, 2025", amount: 9.99, description: "Stride Premium — Monthly", status: "refunded" },
+  { id: "chg_007", date: "Nov 23, 2025", amount: 9.99, description: "Stride Premium — Monthly", status: "failed" },
+  { id: "chg_008", date: "Oct 23, 2025", amount: 9.99, description: "Stride Premium — Monthly", status: "paid" },
+];
+
 export function elevationProfile(seed: number, points = 60) {
   const random = rnd(seed * 23 + 7);
   let value = 100 + random() * 200;
