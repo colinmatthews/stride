@@ -21,6 +21,8 @@
     "check:keys": "tsx scripts/synth/check-keys.ts",
     "preview": "vite preview",
     "start": "node dist-server/index.js",
+    "test": "vitest run",
+    "test:watch": "vitest",
     "lint": "eslint .",
     "format": "prettier --write ."
   },
@@ -112,6 +114,7 @@
     "tsx": "^4.20.6",
     "typescript": "^5.8.3",
     "typescript-eslint": "^8.56.1",
-    "vite": "^7.3.1"
+    "vite": "^7.3.1",
+    "vitest": "^3.2.4"
   }
 }
