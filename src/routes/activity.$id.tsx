@@ -85,6 +85,7 @@ function ActivityDetail() {
 
   const elev = elevationProfile(activity.routeSeed);
   const splits = activity.splits ?? [];
+  const segmentHeartbeat = getSegmentHeartbeat(activity.segments ?? [], splits);
 
   const submitComment = async () => {
     if (!comment.trim()) return;
@@ -332,7 +333,7 @@ function ActivityDetail() {
                         <div className="text-right">
                           <div className="stat-num text-base">#{eff.rank}</div>
                           <div className="text-[11px] text-muted-foreground uppercase tracking-wider">
-                            your rank
+                            {eff.effortSeconds ? fmtDuration(eff.effortSeconds) : "your rank"}
                           </div>
                         </div>
                       </Link>
@@ -340,6 +341,73 @@ function ActivityDetail() {
                   );
                 })}
               </ul>
+            </section>
+          )}
+
+          {segmentHeartbeat.length > 0 && (
+            <section className="mt-8">
+              <h2 className="text-lg font-display font-semibold mb-3 flex items-center gap-2">
+                <Heart className="h-4 w-4 text-destructive" /> Heartbeat by segment
+              </h2>
+              <div className="grid gap-3 md:grid-cols-2">
+                {segmentHeartbeat.map(({ effort, segment, samples, avgHr, maxHr, delta }) => (
+                  <Link
+                    key={effort.id}
+                    to="/segment/$id"
+                    params={{ id: segment.id }}
+                    className="bg-surface border border-border rounded-xl p-4 hover:border-primary transition-colors"
+                  >
+                    <div className="flex items-start justify-between gap-4">
+                      <div className="min-w-0">
+                        <div className="font-medium text-sm truncate">{segment.name}</div>
+                        <div className="text-xs text-muted-foreground mt-1">
+                          {segment.distanceKm.toFixed(1)} km ·{" "}
+                          {effort.effortSeconds ? fmtDuration(effort.effortSeconds) : "effort"} · #
+                          {effort.rank}
+                        </div>
+                      </div>
+                      <div className="text-right shrink-0">
+                        <div className="stat-num text-lg text-destructive">{avgHr}</div>
+                        <div className="text-[11px] text-muted-foreground uppercase tracking-wider">
+                          avg bpm
+                        </div>
+                      </div>
+                    </div>
+                    <div className="mt-4 h-20">
+                      <ResponsiveContainer width="100%" height="100%">
+                        <LineChart data={samples}>
+                          <XAxis dataKey="km" hide />
+                          <YAxis hide domain={["dataMin - 4", "dataMax + 4"]} />
+                          <Tooltip
+                            contentStyle={{
+                              background: "var(--surface)",
+                              border: "1px solid var(--border)",
+                              borderRadius: 8,
+                              fontSize: 12,
+                            }}
+                            formatter={(value) => [`${value} bpm`, "HR"]}
+                            labelFormatter={(value) => `Km ${value}`}
+                          />
+                          <Line
+                            type="monotone"
+                            dataKey="hr"
+                            stroke="var(--destructive)"
+                            strokeWidth={2}
+                            dot={samples.length <= 3}
+                          />
+                        </LineChart>
+                      </ResponsiveContainer>
+                    </div>
+                    <div className="mt-3 flex items-center justify-between text-xs text-muted-foreground">
+                      <span>Max {maxHr} bpm</span>
+                      <span>
+                        {delta >= 0 ? "+" : ""}
+                        {delta} vs activity avg
+                      </span>
+                    </div>
+                  </Link>
+                ))}
+              </div>
             </section>
           )}
 
@@ -495,6 +563,47 @@ function ActivityDetail() {
       </div>
     </AppShell>
   );
+}
+
+type SplitSample = { km: number; paceSec: number; hr: number; elev: number };
+type SegmentEffort = NonNullable<import("@/lib/mock-data").Activity["segments"]>[number];
+
+function getSegmentHeartbeat(efforts: SegmentEffort[], splits: SplitSample[]) {
+  if (efforts.length === 0 || splits.length === 0) {
+    return [];
+  }
+
+  let cursor = 0;
+
+  return efforts.flatMap((effort) => {
+    const segment = getSegment(effort.id);
+
+    if (!segment) {
+      return [];
+    }
+
+    const sampleCount = Math.max(1, Math.min(splits.length, Math.ceil(segment.distanceKm)));
+    const start = Math.min(cursor, Math.max(0, splits.length - sampleCount));
+    const samples = splits.slice(start, start + sampleCount);
+    cursor = Math.min(splits.length - 1, start + sampleCount);
+
+    if (samples.length === 0) {
+      return [];
+    }
+
+    const avgHr = Math.round(samples.reduce((sum, sample) => sum + sample.hr, 0) / samples.length);
+    const maxHr = Math.max(...samples.map((sample) => sample.hr));
+    const delta = activityDelta(avgHr, splits);
+
+    return [{ effort, segment, samples, avgHr, maxHr, delta }];
+  });
+}
+
+function activityDelta(segmentAvgHr: number, splits: SplitSample[]) {
+  const activityAvgHr = Math.round(
+    splits.reduce((sum, sample) => sum + sample.hr, 0) / splits.length,
+  );
+  return segmentAvgHr - activityAvgHr;
 }
 
 function Row({ label, value }: { label: string; value: string }) {

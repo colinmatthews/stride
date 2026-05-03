@@ -32,7 +32,7 @@ export interface Activity {
   photo?: string;
   routeSeed: number;
   splits?: { km: number; paceSec: number; hr: number; elev: number }[];
-  segments?: { id: string; rank: number }[];
+  segments?: { id: string; rank: number; effortSeconds?: number }[];
   kudoed?: boolean;
 }
 
