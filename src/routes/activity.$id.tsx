@@ -1,5 +1,5 @@
 import { createFileRoute, Link, useRouter, notFound } from "@tanstack/react-router";
-import { useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { usePostHog } from "@posthog/react";
 import {
   ResponsiveContainer,
@@ -84,8 +84,24 @@ function ActivityDetail() {
   const [comments, setComments] = useState<Comment[]>(activity.comments);
 
   const elev = elevationProfile(activity.routeSeed);
-  const splits = activity.splits ?? [];
-  const segmentHeartbeat = getSegmentHeartbeat(activity.segments ?? [], splits);
+  const splits = useMemo(() => activity.splits ?? [], [activity.splits]);
+
+  const segmentHeartbeat = useMemo(
+    () => getSegmentHeartbeat(activity.segments ?? [], splits),
+    [activity.segments, splits],
+  );
+
+  const capturedHeartbeatViewForActivity = useRef<string | null>(null);
+  useEffect(() => {
+    if (segmentHeartbeat.length === 0) return;
+    if (capturedHeartbeatViewForActivity.current === activity.id) return;
+    capturedHeartbeatViewForActivity.current = activity.id;
+    posthog.capture("segment_heartbeat_section_viewed", {
+      activity_id: activity.id,
+      sport: activity.sport,
+      segments_count: segmentHeartbeat.length,
+    });
+  }, [activity.id, activity.sport, posthog, segmentHeartbeat.length]);
 
   const submitComment = async () => {
     if (!comment.trim()) return;
@@ -350,62 +366,25 @@ function ActivityDetail() {
                 <Heart className="h-4 w-4 text-destructive" /> Heartbeat by segment
               </h2>
               <div className="grid gap-3 md:grid-cols-2">
-                {segmentHeartbeat.map(({ effort, segment, samples, avgHr, maxHr, delta }) => (
-                  <Link
-                    key={effort.id}
-                    to="/segment/$id"
-                    params={{ id: segment.id }}
-                    className="bg-surface border border-border rounded-xl p-4 hover:border-primary transition-colors"
-                  >
-                    <div className="flex items-start justify-between gap-4">
-                      <div className="min-w-0">
-                        <div className="font-medium text-sm truncate">{segment.name}</div>
-                        <div className="text-xs text-muted-foreground mt-1">
-                          {segment.distanceKm.toFixed(1)} km ·{" "}
-                          {effort.effortSeconds ? fmtDuration(effort.effortSeconds) : "effort"} · #
-                          {effort.rank}
-                        </div>
-                      </div>
-                      <div className="text-right shrink-0">
-                        <div className="stat-num text-lg text-destructive">{avgHr}</div>
-                        <div className="text-[11px] text-muted-foreground uppercase tracking-wider">
-                          avg bpm
-                        </div>
-                      </div>
-                    </div>
-                    <div className="mt-4 h-20">
-                      <ResponsiveContainer width="100%" height="100%">
-                        <LineChart data={samples}>
-                          <XAxis dataKey="km" hide />
-                          <YAxis hide domain={["dataMin - 4", "dataMax + 4"]} />
-                          <Tooltip
-                            contentStyle={{
-                              background: "var(--surface)",
-                              border: "1px solid var(--border)",
-                              borderRadius: 8,
-                              fontSize: 12,
-                            }}
-                            formatter={(value) => [`${value} bpm`, "HR"]}
-                            labelFormatter={(value) => `Km ${value}`}
-                          />
-                          <Line
-                            type="monotone"
-                            dataKey="hr"
-                            stroke="var(--destructive)"
-                            strokeWidth={2}
-                            dot={samples.length <= 3}
-                          />
-                        </LineChart>
-                      </ResponsiveContainer>
-                    </div>
-                    <div className="mt-3 flex items-center justify-between text-xs text-muted-foreground">
-                      <span>Max {maxHr} bpm</span>
-                      <span>
-                        {delta >= 0 ? "+" : ""}
-                        {delta} vs activity avg
-                      </span>
-                    </div>
-                  </Link>
+                {segmentHeartbeat.map((row) => (
+                  <SegmentHeartbeatCard
+                    key={row.effort.id}
+                    {...row}
+                    onClick={() => {
+                      posthog.capture("segment_heartbeat_segment_clicked", {
+                        activity_id: activity.id,
+                        sport: activity.sport,
+                        segment_id: row.segment.id,
+                        segment_distance_km: row.segment.distanceKm,
+                        effort_seconds: row.effort.effortSeconds,
+                        rank: row.effort.rank,
+                        avg_hr: row.avgHr,
+                        max_hr: row.maxHr,
+                        delta_vs_activity_avg: row.delta,
+                        samples_count: row.samples.length,
+                      });
+                    }}
+                  />
                 ))}
               </div>
             </section>
@@ -565,45 +544,130 @@ function ActivityDetail() {
   );
 }
 
-type SplitSample = { km: number; paceSec: number; hr: number; elev: number };
+type SplitSample = NonNullable<import("@/lib/mock-data").Activity["splits"]>[number];
 type SegmentEffort = NonNullable<import("@/lib/mock-data").Activity["segments"]>[number];
 
 function getSegmentHeartbeat(efforts: SegmentEffort[], splits: SplitSample[]) {
-  if (efforts.length === 0 || splits.length === 0) {
-    return [];
-  }
+  if (efforts.length === 0 || splits.length === 0) return [];
 
+  const orderedEfforts = [...efforts].sort((a, b) => a.position - b.position);
+  const totalSegmentKm = orderedEfforts.reduce((sum, effort) => {
+    const seg = getSegment(effort.id);
+    return sum + (seg?.distanceKm ?? 0);
+  }, 0);
+
+  const activityAvgHr = Math.round(splits.reduce((sum, sample) => sum + sample.hr, 0) / splits.length);
+
+  // Allocate contiguous windows across the activity splits based on segment distance share.
+  // This stays deterministic and avoids "cursor drift" heuristics, but still isn't true segment alignment
+  // without real distance/time bounds in the data.
   let cursor = 0;
 
-  return efforts.flatMap((effort) => {
+  return orderedEfforts.flatMap((effort, index) => {
     const segment = getSegment(effort.id);
+    if (!segment) return [];
 
-    if (!segment) {
-      return [];
-    }
+    const remainingEfforts = orderedEfforts.length - index;
+    const remainingSplits = splits.length - cursor;
 
-    const sampleCount = Math.max(1, Math.min(splits.length, Math.ceil(segment.distanceKm)));
-    const start = Math.min(cursor, Math.max(0, splits.length - sampleCount));
-    const samples = splits.slice(start, start + sampleCount);
-    cursor = Math.min(splits.length - 1, start + sampleCount);
+    const idealCount =
+      totalSegmentKm > 0
+        ? Math.round((segment.distanceKm / totalSegmentKm) * splits.length)
+        : Math.ceil(splits.length / orderedEfforts.length);
 
-    if (samples.length === 0) {
-      return [];
-    }
+    const minCount = 1;
+    const maxCount = Math.max(1, remainingSplits - (remainingEfforts - 1));
+    const count = clampInt(idealCount, minCount, maxCount);
+
+    const start = cursor;
+    const endExclusive = Math.min(splits.length, start + count);
+    const samples = splits.slice(start, endExclusive);
+    cursor = endExclusive;
+
+    if (samples.length === 0) return [];
 
     const avgHr = Math.round(samples.reduce((sum, sample) => sum + sample.hr, 0) / samples.length);
     const maxHr = Math.max(...samples.map((sample) => sample.hr));
-    const delta = activityDelta(avgHr, splits);
+    const delta = avgHr - activityAvgHr;
 
     return [{ effort, segment, samples, avgHr, maxHr, delta }];
   });
 }
 
-function activityDelta(segmentAvgHr: number, splits: SplitSample[]) {
-  const activityAvgHr = Math.round(
-    splits.reduce((sum, sample) => sum + sample.hr, 0) / splits.length,
+function clampInt(value: number, min: number, max: number) {
+  return Math.max(min, Math.min(max, Math.trunc(value)));
+}
+
+function SegmentHeartbeatCard({
+  effort,
+  segment,
+  samples,
+  avgHr,
+  maxHr,
+  delta,
+  onClick,
+}: {
+  effort: SegmentEffort;
+  segment: NonNullable<ReturnType<typeof getSegment>>;
+  samples: SplitSample[];
+  avgHr: number;
+  maxHr: number;
+  delta: number;
+  onClick: () => void;
+}) {
+  return (
+    <Link
+      to="/segment/$id"
+      params={{ id: segment.id }}
+      onClick={onClick}
+      className="bg-surface border border-border rounded-xl p-4 hover:border-primary transition-colors"
+    >
+      <div className="flex items-start justify-between gap-4">
+        <div className="min-w-0">
+          <div className="font-medium text-sm truncate">{segment.name}</div>
+          <div className="text-xs text-muted-foreground mt-1">
+            {segment.distanceKm.toFixed(1)} km · {fmtDuration(effort.effortSeconds)} · #{effort.rank}
+          </div>
+        </div>
+        <div className="text-right shrink-0">
+          <div className="stat-num text-lg text-destructive">{avgHr}</div>
+          <div className="text-[11px] text-muted-foreground uppercase tracking-wider">avg bpm</div>
+        </div>
+      </div>
+      <div className="mt-4 h-20">
+        <ResponsiveContainer width="100%" height="100%">
+          <LineChart data={samples}>
+            <XAxis dataKey="km" hide />
+            <YAxis hide domain={["dataMin - 4", "dataMax + 4"]} />
+            <Tooltip
+              contentStyle={{
+                background: "var(--surface)",
+                border: "1px solid var(--border)",
+                borderRadius: 8,
+                fontSize: 12,
+              }}
+              formatter={(value) => [`${value} bpm`, "HR"]}
+              labelFormatter={(value) => `Km ${value}`}
+            />
+            <Line
+              type="monotone"
+              dataKey="hr"
+              stroke="var(--destructive)"
+              strokeWidth={2}
+              dot={samples.length <= 3}
+            />
+          </LineChart>
+        </ResponsiveContainer>
+      </div>
+      <div className="mt-3 flex items-center justify-between text-xs text-muted-foreground">
+        <span>Max {maxHr} bpm</span>
+        <span>
+          {delta >= 0 ? "+" : ""}
+          {delta} vs activity avg
+        </span>
+      </div>
+    </Link>
   );
-  return segmentAvgHr - activityAvgHr;
 }
 
 function Row({ label, value }: { label: string; value: string }) {

@@ -344,7 +344,7 @@ export async function buildBootstrap(userId: string) {
 
   const segmentEffortsByActivity = new Map<
     string,
-    Array<{ id: string; rank: number; effortSeconds: number }>
+    Array<{ id: string; rank: number; effortSeconds: number; position: number }>
   >();
   for (const row of activitySegmentsResult.rows) {
     const existing = segmentEffortsByActivity.get(row.activity_id) ?? [];
@@ -352,6 +352,7 @@ export async function buildBootstrap(userId: string) {
       id: row.segment_id,
       rank: row.rank,
       effortSeconds: row.effort_seconds,
+      position: row.position,
     });
     segmentEffortsByActivity.set(row.activity_id, existing);
   }
