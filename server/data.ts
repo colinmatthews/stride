@@ -53,6 +53,7 @@ type ActivitySegmentRow = {
   activity_id: string;
   segment_id: string;
   rank: number;
+  effort_seconds: number;
   position: number;
   effort_secs:number;
 };
@@ -201,7 +202,7 @@ export async function buildBootstrap(userId: string) {
     ),
     pool.query<ActivitySegmentRow>(
       `
-        SELECT activity_id, segment_id, rank, position
+        SELECT activity_id, segment_id, rank, effort_seconds, position
         FROM activity_segments
         ORDER BY activity_id, position ASC
       `,
@@ -342,12 +343,17 @@ export async function buildBootstrap(userId: string) {
     splitsByActivity.set(row.activity_id, existing);
   }
 
-  const segmentEffortsByActivity = new Map<string, Array<{ id: string; rank: number }>>();
+  const segmentEffortsByActivity = new Map<
+    string,
+    Array<{ id: string; rank: number; effortSeconds: number; position: number }>
+  >();
   for (const row of activitySegmentsResult.rows) {
     const existing = segmentEffortsByActivity.get(row.activity_id) ?? [];
     existing.push({
       id: row.segment_id,
       rank: row.rank,
+      effortSeconds: row.effort_seconds,
+      position: row.position,
     });
     segmentEffortsByActivity.set(row.activity_id, existing);
   }
