@@ -55,6 +55,7 @@ type ActivitySegmentRow = {
   rank: number;
   effort_seconds: number;
   position: number;
+  effort_secs:number;
 };
 
 function aliasUserId(id: string, currentUserId: string) {
