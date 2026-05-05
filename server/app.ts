@@ -7,6 +7,8 @@ import {
   createActivity,
   createUser,
   findUserForAuth,
+  getActivityById,
+  listActivities,
   toggleChallengeEntry,
   toggleClubMembership,
   toggleFollow,
@@ -112,6 +114,35 @@ export function createApp() {
     }
   });
 
+  app.get("/api/activities", requireAuth, async (request, response, next) => {
+    try {
+      response.json(
+        await listActivities(request.userId!, {
+          athleteId: request.query.athleteId ? String(request.query.athleteId) : undefined,
+          cursor: request.query.cursor ? String(request.query.cursor) : undefined,
+          limit: request.query.limit,
+        }),
+      );
+    } catch (error) {
+      next(error);
+    }
+  });
+
+  app.get("/api/activities/:id", requireAuth, async (request, response, next) => {
+    try {
+      const activity = await getActivityById(request.userId!, String(request.params.id));
+
+      if (!activity) {
+        response.status(404).json({ error: "Activity not found" });
+        return;
+      }
+
+      response.json(activity);
+    } catch (error) {
+      next(error);
+    }
+  });
+
   app.post("/api/activities", requireAuth, async (request, response, next) => {
     try {
       const activityId = await createActivity({
@@ -130,10 +161,7 @@ export function createApp() {
         routeSeed: Number(request.body.routeSeed ?? 1),
       });
 
-      const bootstrap = await buildBootstrap(request.userId!);
-      const activity = bootstrap.activities.find(
-        (entry: (typeof bootstrap.activities)[number]) => entry.id === activityId,
-      );
+      const activity = await getActivityById(request.userId!, activityId);
 
       response.status(201).json(activity);
     } catch (error) {

@@ -1,7 +1,9 @@
 import { randomBytes, scrypt, timingSafeEqual, createHash } from "node:crypto";
 import { promisify } from "node:util";
+import { and, eq, gt } from "drizzle-orm";
 import type { NextFunction, Request, Response } from "express";
-import { pool } from "./db.js";
+import { db } from "./db.js";
+import { sessions } from "./db/schema.js";
 
 declare module "express-serve-static-core" {
   interface Request {
@@ -56,11 +58,7 @@ export async function createSession(userId: string, response: Response) {
   const tokenHash = hashToken(token);
   const expiresAt = new Date(Date.now() + SESSION_MAX_AGE_MS);
 
-  await pool.query(`INSERT INTO sessions (token_hash, user_id, expires_at) VALUES ($1, $2, $3)`, [
-    tokenHash,
-    userId,
-    expiresAt.toISOString(),
-  ]);
+  await db.insert(sessions).values({ tokenHash, userId, expiresAt });
 
   response.cookie(SESSION_COOKIE, token, {
     httpOnly: true,
@@ -75,7 +73,7 @@ export async function destroySession(request: Request, response: Response) {
   const token = parseCookies(request.headers.cookie)[SESSION_COOKIE];
 
   if (token) {
-    await pool.query(`DELETE FROM sessions WHERE token_hash = $1`, [hashToken(token)]);
+    await db.delete(sessions).where(eq(sessions.tokenHash, hashToken(token)));
   }
 
   response.clearCookie(SESSION_COOKIE, {
@@ -97,25 +95,19 @@ async function getSessionUserId(request: Request) {
     return null;
   }
 
-  const result = await pool.query<{ user_id: string }>(
-    `
-      SELECT user_id
-      FROM sessions
-      WHERE token_hash = $1
-        AND expires_at > NOW()
-      LIMIT 1
-    `,
-    [hashToken(token)],
-  );
-
-  const row = result.rows[0];
+  const rows = await db
+    .select({ userId: sessions.userId })
+    .from(sessions)
+    .where(and(eq(sessions.tokenHash, hashToken(token)), gt(sessions.expiresAt, new Date())))
+    .limit(1);
+  const row = rows[0];
 
   if (!row) {
     return null;
   }
 
-  request.userId = row.user_id;
-  return row.user_id;
+  request.userId = row.userId;
+  return row.userId;
 }
 
 export async function requireAuth(request: Request, response: Response, next: NextFunction) {

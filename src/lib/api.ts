@@ -4,6 +4,7 @@ import {
   CHALLENGES,
   CLUBS,
   ME,
+  mergeActivities,
   type Activity,
   type AppData,
 } from "./mock-data";
@@ -43,6 +44,35 @@ export async function fetchBootstrap() {
   return apiFetch<AppData>("/api/bootstrap");
 }
 
+export async function fetchActivities(
+  options: {
+    athleteId?: string;
+    cursor?: string;
+    limit?: number;
+  } = {},
+) {
+  const params = new URLSearchParams();
+
+  if (options.athleteId) params.set("athleteId", options.athleteId);
+  if (options.cursor) params.set("cursor", options.cursor);
+  if (options.limit) params.set("limit", String(options.limit));
+
+  const suffix = params.toString() ? `?${params.toString()}` : "";
+  const page = await apiFetch<{ activities: Activity[]; nextCursor?: string }>(
+    `/api/activities${suffix}`,
+  );
+
+  mergeActivities(page.activities);
+  return page;
+}
+
+export async function fetchActivity(activityId: string) {
+  const activity = await apiFetch<Activity>(`/api/activities/${activityId}`);
+
+  mergeActivities([activity]);
+  return activity;
+}
+
 export async function login(email: string, password: string) {
   await apiFetch("/api/auth/login", {
     method: "POST",
@@ -80,7 +110,7 @@ export async function saveActivity(payload: {
     body: JSON.stringify(payload),
   });
 
-  ACTIVITIES.unshift(activity);
+  mergeActivities([activity]);
   return activity;
 }
 

@@ -40,11 +40,16 @@ import { AppShell } from "@/components/AppShell";
 import { RouteMap } from "@/components/RouteMap";
 import { SportBadge } from "@/components/SportBadge";
 import { Stat } from "@/components/Stat";
-import { addActivityComment, toggleActivityKudo } from "@/lib/api";
+import { addActivityComment, fetchActivity, toggleActivityKudo } from "@/lib/api";
 
 export const Route = createFileRoute("/activity/$id")({
-  loader: ({ params }) => {
-    const activity = getActivity(params.id);
+  loader: async ({ params }) => {
+    const activity =
+      getActivity(params.id) ??
+      (await fetchActivity(params.id).catch(() => {
+        throw notFound();
+      }));
+
     if (!activity) throw notFound();
     return { activity };
   },

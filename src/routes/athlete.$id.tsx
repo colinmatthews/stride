@@ -1,26 +1,20 @@
 import { createFileRoute, Link, notFound } from "@tanstack/react-router";
 import { useState } from "react";
 import { usePostHog } from "@posthog/react";
-import {
-  ACTIVITIES,
-  ATHLETES,
-  fmtDate,
-  fmtDuration,
-  getAthlete,
-  weeklyStats,
-} from "@/lib/mock-data";
+import { ATHLETES, type Activity, fmtDate, fmtDuration } from "@/lib/mock-data";
 import { AppShell } from "@/components/AppShell";
 import { ActivityCard } from "@/components/ActivityCard";
 import { ResponsiveContainer, BarChart, Bar, XAxis, YAxis, Tooltip, CartesianGrid } from "recharts";
 import { MapPin, Trophy, UserPlus, Check } from "lucide-react";
 import { SportBadge } from "@/components/SportBadge";
-import { toggleAthleteFollow } from "@/lib/api";
+import { fetchActivities, toggleAthleteFollow } from "@/lib/api";
 
 export const Route = createFileRoute("/athlete/$id")({
-  loader: ({ params }) => {
+  loader: async ({ params }) => {
     const athlete = ATHLETES.find((a) => a.id === params.id);
     if (!athlete) throw notFound();
-    return { athlete };
+    const activityPage = await fetchActivities({ athleteId: params.id, limit: 50 });
+    return { athlete, activities: activityPage.activities };
   },
   head: ({ loaderData }) => ({
     meta: loaderData
@@ -34,17 +28,39 @@ export const Route = createFileRoute("/athlete/$id")({
 });
 
 function AthletePage() {
-  const { athlete } = Route.useLoaderData() as { athlete: import("@/lib/mock-data").Athlete };
+  const {
+    athlete,
+    activities: initialActivities,
+    nextCursor: initialNextCursor,
+  } = Route.useLoaderData() as {
+    athlete: import("@/lib/mock-data").Athlete;
+    activities: Activity[];
+    nextCursor?: string;
+  };
   const posthog = usePostHog();
   const [following, setFollowing] = useState(Boolean(athlete.isFollowing));
   const [followers, setFollowers] = useState(athlete.followers);
-  const acts = ACTIVITIES.filter((a) => a.athleteId === athlete.id);
-  const weeks = weeklyStats(athlete.id);
+  const [activities, setActivities] = useState(initialActivities);
+  const [nextCursor, setNextCursor] = useState(initialNextCursor);
+  const [loadingMore, setLoadingMore] = useState(false);
+  const acts = activities;
+  const weeks = weeklyStatsForActivities(activities);
   const totalKm = acts.reduce((s, a) => s + a.distanceKm, 0);
   const totalTime = acts.reduce((s, a) => s + a.movingSeconds, 0);
   const totalElev = acts.reduce((s, a) => s + a.elevationM, 0);
 
   const isMe = athlete.id === "me";
+  const loadMore = async () => {
+    if (!nextCursor || loadingMore) return;
+    setLoadingMore(true);
+    try {
+      const page = await fetchActivities({ athleteId: athlete.id, cursor: nextCursor, limit: 50 });
+      setActivities((current) => [...current, ...page.activities]);
+      setNextCursor(page.nextCursor);
+    } finally {
+      setLoadingMore(false);
+    }
+  };
 
   return (
     <AppShell>
@@ -168,6 +184,18 @@ function AthletePage() {
             {acts.map((a) => (
               <ActivityCard key={a.id} activity={a} />
             ))}
+            {nextCursor && (
+              <div className="flex justify-center pt-1">
+                <button
+                  type="button"
+                  onClick={loadMore}
+                  disabled={loadingMore}
+                  className="rounded-md border border-border px-4 py-2 text-sm font-medium text-foreground hover:bg-muted disabled:cursor-not-allowed disabled:opacity-60"
+                >
+                  {loadingMore ? "Loading..." : "Load more"}
+                </button>
+              </div>
+            )}
           </div>
         </div>
 
@@ -229,6 +257,34 @@ function AthletePage() {
       </div>
     </AppShell>
   );
+}
+
+function weeklyStatsForActivities(activities: Activity[]) {
+  const weeks: { label: string; km: number; time: number; elev: number }[] = [];
+  const now = new Date();
+
+  for (let index = 7; index >= 0; index -= 1) {
+    const start = new Date(now);
+    start.setDate(now.getDate() - index * 7 - 6);
+    const end = new Date(now);
+    end.setDate(now.getDate() - index * 7);
+
+    const weekActivities = activities.filter((activity) => {
+      const date = new Date(activity.date);
+      return date >= start && date <= end;
+    });
+
+    weeks.push({
+      label: `W${8 - index}`,
+      km:
+        Math.round(weekActivities.reduce((sum, activity) => sum + activity.distanceKm, 0) * 10) /
+        10,
+      time: weekActivities.reduce((sum, activity) => sum + activity.movingSeconds, 0),
+      elev: weekActivities.reduce((sum, activity) => sum + activity.elevationM, 0),
+    });
+  }
+
+  return weeks;
 }
 
 function BigStat({ label, value }: { label: string; value: string | number }) {
