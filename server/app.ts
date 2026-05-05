@@ -1,3 +1,5 @@
+import { existsSync } from "node:fs";
+import path from "node:path";
 import express from "express";
 import {
   addComment,
@@ -20,6 +22,8 @@ import {
 
 export function createApp() {
   const app = express();
+  const clientDistPath = path.resolve(process.cwd(), "dist");
+  const clientIndexPath = path.join(clientDistPath, "index.html");
 
   app.use(express.json());
 
@@ -184,6 +188,18 @@ export function createApp() {
       next(error);
     }
   });
+
+  if (existsSync(clientIndexPath)) {
+    app.use("/api", (_request, response) => {
+      response.status(404).json({ error: "Not found" });
+    });
+
+    app.use(express.static(clientDistPath));
+
+    app.get("/{*splat}", (_request, response) => {
+      response.sendFile("index.html", { root: clientDistPath });
+    });
+  }
 
   app.use(
     (
