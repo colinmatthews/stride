@@ -3,10 +3,10 @@ import ReactDOM from "react-dom/client";
 import { RouterProvider } from "@tanstack/react-router";
 import { getRouter } from "./router";
 import { clearAppData, initializeAppData } from "./lib/mock-data";
-import { fetchBootstrap } from "./lib/api";
+import { loadInitialAppData } from "./lib/api";
 import "./styles.css";
 
-async function bootstrap() {
+async function startApp() {
   const pathname = window.location.pathname;
   const isAuthRoute = pathname === "/auth";
   // Public routes render with empty app data (e.g. the landing page at "/"
@@ -15,7 +15,7 @@ async function bootstrap() {
 
   try {
     if (!isAuthRoute) {
-      const data = await fetchBootstrap();
+      const data = await loadInitialAppData();
       initializeAppData(data);
     }
   } catch (error) {
@@ -41,4 +41,4 @@ async function bootstrap() {
   );
 }
 
-void bootstrap();
+void startApp();

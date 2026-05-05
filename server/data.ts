@@ -1,64 +1,59 @@
 import { randomUUID } from "node:crypto";
-import { pool } from "./db.js";
+import { and, asc, desc, eq, gt, inArray, lt, min, sum, type SQL } from "drizzle-orm";
+import { db } from "./db.js";
+import {
+  activities as activitiesTable,
+  activityComments,
+  activityKudos,
+  activitySegments,
+  activitySplits,
+  challengeEntries,
+  challenges as challengesTable,
+  clubMemberships,
+  clubs as clubsTable,
+  follows,
+  segments as segmentsTable,
+  users,
+} from "./db/schema.js";
 import { USER_AVATARS } from "./seed.js";
 
-type AthleteRow = {
-  id: string;
-  name: string;
-  handle: string;
-  avatar_url: string;
-  city: string;
-  country: string;
-  bio: string;
-  followers_count: number;
-  following_count: number;
-};
+const BOOTSTRAP_ACTIVITY_LIMIT = 40;
+const MAX_ACTIVITY_PAGE_LIMIT = 100;
 
-type ActivityRow = {
+type Sport = "Run" | "Ride" | "Swim" | "Hike" | "Walk";
+
+type ActivityRow = typeof activitiesTable.$inferSelect;
+type AthleteRow = typeof users.$inferSelect;
+
+type ActivityDto = {
   id: string;
-  athlete_id: string;
-  sport: "Run" | "Ride" | "Swim" | "Hike" | "Walk";
+  athleteId: string;
+  sport: Sport;
   title: string;
-  description: string | null;
+  description?: string;
   date: string;
-  distance_km: string;
-  moving_seconds: number;
-  elevation_m: number;
-  avg_hr: number | null;
-  avg_pace_sec_per_km: number | null;
-  avg_speed_kmh: string | null;
+  distanceKm: number;
+  movingSeconds: number;
+  elevationM: number;
+  avgHr?: number;
+  avgPaceSecPerKm?: number;
+  avgSpeedKmh?: number;
   kudos: number;
+  comments: { id: string; athleteId: string; text: string }[];
   achievements: number;
-  photo: string | null;
-  route_seed: number;
-};
-
-type SplitRow = {
-  activity_id: string;
-  km: number;
-  pace_sec: number;
-  hr: number;
-  elev: number;
-  position: number;
-};
-
-type CommentRow = {
-  id: string;
-  activity_id: string;
-  athlete_id: string;
-  text: string;
-};
-
-type ActivitySegmentRow = {
-  activity_id: string;
-  segment_id: string;
-  rank: number;
-  position: number;
-  effort_secs:number;
+  photo?: string;
+  routeSeed: number;
+  splits?: { km: number; paceSec: number; hr: number; elev: number }[];
+  segments?: { id: string; rank: number }[];
+  kudoed?: boolean;
 };
 
 function aliasUserId(id: string, currentUserId: string) {
   return id === currentUserId ? "me" : id;
+}
+
+function resolveAliasedUserId(id: string, currentUserId: string) {
+  return id === "me" ? currentUserId : id;
 }
 
 function numberOrUndefined(value: string | number | null) {
@@ -67,6 +62,16 @@ function numberOrUndefined(value: string | number | null) {
   }
 
   return Number(value);
+}
+
+function parsePageLimit(value: unknown, fallback: number) {
+  const parsed = Number(value);
+
+  if (!Number.isFinite(parsed) || parsed <= 0) {
+    return fallback;
+  }
+
+  return Math.min(MAX_ACTIVITY_PAGE_LIMIT, Math.floor(parsed));
 }
 
 async function createUniqueHandle(baseHandle: string) {
@@ -79,9 +84,13 @@ async function createUniqueHandle(baseHandle: string) {
   let suffix = 1;
 
   while (true) {
-    const existing = await pool.query(`SELECT 1 FROM users WHERE handle = $1 LIMIT 1`, [candidate]);
+    const existing = await db
+      .select({ id: users.id })
+      .from(users)
+      .where(eq(users.handle, candidate))
+      .limit(1);
 
-    if (existing.rowCount === 0) {
+    if (existing.length === 0) {
       return candidate;
     }
 
@@ -91,27 +100,132 @@ async function createUniqueHandle(baseHandle: string) {
 }
 
 function pickAvatar(seed: string) {
-  const total = seed.split("").reduce((sum, character) => sum + character.charCodeAt(0), 0);
+  const total = seed.split("").reduce((acc, character) => acc + character.charCodeAt(0), 0);
   return USER_AVATARS[total % USER_AVATARS.length];
 }
 
-export async function findUserForAuth(email: string) {
-  const result = await pool.query<{
-    id: string;
-    email: string;
-    password_hash: string | null;
-    password_salt: string | null;
-  }>(
-    `
-      SELECT id, email, password_hash, password_salt
-      FROM users
-      WHERE email = $1
-      LIMIT 1
-    `,
-    [email],
-  );
+function mapAthlete(row: AthleteRow, currentUserId: string, followedIds: Set<string>) {
+  return {
+    id: aliasUserId(row.id, currentUserId),
+    name: row.name,
+    handle: row.handle,
+    avatar: row.avatarUrl,
+    city: row.city,
+    country: row.country,
+    followers: row.followersCount,
+    following: row.followingCount,
+    bio: row.bio,
+    isFollowing: row.id !== currentUserId ? followedIds.has(row.id) : false,
+  };
+}
 
-  return result.rows[0] ?? null;
+async function hydrateActivities(rows: ActivityRow[], userId: string): Promise<ActivityDto[]> {
+  const activityIds = rows.map((row) => row.id);
+
+  if (activityIds.length === 0) {
+    return [];
+  }
+
+  const [commentsRows, splitRows, activitySegmentRows, kudoRows] = await Promise.all([
+    db
+      .select()
+      .from(activityComments)
+      .where(inArray(activityComments.activityId, activityIds))
+      .orderBy(asc(activityComments.createdAt)),
+    db
+      .select()
+      .from(activitySplits)
+      .where(inArray(activitySplits.activityId, activityIds))
+      .orderBy(asc(activitySplits.activityId), asc(activitySplits.position)),
+    db
+      .select()
+      .from(activitySegments)
+      .where(inArray(activitySegments.activityId, activityIds))
+      .orderBy(asc(activitySegments.activityId), asc(activitySegments.position)),
+    db
+      .select({ activityId: activityKudos.activityId })
+      .from(activityKudos)
+      .where(and(eq(activityKudos.userId, userId), inArray(activityKudos.activityId, activityIds))),
+  ]);
+
+  const commentsByActivity = new Map<
+    string,
+    Array<{ id: string; athleteId: string; text: string }>
+  >();
+  for (const row of commentsRows) {
+    const existing = commentsByActivity.get(row.activityId) ?? [];
+    existing.push({
+      id: row.id,
+      athleteId: aliasUserId(row.athleteId, userId),
+      text: row.text,
+    });
+    commentsByActivity.set(row.activityId, existing);
+  }
+
+  const splitsByActivity = new Map<
+    string,
+    Array<{ km: number; paceSec: number; hr: number; elev: number }>
+  >();
+  for (const row of splitRows) {
+    const existing = splitsByActivity.get(row.activityId) ?? [];
+    existing.push({
+      km: row.km,
+      paceSec: row.paceSec,
+      hr: row.hr,
+      elev: row.elev,
+    });
+    splitsByActivity.set(row.activityId, existing);
+  }
+
+  const segmentEffortsByActivity = new Map<string, Array<{ id: string; rank: number }>>();
+  for (const row of activitySegmentRows) {
+    const existing = segmentEffortsByActivity.get(row.activityId) ?? [];
+    existing.push({
+      id: row.segmentId,
+      rank: row.rank,
+    });
+    segmentEffortsByActivity.set(row.activityId, existing);
+  }
+
+  const myKudoedActivityIds = new Set(kudoRows.map((row) => row.activityId));
+
+  return rows.map((row) => ({
+    id: row.id,
+    athleteId: aliasUserId(row.athleteId, userId),
+    sport: row.sport as Sport,
+    title: row.title,
+    description: row.description ?? undefined,
+    date: row.date.toISOString(),
+    distanceKm: Number(row.distanceKm),
+    movingSeconds: row.movingSeconds,
+    elevationM: row.elevationM,
+    avgHr: row.avgHr ?? undefined,
+    avgPaceSecPerKm: row.avgPaceSecPerKm ?? undefined,
+    avgSpeedKmh: numberOrUndefined(row.avgSpeedKmh),
+    kudos: row.kudos,
+    comments: commentsByActivity.get(row.id) ?? [],
+    achievements: row.achievements,
+    photo: row.photo ?? undefined,
+    routeSeed: row.routeSeed,
+    splits: splitsByActivity.get(row.id),
+    segments: segmentEffortsByActivity.get(row.id),
+    kudoed: myKudoedActivityIds.has(row.id),
+  }));
+}
+
+export async function findUserForAuth(email: string) {
+  const rows = await db
+    .select({
+      id: users.id,
+      email: users.email,
+      password_hash: users.passwordHash,
+      password_salt: users.passwordSalt,
+    })
+    .from(users)
+    .where(eq(users.email, email))
+    .limit(1);
+
+  return rows[0] ?? null;
 }
 
 export async function createUser(input: {
@@ -124,324 +238,195 @@ export async function createUser(input: {
   const handle = await createUniqueHandle(input.name || input.email.split("@")[0] || "athlete");
   const avatar = pickAvatar(input.email);
 
-  await pool.query(
-    `
-      INSERT INTO users (
-        id, email, password_hash, password_salt, name, handle, avatar_url, city, country, bio, followers_count, following_count
-      )
-      VALUES ($1, $2, $3, $4, $5, $6, $7, 'Toronto', 'CA', 'New to Stride.', 0, 0)
-    `,
-    [id, input.email, input.passwordHash, input.passwordSalt, input.name, handle, avatar],
-  );
+  await db.insert(users).values({
+    id,
+    email: input.email,
+    passwordHash: input.passwordHash,
+    passwordSalt: input.passwordSalt,
+    name: input.name,
+    handle,
+    avatarUrl: avatar,
+    city: "Toronto",
+    country: "CA",
+    bio: "New to Stride.",
+    followersCount: 0,
+    followingCount: 0,
+  });
 
   return { id };
 }
 
-export async function buildBootstrap(userId: string) {
+export async function listActivities(
+  userId: string,
+  options: { athleteId?: string; cursor?: string; feed?: boolean; limit?: unknown } = {},
+) {
+  const limit = parsePageLimit(options.limit, BOOTSTRAP_ACTIVITY_LIMIT);
+  const filters: SQL[] = [];
+
+  if (options.athleteId) {
+    filters.push(eq(activitiesTable.athleteId, resolveAliasedUserId(options.athleteId, userId)));
+  } else if (options.feed) {
+    const followedRows = await db
+      .select({ followedId: follows.followedId })
+      .from(follows)
+      .where(eq(follows.followerId, userId));
+    const feedAthleteIds = [userId, ...followedRows.map((row) => row.followedId)];
+
+    filters.push(inArray(activitiesTable.athleteId, feedAthleteIds));
+  }
+
+  if (options.cursor) {
+    const cursorDate = new Date(options.cursor);
+
+    if (!Number.isNaN(cursorDate.getTime())) {
+      filters.push(lt(activitiesTable.date, cursorDate));
+    }
+  }
+
+  const where = filters.length > 0 ? and(...filters) : undefined;
+  const rows = await db
+    .select()
+    .from(activitiesTable)
+    .where(where)
+    .orderBy(desc(activitiesTable.date))
+    .limit(limit + 1);
+  const pageRows = rows.slice(0, limit);
+  const activities = await hydrateActivities(pageRows, userId);
+  const nextRow = rows[limit];
+
+  return {
+    activities,
+    nextCursor: nextRow?.date.toISOString(),
+  };
+}
+
+export async function getActivityById(userId: string, activityId: string) {
+  const rows = await db
+    .select()
+    .from(activitiesTable)
+    .where(eq(activitiesTable.id, activityId))
+    .limit(1);
+  const activities = await hydrateActivities(rows, userId);
+
+  return activities[0] ?? null;
+}
+
+export async function buildAppData(userId: string) {
   const [
     usersResult,
     followsResult,
-    activitiesResult,
-    commentsResult,
-    splitsResult,
-    activitySegmentsResult,
-    myKudosResult,
     segmentsResult,
+    mySegmentBests,
     clubsResult,
     clubMembershipsResult,
     challengesResult,
     challengeEntriesResult,
+    challengeProgressResult,
   ] = await Promise.all([
-    pool.query<AthleteRow>(
-      `
-        SELECT id, name, handle, avatar_url, city, country, bio, followers_count, following_count
-        FROM users
-        ORDER BY created_at ASC
-      `,
-    ),
-    pool.query<{ followed_id: string }>(`SELECT followed_id FROM follows WHERE follower_id = $1`, [
-      userId,
-    ]),
-    pool.query<ActivityRow>(
-      `
-        SELECT
-          id,
-          athlete_id,
-          sport,
-          title,
-          description,
-          date::text,
-          distance_km::text,
-          moving_seconds,
-          elevation_m,
-          avg_hr,
-          avg_pace_sec_per_km,
-          avg_speed_kmh::text,
-          kudos,
-          achievements,
-          photo,
-          route_seed
-        FROM activities
-        ORDER BY date DESC
-      `,
-    ),
-    pool.query<CommentRow>(
-      `
-        SELECT id, activity_id, athlete_id, text
-        FROM activity_comments
-        ORDER BY created_at ASC
-      `,
-    ),
-    pool.query<SplitRow>(
-      `
-        SELECT activity_id, km, pace_sec, hr, elev, position
-        FROM activity_splits
-        ORDER BY activity_id, position ASC
-      `,
-    ),
-    pool.query<ActivitySegmentRow>(
-      `
-        SELECT activity_id, segment_id, rank, position
-        FROM activity_segments
-        ORDER BY activity_id, position ASC
-      `,
-    ),
-    pool.query<{ activity_id: string }>(
-      `SELECT activity_id FROM activity_kudos WHERE user_id = $1`,
-      [userId],
-    ),
-    pool.query<{
-      id: string;
-      name: string;
-      sport: string;
-      location: string;
-      distance_km: string;
-      avg_grade: string;
-      elevation_m: number;
-      attempts: number;
-      athletes: number;
-      my_best_sec: number | null;
-      kor_sec: number;
-      kor_athlete: string;
-      route_seed: number;
-    }>(
-      `
-        SELECT
-          s.id,
-          s.name,
-          s.sport,
-          s.location,
-          s.distance_km::text,
-          s.avg_grade::text,
-          s.elevation_m,
-          s.attempts,
-          s.athletes,
-          (
-            SELECT MIN(ae.effort_seconds)
-            FROM activity_segments ae
-            JOIN activities a ON a.id = ae.activity_id
-            WHERE ae.segment_id = s.id
-              AND a.athlete_id = $1
-          ) AS my_best_sec,
-          s.kor_sec,
-          s.kor_athlete,
-          s.route_seed
-        FROM segments s
-        ORDER BY s.name ASC
-      `,
-      [userId],
-    ),
-    pool.query<{
-      id: string;
-      name: string;
-      sport: string;
-      city: string;
-      members: number;
-      cover: string;
-      description: string;
-    }>(`SELECT id, name, sport, city, members, cover, description FROM clubs ORDER BY name ASC`),
-    pool.query<{ club_id: string }>(`SELECT club_id FROM club_memberships WHERE user_id = $1`, [
-      userId,
-    ]),
-    pool.query<{
-      id: string;
-      name: string;
-      sport: string;
-      goal_km: string;
-      participants: number;
-      ends_at: string;
-      badge: string;
-      metric_type: "distance_km" | "elevation_m";
-    }>(
-      `SELECT id, name, sport, goal_km::text, participants, ends_at::text, badge, metric_type FROM challenges ORDER BY ends_at ASC`,
-    ),
-    pool.query<{ challenge_id: string }>(
-      `SELECT challenge_id FROM challenge_entries WHERE user_id = $1`,
-      [userId],
-    ),
+    db.select().from(users).orderBy(asc(users.createdAt)),
+    db
+      .select({ followedId: follows.followedId })
+      .from(follows)
+      .where(eq(follows.followerId, userId)),
+    db.select().from(segmentsTable).orderBy(asc(segmentsTable.name)),
+    db
+      .select({
+        segmentId: activitySegments.segmentId,
+        effortSeconds: min(activitySegments.effortSeconds),
+      })
+      .from(activitySegments)
+      .innerJoin(activitiesTable, eq(activitiesTable.id, activitySegments.activityId))
+      .where(eq(activitiesTable.athleteId, userId))
+      .groupBy(activitySegments.segmentId),
+    db.select().from(clubsTable).orderBy(asc(clubsTable.name)),
+    db
+      .select({ clubId: clubMemberships.clubId })
+      .from(clubMemberships)
+      .where(eq(clubMemberships.userId, userId)),
+    db.select().from(challengesTable).orderBy(asc(challengesTable.endsAt)),
+    db
+      .select({ challengeId: challengeEntries.challengeId })
+      .from(challengeEntries)
+      .where(eq(challengeEntries.userId, userId)),
+    db
+      .select({
+        sport: activitiesTable.sport,
+        distanceKm: sum(activitiesTable.distanceKm),
+        elevationM: sum(activitiesTable.elevationM),
+      })
+      .from(activitiesTable)
+      .where(eq(activitiesTable.athleteId, userId))
+      .groupBy(activitiesTable.sport),
   ]);
 
-  const followedIds = new Set(
-    followsResult.rows.map((row: { followed_id: string }) => row.followed_id),
-  );
-  const myKudoedActivityIds = new Set(
-    myKudosResult.rows.map((row: { activity_id: string }) => row.activity_id),
-  );
-  const joinedClubIds = new Set(
-    clubMembershipsResult.rows.map((row: { club_id: string }) => row.club_id),
-  );
-  const joinedChallengeIds = new Set(
-    challengeEntriesResult.rows.map((row: { challenge_id: string }) => row.challenge_id),
+  const followedIds = new Set(followsResult.map((row) => row.followedId));
+  const joinedClubIds = new Set(clubMembershipsResult.map((row) => row.clubId));
+  const joinedChallengeIds = new Set(challengeEntriesResult.map((row) => row.challengeId));
+  const myBestBySegment = new Map(
+    mySegmentBests.map((row) => [row.segmentId, row.effortSeconds ?? undefined]),
   );
 
-  const athletes = usersResult.rows.map((row: AthleteRow) => ({
-    id: aliasUserId(row.id, userId),
-    name: row.name,
-    handle: row.handle,
-    avatar: row.avatar_url,
-    city: row.city,
-    country: row.country,
-    followers: row.followers_count,
-    following: row.following_count,
-    bio: row.bio,
-    isFollowing: row.id !== userId ? followedIds.has(row.id) : false,
-  }));
-
-  const me = athletes.find((athlete: (typeof athletes)[number]) => athlete.id === "me");
+  const athletes = usersResult.map((row) => mapAthlete(row, userId, followedIds));
+  const me = athletes.find((athlete) => athlete.id === "me");
 
   if (!me) {
     throw new Error("Authenticated user not found");
   }
 
-  const commentsByActivity = new Map<
-    string,
-    Array<{ id: string; athleteId: string; text: string }>
-  >();
-  for (const row of commentsResult.rows) {
-    const existing = commentsByActivity.get(row.activity_id) ?? [];
-    existing.push({
-      id: row.id,
-      athleteId: aliasUserId(row.athlete_id, userId),
-      text: row.text,
-    });
-    commentsByActivity.set(row.activity_id, existing);
-  }
-
-  const splitsByActivity = new Map<
-    string,
-    Array<{ km: number; paceSec: number; hr: number; elev: number }>
-  >();
-  for (const row of splitsResult.rows) {
-    const existing = splitsByActivity.get(row.activity_id) ?? [];
-    existing.push({
-      km: row.km,
-      paceSec: row.pace_sec,
-      hr: row.hr,
-      elev: row.elev,
-    });
-    splitsByActivity.set(row.activity_id, existing);
-  }
-
-  const segmentEffortsByActivity = new Map<string, Array<{ id: string; rank: number }>>();
-  for (const row of activitySegmentsResult.rows) {
-    const existing = segmentEffortsByActivity.get(row.activity_id) ?? [];
-    existing.push({
-      id: row.segment_id,
-      rank: row.rank,
-    });
-    segmentEffortsByActivity.set(row.activity_id, existing);
-  }
-
-  const activities = activitiesResult.rows.map((row: ActivityRow) => ({
-    id: row.id,
-    athleteId: aliasUserId(row.athlete_id, userId),
-    sport: row.sport,
-    title: row.title,
-    description: row.description ?? undefined,
-    date: row.date,
-    distanceKm: Number(row.distance_km),
-    movingSeconds: row.moving_seconds,
-    elevationM: row.elevation_m,
-    avgHr: row.avg_hr ?? undefined,
-    avgPaceSecPerKm: row.avg_pace_sec_per_km ?? undefined,
-    avgSpeedKmh: numberOrUndefined(row.avg_speed_kmh),
-    kudos: row.kudos,
-    comments: commentsByActivity.get(row.id) ?? [],
-    achievements: row.achievements,
-    photo: row.photo ?? undefined,
-    routeSeed: row.route_seed,
-    splits: splitsByActivity.get(row.id),
-    segments: segmentEffortsByActivity.get(row.id),
-    kudoed: myKudoedActivityIds.has(row.id),
-  }));
-
-  const myActivities = activitiesResult.rows.filter(
-    (row: ActivityRow) => row.athlete_id === userId,
-  );
   const distanceBySport = new Map<string, number>();
   let totalElevation = 0;
 
-  for (const row of myActivities) {
-    distanceBySport.set(row.sport, (distanceBySport.get(row.sport) ?? 0) + Number(row.distance_km));
-    totalElevation += row.elevation_m;
+  for (const row of challengeProgressResult) {
+    distanceBySport.set(row.sport, (distanceBySport.get(row.sport) ?? 0) + Number(row.distanceKm));
+    totalElevation += Number(row.elevationM);
   }
 
-  const segments = segmentsResult.rows.map((row: (typeof segmentsResult.rows)[number]) => ({
+  const segments = segmentsResult.map((row) => ({
     id: row.id,
     name: row.name,
     sport: row.sport,
     location: row.location,
-    distanceKm: Number(row.distance_km),
-    avgGrade: Number(row.avg_grade),
-    elevationM: row.elevation_m,
+    distanceKm: Number(row.distanceKm),
+    avgGrade: Number(row.avgGrade),
+    elevationM: row.elevationM,
     attempts: row.attempts,
     athletes: row.athletes,
-    myBestSec: row.my_best_sec ?? undefined,
-    korSec: row.kor_sec,
-    korAthlete: row.kor_athlete,
-    routeSeed: row.route_seed,
+    myBestSec: myBestBySegment.get(row.id),
+    korSec: row.korSec,
+    korAthlete: row.korAthlete,
+    routeSeed: row.routeSeed,
   }));
 
-  const clubs = clubsResult.rows.map(
-    (row: {
-      id: string;
-      name: string;
-      sport: string;
-      city: string;
-      members: number;
-      cover: string;
-      description: string;
-    }) => ({
-      id: row.id,
-      name: row.name,
-      sport: row.sport,
-      city: row.city,
-      members: row.members,
-      cover: row.cover,
-      description: row.description,
-      joined: joinedClubIds.has(row.id),
-    }),
-  );
-
-  const challenges = challengesResult.rows.map((row: (typeof challengesResult.rows)[number]) => ({
+  const clubs = clubsResult.map((row) => ({
     id: row.id,
     name: row.name,
     sport: row.sport,
-    goalKm: Number(row.goal_km),
+    city: row.city,
+    members: row.members,
+    cover: row.cover,
+    description: row.description,
+    joined: joinedClubIds.has(row.id),
+  }));
+
+  const challenges = challengesResult.map((row) => ({
+    id: row.id,
+    name: row.name,
+    sport: row.sport,
+    goalKm: Number(row.goalKm),
     myProgressKm:
-      row.metric_type === "elevation_m"
+      row.metricType === "elevation_m"
         ? totalElevation
         : Number((distanceBySport.get(row.sport) ?? 0).toFixed(1)),
     participants: row.participants,
-    endsAt: row.ends_at,
+    endsAt: row.endsAt,
     badge: row.badge,
     joined: joinedChallengeIds.has(row.id),
   }));
 
   return {
     me,
-    athletes: [me, ...athletes.filter((athlete: (typeof athletes)[number]) => athlete.id !== "me")],
-    activities,
+    athletes: [me, ...athletes.filter((athlete) => athlete.id !== "me")],
+    activities: [],
     segments,
     clubs,
     challenges,
@@ -450,7 +435,7 @@ export async function buildBootstrap(userId: string) {
 
 export async function createActivity(input: {
   userId: string;
-  sport: "Run" | "Ride" | "Swim" | "Hike" | "Walk";
+  sport: Sport;
   title: string;
   description?: string;
   distanceKm: number;
@@ -463,80 +448,71 @@ export async function createActivity(input: {
 }) {
   const id = `act-${randomUUID()}`;
 
-  await pool.query(
-    `
-      INSERT INTO activities (
-        id, athlete_id, sport, title, description, date, distance_km, moving_seconds, elevation_m,
-        avg_hr, avg_pace_sec_per_km, avg_speed_kmh, kudos, achievements, photo, route_seed
-      )
-      VALUES ($1, $2, $3, $4, $5, NOW(), $6, $7, $8, $9, $10, $11, 0, 0, NULL, $12)
-    `,
-    [
-      id,
-      input.userId,
-      input.sport,
-      input.title,
-      input.description ?? null,
-      input.distanceKm,
-      input.movingSeconds,
-      input.elevationM,
-      input.avgHr ?? null,
-      input.avgPaceSecPerKm ?? null,
-      input.avgSpeedKmh ?? null,
-      input.routeSeed,
-    ],
-  );
+  await db.insert(activitiesTable).values({
+    id,
+    athleteId: input.userId,
+    sport: input.sport,
+    title: input.title,
+    description: input.description ?? null,
+    date: new Date(),
+    distanceKm: String(input.distanceKm),
+    movingSeconds: input.movingSeconds,
+    elevationM: input.elevationM,
+    avgHr: input.avgHr ?? null,
+    avgPaceSecPerKm: input.avgPaceSecPerKm ?? null,
+    avgSpeedKmh: input.avgSpeedKmh === undefined ? null : String(input.avgSpeedKmh),
+    kudos: 0,
+    achievements: 0,
+    photo: null,
+    routeSeed: input.routeSeed,
+  });
 
   return id;
 }
 
 export async function toggleKudo(userId: string, activityId: string) {
-  const existing = await pool.query(
-    `SELECT 1 FROM activity_kudos WHERE user_id = $1 AND activity_id = $2`,
-    [userId, activityId],
-  );
+  const existing = await db
+    .select({ activityId: activityKudos.activityId })
+    .from(activityKudos)
+    .where(and(eq(activityKudos.userId, userId), eq(activityKudos.activityId, activityId)))
+    .limit(1);
+  const activityRows = await db
+    .select({ kudos: activitiesTable.kudos })
+    .from(activitiesTable)
+    .where(eq(activitiesTable.id, activityId))
+    .limit(1);
+  const current = activityRows[0];
 
-  if (existing.rowCount) {
-    await pool.query(`DELETE FROM activity_kudos WHERE user_id = $1 AND activity_id = $2`, [
-      userId,
-      activityId,
-    ]);
-    await pool.query(`UPDATE activities SET kudos = GREATEST(kudos - 1, 0) WHERE id = $1`, [
-      activityId,
-    ]);
-  } else {
-    await pool.query(`INSERT INTO activity_kudos (user_id, activity_id) VALUES ($1, $2)`, [
-      userId,
-      activityId,
-    ]);
-    await pool.query(`UPDATE activities SET kudos = kudos + 1 WHERE id = $1`, [activityId]);
-  }
-
-  const activity = await pool.query<{ kudos: number }>(
-    `SELECT kudos FROM activities WHERE id = $1`,
-    [activityId],
-  );
-
-  if (!activity.rows[0]) {
+  if (!current) {
     throw new Error("Activity not found");
   }
 
+  if (existing.length > 0) {
+    await db
+      .delete(activityKudos)
+      .where(and(eq(activityKudos.userId, userId), eq(activityKudos.activityId, activityId)));
+  } else {
+    await db.insert(activityKudos).values({ userId, activityId });
+  }
+
+  const kudos = existing.length > 0 ? Math.max(current.kudos - 1, 0) : current.kudos + 1;
+  await db.update(activitiesTable).set({ kudos }).where(eq(activitiesTable.id, activityId));
+
   return {
-    kudos: activity.rows[0].kudos,
-    kudoed: existing.rowCount === 0,
+    kudos,
+    kudoed: existing.length === 0,
   };
 }
 
 export async function addComment(userId: string, activityId: string, text: string) {
   const commentId = `comment-${randomUUID()}`;
 
-  await pool.query(
-    `
-      INSERT INTO activity_comments (id, activity_id, athlete_id, text)
-      VALUES ($1, $2, $3, $4)
-    `,
-    [commentId, activityId, userId, text],
-  );
+  await db.insert(activityComments).values({
+    id: commentId,
+    activityId,
+    athleteId: userId,
+    text,
+  });
 
   return {
     id: commentId,
@@ -546,119 +522,130 @@ export async function addComment(userId: string, activityId: string, text: strin
 }
 
 export async function toggleFollow(userId: string, athleteId: string) {
-  if (userId === athleteId) {
+  const targetId = resolveAliasedUserId(athleteId, userId);
+
+  if (userId === targetId) {
     throw new Error("Cannot follow yourself");
   }
 
-  const existing = await pool.query(
-    `SELECT 1 FROM follows WHERE follower_id = $1 AND followed_id = $2`,
-    [userId, athleteId],
-  );
+  const existing = await db
+    .select({ followedId: follows.followedId })
+    .from(follows)
+    .where(and(eq(follows.followerId, userId), eq(follows.followedId, targetId)))
+    .limit(1);
+  const [currentUser, targetUser] = await Promise.all([
+    db
+      .select({ followingCount: users.followingCount })
+      .from(users)
+      .where(eq(users.id, userId))
+      .limit(1),
+    db
+      .select({ followersCount: users.followersCount })
+      .from(users)
+      .where(eq(users.id, targetId))
+      .limit(1),
+  ]);
 
-  if (existing.rowCount) {
-    await pool.query(`DELETE FROM follows WHERE follower_id = $1 AND followed_id = $2`, [
-      userId,
-      athleteId,
-    ]);
-    await pool.query(
-      `UPDATE users SET following_count = GREATEST(following_count - 1, 0) WHERE id = $1`,
-      [userId],
-    );
-    await pool.query(
-      `UPDATE users SET followers_count = GREATEST(followers_count - 1, 0) WHERE id = $1`,
-      [athleteId],
-    );
-  } else {
-    await pool.query(`INSERT INTO follows (follower_id, followed_id) VALUES ($1, $2)`, [
-      userId,
-      athleteId,
-    ]);
-    await pool.query(`UPDATE users SET following_count = following_count + 1 WHERE id = $1`, [
-      userId,
-    ]);
-    await pool.query(`UPDATE users SET followers_count = followers_count + 1 WHERE id = $1`, [
-      athleteId,
-    ]);
+  if (!targetUser[0] || !currentUser[0]) {
+    throw new Error("Athlete not found");
   }
 
-  const [target, current] = await Promise.all([
-    pool.query<{ followers_count: number }>(`SELECT followers_count FROM users WHERE id = $1`, [
-      athleteId,
-    ]),
-    pool.query<{ following_count: number }>(`SELECT following_count FROM users WHERE id = $1`, [
-      userId,
-    ]),
+  if (existing.length > 0) {
+    await db
+      .delete(follows)
+      .where(and(eq(follows.followerId, userId), eq(follows.followedId, targetId)));
+  } else {
+    await db.insert(follows).values({ followerId: userId, followedId: targetId });
+  }
+
+  const followers =
+    existing.length > 0
+      ? Math.max(targetUser[0].followersCount - 1, 0)
+      : targetUser[0].followersCount + 1;
+  const meFollowing =
+    existing.length > 0
+      ? Math.max(currentUser[0].followingCount - 1, 0)
+      : currentUser[0].followingCount + 1;
+
+  await Promise.all([
+    db.update(users).set({ followersCount: followers }).where(eq(users.id, targetId)),
+    db.update(users).set({ followingCount: meFollowing }).where(eq(users.id, userId)),
   ]);
 
   return {
-    following: existing.rowCount === 0,
-    followers: target.rows[0]?.followers_count ?? 0,
-    meFollowing: current.rows[0]?.following_count ?? 0,
+    following: existing.length === 0,
+    followers,
+    meFollowing,
   };
 }
 
 export async function toggleClubMembership(userId: string, clubId: string) {
-  const existing = await pool.query(
-    `SELECT 1 FROM club_memberships WHERE user_id = $1 AND club_id = $2`,
-    [userId, clubId],
-  );
+  const existing = await db
+    .select({ clubId: clubMemberships.clubId })
+    .from(clubMemberships)
+    .where(and(eq(clubMemberships.userId, userId), eq(clubMemberships.clubId, clubId)))
+    .limit(1);
+  const clubRows = await db
+    .select({ members: clubsTable.members })
+    .from(clubsTable)
+    .where(eq(clubsTable.id, clubId))
+    .limit(1);
+  const club = clubRows[0];
 
-  if (existing.rowCount) {
-    await pool.query(`DELETE FROM club_memberships WHERE user_id = $1 AND club_id = $2`, [
-      userId,
-      clubId,
-    ]);
-    await pool.query(`UPDATE clubs SET members = GREATEST(members - 1, 0) WHERE id = $1`, [clubId]);
-  } else {
-    await pool.query(`INSERT INTO club_memberships (user_id, club_id) VALUES ($1, $2)`, [
-      userId,
-      clubId,
-    ]);
-    await pool.query(`UPDATE clubs SET members = members + 1 WHERE id = $1`, [clubId]);
+  if (!club) {
+    throw new Error("Club not found");
   }
 
-  const club = await pool.query<{ members: number }>(`SELECT members FROM clubs WHERE id = $1`, [
-    clubId,
-  ]);
+  if (existing.length > 0) {
+    await db
+      .delete(clubMemberships)
+      .where(and(eq(clubMemberships.userId, userId), eq(clubMemberships.clubId, clubId)));
+  } else {
+    await db.insert(clubMemberships).values({ userId, clubId });
+  }
+
+  const members = existing.length > 0 ? Math.max(club.members - 1, 0) : club.members + 1;
+  await db.update(clubsTable).set({ members }).where(eq(clubsTable.id, clubId));
 
   return {
-    joined: existing.rowCount === 0,
-    members: club.rows[0]?.members ?? 0,
+    joined: existing.length === 0,
+    members,
   };
 }
 
 export async function toggleChallengeEntry(userId: string, challengeId: string) {
-  const existing = await pool.query(
-    `SELECT 1 FROM challenge_entries WHERE user_id = $1 AND challenge_id = $2`,
-    [userId, challengeId],
-  );
+  const existing = await db
+    .select({ challengeId: challengeEntries.challengeId })
+    .from(challengeEntries)
+    .where(and(eq(challengeEntries.userId, userId), eq(challengeEntries.challengeId, challengeId)))
+    .limit(1);
+  const challengeRows = await db
+    .select({ participants: challengesTable.participants })
+    .from(challengesTable)
+    .where(eq(challengesTable.id, challengeId))
+    .limit(1);
+  const challenge = challengeRows[0];
 
-  if (existing.rowCount) {
-    await pool.query(`DELETE FROM challenge_entries WHERE user_id = $1 AND challenge_id = $2`, [
-      userId,
-      challengeId,
-    ]);
-    await pool.query(
-      `UPDATE challenges SET participants = GREATEST(participants - 1, 0) WHERE id = $1`,
-      [challengeId],
-    );
-  } else {
-    await pool.query(`INSERT INTO challenge_entries (user_id, challenge_id) VALUES ($1, $2)`, [
-      userId,
-      challengeId,
-    ]);
-    await pool.query(`UPDATE challenges SET participants = participants + 1 WHERE id = $1`, [
-      challengeId,
-    ]);
+  if (!challenge) {
+    throw new Error("Challenge not found");
   }
 
-  const challenge = await pool.query<{ participants: number }>(
-    `SELECT participants FROM challenges WHERE id = $1`,
-    [challengeId],
-  );
+  if (existing.length > 0) {
+    await db
+      .delete(challengeEntries)
+      .where(
+        and(eq(challengeEntries.userId, userId), eq(challengeEntries.challengeId, challengeId)),
+      );
+  } else {
+    await db.insert(challengeEntries).values({ userId, challengeId });
+  }
+
+  const participants =
+    existing.length > 0 ? Math.max(challenge.participants - 1, 0) : challenge.participants + 1;
+  await db.update(challengesTable).set({ participants }).where(eq(challengesTable.id, challengeId));
 
   return {
-    joined: existing.rowCount === 0,
-    participants: challenge.rows[0]?.participants ?? 0,
+    joined: existing.length === 0,
+    participants,
   };
 }

@@ -3,10 +3,12 @@ import path from "node:path";
 import express from "express";
 import {
   addComment,
-  buildBootstrap,
+  buildAppData,
   createActivity,
   createUser,
   findUserForAuth,
+  getActivityById,
+  listActivities,
   toggleChallengeEntry,
   toggleClubMembership,
   toggleFollow,
@@ -104,9 +106,39 @@ export function createApp() {
     }
   });
 
-  app.get("/api/bootstrap", requireAuth, async (request, response, next) => {
+  app.get("/api/app-data", requireAuth, async (request, response, next) => {
     try {
-      response.json(await buildBootstrap(request.userId!));
+      response.json(await buildAppData(request.userId!));
+    } catch (error) {
+      next(error);
+    }
+  });
+
+  app.get("/api/activities", requireAuth, async (request, response, next) => {
+    try {
+      response.json(
+        await listActivities(request.userId!, {
+          athleteId: request.query.athleteId ? String(request.query.athleteId) : undefined,
+          cursor: request.query.cursor ? String(request.query.cursor) : undefined,
+          feed: request.query.feed === "true",
+          limit: request.query.limit,
+        }),
+      );
+    } catch (error) {
+      next(error);
+    }
+  });
+
+  app.get("/api/activities/:id", requireAuth, async (request, response, next) => {
+    try {
+      const activity = await getActivityById(request.userId!, String(request.params.id));
+
+      if (!activity) {
+        response.status(404).json({ error: "Activity not found" });
+        return;
+      }
+
+      response.json(activity);
     } catch (error) {
       next(error);
     }
@@ -130,10 +162,7 @@ export function createApp() {
         routeSeed: Number(request.body.routeSeed ?? 1),
       });
 
-      const bootstrap = await buildBootstrap(request.userId!);
-      const activity = bootstrap.activities.find(
-        (entry: (typeof bootstrap.activities)[number]) => entry.id === activityId,
-      );
+      const activity = await getActivityById(request.userId!, activityId);
 
       response.status(201).json(activity);
     } catch (error) {

@@ -4,6 +4,7 @@ import {
   CHALLENGES,
   CLUBS,
   ME,
+  mergeActivities,
   type Activity,
   type AppData,
 } from "./mock-data";
@@ -39,8 +40,47 @@ async function apiFetch<T>(input: string, init?: RequestInit): Promise<T> {
   return response.json() as Promise<T>;
 }
 
-export async function fetchBootstrap() {
-  return apiFetch<AppData>("/api/bootstrap");
+export async function loadInitialAppData() {
+  const [appData, activityPage] = await Promise.all([
+    apiFetch<AppData>("/api/app-data"),
+    fetchActivities({ feed: true, limit: 40 }),
+  ]);
+
+  return {
+    ...appData,
+    activities: activityPage.activities,
+  };
+}
+
+export async function fetchActivities(
+  options: {
+    athleteId?: string;
+    cursor?: string;
+    feed?: boolean;
+    limit?: number;
+  } = {},
+) {
+  const params = new URLSearchParams();
+
+  if (options.athleteId) params.set("athleteId", options.athleteId);
+  if (options.cursor) params.set("cursor", options.cursor);
+  if (options.feed) params.set("feed", "true");
+  if (options.limit) params.set("limit", String(options.limit));
+
+  const suffix = params.toString() ? `?${params.toString()}` : "";
+  const page = await apiFetch<{ activities: Activity[]; nextCursor?: string }>(
+    `/api/activities${suffix}`,
+  );
+
+  mergeActivities(page.activities);
+  return page;
+}
+
+export async function fetchActivity(activityId: string) {
+  const activity = await apiFetch<Activity>(`/api/activities/${activityId}`);
+
+  mergeActivities([activity]);
+  return activity;
 }
 
 export async function login(email: string, password: string) {
@@ -80,7 +120,7 @@ export async function saveActivity(payload: {
     body: JSON.stringify(payload),
   });
 
-  ACTIVITIES.unshift(activity);
+  mergeActivities([activity]);
   return activity;
 }
 
