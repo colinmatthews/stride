@@ -1,12 +1,31 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { useMemo, useState } from "react";
-import { ACTIVITIES, fmtDuration, weeklyStats, type Sport } from "@/lib/mock-data";
+import { fmtDuration, type Activity, type Sport } from "@/lib/mock-data";
+import { fetchActivities } from "@/lib/api";
 import { AppShell } from "@/components/AppShell";
-import { ResponsiveContainer, BarChart, Bar, XAxis, YAxis, Tooltip, CartesianGrid, PieChart, Pie, Cell, Legend } from "recharts";
+import {
+  ResponsiveContainer,
+  BarChart,
+  Bar,
+  XAxis,
+  YAxis,
+  Tooltip,
+  CartesianGrid,
+  PieChart,
+  Pie,
+  Cell,
+  Legend,
+} from "recharts";
 import { SportBadge } from "@/components/SportBadge";
 
 export const Route = createFileRoute("/training")({
-  head: () => ({ meta: [{ title: "Training Log — Stride" }, { name: "description", content: "All your activities, week by week." }] }),
+  head: () => ({
+    meta: [
+      { title: "Training Log — Stride" },
+      { name: "description", content: "All your activities, week by week." },
+    ],
+  }),
+  loader: async () => fetchActivities({ athleteId: "me", limit: 100 }),
   component: Training,
 });
 
@@ -19,21 +38,43 @@ const SPORT_COLORS: Record<Sport, string> = {
 };
 
 function Training() {
-  const my = useMemo(() => ACTIVITIES.filter((a) => a.athleteId === "me"), []);
-  const weeks = weeklyStats("me");
+  const initialPage = Route.useLoaderData() as { activities: Activity[]; nextCursor?: string };
+  const [my, setMy] = useState(initialPage.activities);
+  const [nextCursor, setNextCursor] = useState(initialPage.nextCursor);
+  const [loadingMore, setLoadingMore] = useState(false);
+  const weeks = useMemo(() => weeklyStatsForActivities(my), [my]);
   const [sport, setSport] = useState<"All" | Sport>("All");
 
   const sportBreakdown = useMemo(() => {
     const map = new Map<Sport, number>();
     my.forEach((a) => map.set(a.sport, (map.get(a.sport) ?? 0) + a.distanceKm));
-    return Array.from(map.entries()).map(([s, km]) => ({ name: s, value: Math.round(km * 10) / 10 }));
+    return Array.from(map.entries()).map(([s, km]) => ({
+      name: s,
+      value: Math.round(km * 10) / 10,
+    }));
   }, [my]);
 
   const filtered = sport === "All" ? my : my.filter((a) => a.sport === sport);
   const totals = filtered.reduce(
-    (acc, a) => ({ km: acc.km + a.distanceKm, time: acc.time + a.movingSeconds, elev: acc.elev + a.elevationM, count: acc.count + 1 }),
-    { km: 0, time: 0, elev: 0, count: 0 }
+    (acc, a) => ({
+      km: acc.km + a.distanceKm,
+      time: acc.time + a.movingSeconds,
+      elev: acc.elev + a.elevationM,
+      count: acc.count + 1,
+    }),
+    { km: 0, time: 0, elev: 0, count: 0 },
   );
+  const loadMore = async () => {
+    if (!nextCursor || loadingMore) return;
+    setLoadingMore(true);
+    try {
+      const page = await fetchActivities({ athleteId: "me", cursor: nextCursor, limit: 100 });
+      setMy((current) => [...current, ...page.activities]);
+      setNextCursor(page.nextCursor);
+    } finally {
+      setLoadingMore(false);
+    }
+  };
 
   return (
     <AppShell>
@@ -56,9 +97,26 @@ function Training() {
             <ResponsiveContainer width="100%" height="100%">
               <BarChart data={weeks}>
                 <CartesianGrid stroke="var(--border)" vertical={false} />
-                <XAxis dataKey="label" tick={{ fontSize: 11, fill: "var(--muted-foreground)" }} axisLine={false} tickLine={false} />
-                <YAxis tick={{ fontSize: 11, fill: "var(--muted-foreground)" }} axisLine={false} tickLine={false} width={32} />
-                <Tooltip contentStyle={{ background: "var(--surface)", border: "1px solid var(--border)", borderRadius: 8, fontSize: 12 }} />
+                <XAxis
+                  dataKey="label"
+                  tick={{ fontSize: 11, fill: "var(--muted-foreground)" }}
+                  axisLine={false}
+                  tickLine={false}
+                />
+                <YAxis
+                  tick={{ fontSize: 11, fill: "var(--muted-foreground)" }}
+                  axisLine={false}
+                  tickLine={false}
+                  width={32}
+                />
+                <Tooltip
+                  contentStyle={{
+                    background: "var(--surface)",
+                    border: "1px solid var(--border)",
+                    borderRadius: 8,
+                    fontSize: 12,
+                  }}
+                />
                 <Bar dataKey="km" fill="var(--primary)" radius={[6, 6, 0, 0]} />
               </BarChart>
             </ResponsiveContainer>
@@ -69,12 +127,26 @@ function Training() {
           <div className="h-64">
             <ResponsiveContainer width="100%" height="100%">
               <PieChart>
-                <Pie data={sportBreakdown} dataKey="value" nameKey="name" innerRadius={50} outerRadius={80} paddingAngle={3}>
+                <Pie
+                  data={sportBreakdown}
+                  dataKey="value"
+                  nameKey="name"
+                  innerRadius={50}
+                  outerRadius={80}
+                  paddingAngle={3}
+                >
                   {sportBreakdown.map((entry) => (
                     <Cell key={entry.name} fill={SPORT_COLORS[entry.name as Sport]} />
                   ))}
                 </Pie>
-                <Tooltip contentStyle={{ background: "var(--surface)", border: "1px solid var(--border)", borderRadius: 8, fontSize: 12 }} />
+                <Tooltip
+                  contentStyle={{
+                    background: "var(--surface)",
+                    border: "1px solid var(--border)",
+                    borderRadius: 8,
+                    fontSize: 12,
+                  }}
+                />
                 <Legend wrapperStyle={{ fontSize: 11 }} />
               </PieChart>
             </ResponsiveContainer>
@@ -90,7 +162,9 @@ function Training() {
               key={s}
               onClick={() => setSport(s)}
               className={`px-3 py-1.5 text-xs rounded ${
-                sport === s ? "bg-surface text-foreground shadow-sm" : "text-muted-foreground hover:text-foreground"
+                sport === s
+                  ? "bg-surface text-foreground shadow-sm"
+                  : "text-muted-foreground hover:text-foreground"
               }`}
             >
               {s}
@@ -114,24 +188,74 @@ function Training() {
           <tbody>
             {filtered.map((a) => (
               <tr key={a.id} className="border-t border-border hover:bg-surface-2">
-                <td className="px-4 py-3 font-mono text-xs text-muted-foreground">{new Date(a.date).toLocaleDateString()}</td>
-                <td className="px-4 py-3">
-                  <a href={`/activity/${a.id}`} className="hover:text-primary font-medium">{a.title}</a>
+                <td className="px-4 py-3 font-mono text-xs text-muted-foreground">
+                  {new Date(a.date).toLocaleDateString()}
                 </td>
-                <td className="px-4 py-3"><SportBadge sport={a.sport} /></td>
+                <td className="px-4 py-3">
+                  <a href={`/activity/${a.id}`} className="hover:text-primary font-medium">
+                    {a.title}
+                  </a>
+                </td>
+                <td className="px-4 py-3">
+                  <SportBadge sport={a.sport} />
+                </td>
                 <td className="px-4 py-3 text-right font-mono">{a.distanceKm.toFixed(2)}</td>
                 <td className="px-4 py-3 text-right font-mono">{fmtDuration(a.movingSeconds)}</td>
                 <td className="px-4 py-3 text-right font-mono">{a.elevationM} m</td>
               </tr>
             ))}
             {filtered.length === 0 && (
-              <tr><td colSpan={6} className="px-4 py-12 text-center text-muted-foreground">No activities for this filter.</td></tr>
+              <tr>
+                <td colSpan={6} className="px-4 py-12 text-center text-muted-foreground">
+                  No activities for this filter.
+                </td>
+              </tr>
             )}
           </tbody>
         </table>
       </div>
+      {nextCursor && (
+        <div className="mt-4 flex justify-center">
+          <button
+            type="button"
+            onClick={loadMore}
+            disabled={loadingMore}
+            className="rounded-md border border-border px-4 py-2 text-sm font-medium text-foreground hover:bg-muted disabled:cursor-not-allowed disabled:opacity-60"
+          >
+            {loadingMore ? "Loading..." : "Load more"}
+          </button>
+        </div>
+      )}
     </AppShell>
   );
+}
+
+function weeklyStatsForActivities(activities: Activity[]) {
+  const weeks: { label: string; km: number; time: number; elev: number }[] = [];
+  const now = new Date();
+
+  for (let index = 7; index >= 0; index -= 1) {
+    const start = new Date(now);
+    start.setDate(now.getDate() - index * 7 - 6);
+    const end = new Date(now);
+    end.setDate(now.getDate() - index * 7);
+
+    const weekActivities = activities.filter((activity) => {
+      const date = new Date(activity.date);
+      return date >= start && date <= end;
+    });
+
+    weeks.push({
+      label: `W${8 - index}`,
+      km:
+        Math.round(weekActivities.reduce((sum, activity) => sum + activity.distanceKm, 0) * 10) /
+        10,
+      time: weekActivities.reduce((sum, activity) => sum + activity.movingSeconds, 0),
+      elev: weekActivities.reduce((sum, activity) => sum + activity.elevationM, 0),
+    });
+  }
+
+  return weeks;
 }
 
 function Card({ label, value }: { label: string; value: string | number }) {

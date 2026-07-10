@@ -112,6 +112,18 @@ export function initializeAppData(data: AppData) {
   CHALLENGES = data.challenges;
 }
 
+export function mergeActivities(activities: Activity[]) {
+  const byId = new Map(ACTIVITIES.map((activity) => [activity.id, activity]));
+
+  for (const activity of activities) {
+    byId.set(activity.id, activity);
+  }
+
+  ACTIVITIES = Array.from(byId.values()).sort(
+    (left, right) => new Date(right.date).getTime() - new Date(left.date).getTime(),
+  );
+}
+
 export function clearAppData() {
   ME = EMPTY_ATHLETE;
   ATHLETES = [];
