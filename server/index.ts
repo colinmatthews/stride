@@ -2,7 +2,7 @@ import "dotenv/config";
 import { createApp } from "./app.js";
 import { initializeDatabase } from "./db.js";
 
-const port = Number(process.env.PORT ?? 3001);
+const port = Number(process.env.PORT ?? 3002);
 
 async function start() {
   await initializeDatabase();

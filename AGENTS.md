@@ -4,7 +4,7 @@
 
 ### Overview
 
-Stride is a full-stack Strava-like training app: React 19 + Vite frontend on port 5173 and Express 5 + Drizzle ORM backend on port 3001. See `README.md` for the full stack description, scripts, and env var table.
+Stride is a full-stack Strava-like training app: React 19 + Vite frontend on port 5173 and Express 5 + Drizzle ORM backend on port 3002. See `README.md` for the full stack description, scripts, and env var table.
 
 ### Database
 
@@ -19,7 +19,7 @@ The database `stride` and user `stride:stride` are pre-created. Connection strin
 ### Running the app
 
 ```bash
-npm run dev        # starts both Vite (5173) and Express (3001) via concurrently
+npm run dev        # starts both Vite (5173) and Express (3002) via concurrently
 ```
 
 The Vite dev server proxies `/api` requests to the Express backend. The server seeds demo data (athletes, activities, segments, clubs, challenges) into PostgreSQL on startup, so the app has content immediately.

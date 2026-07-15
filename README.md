@@ -25,7 +25,7 @@ npm run db:migrate     # apply Drizzle schema
 npm run dev            # runs client (vite) + server (tsx watch) concurrently
 ```
 
-Client: <http://localhost:5173> — Server: <http://localhost:3001>
+Client: <http://localhost:5173> — Server: <http://localhost:3002>
 
 ## Required env vars
 
