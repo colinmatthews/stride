@@ -12,11 +12,12 @@ import {
   Settings,
 } from "lucide-react";
 import { ME, clearAppData } from "@/lib/mock-data";
-import { ReactNode } from "react";
+import { FormEvent, ReactNode, useState } from "react";
 import { logout } from "@/lib/api";
 
 const NAV = [
   { to: "/", label: "Feed", icon: Home },
+  { to: "/athletes", label: "Athletes", icon: Users },
   { to: "/training", label: "Training Log", icon: BarChart3 },
   { to: "/segments", label: "Segments", icon: Compass },
   { to: "/challenges", label: "Challenges", icon: Trophy },
@@ -26,6 +27,13 @@ const NAV = [
 export function AppShell({ children }: { children: ReactNode }) {
   const { location } = useRouterState();
   const path = location.pathname;
+  const [searchQuery, setSearchQuery] = useState("");
+
+  function handleSearch(event: FormEvent<HTMLFormElement>) {
+    event.preventDefault();
+    const query = searchQuery.trim();
+    if (query) window.location.href = `/search?q=${encodeURIComponent(query)}`;
+  }
 
   async function handleLogout() {
     try {
@@ -111,14 +119,17 @@ export function AppShell({ children }: { children: ReactNode }) {
       <div className="flex-1 min-w-0">
         <header className="sticky top-0 z-20 bg-background/85 backdrop-blur border-b border-border">
           <div className="flex h-16 items-center gap-4 px-8">
-            <div className="relative w-full max-w-md">
+            <form onSubmit={handleSearch} className="relative w-full max-w-md">
               <Search className="h-4 w-4 absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground" />
               <input
+                value={searchQuery}
+                onChange={(event) => setSearchQuery(event.target.value)}
                 type="text"
                 placeholder="Search athletes, segments, clubs…"
+                aria-label="Search athletes"
                 className="w-full h-10 pl-10 pr-3 rounded-md bg-surface-2 border border-transparent focus:border-border focus:bg-surface text-sm outline-none"
               />
-            </div>
+            </form>
             <div className="ml-auto flex items-center gap-2">
               <button
                 className="h-10 w-10 grid place-items-center rounded-md hover:bg-muted relative"
