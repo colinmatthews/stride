@@ -11,11 +11,13 @@
 import { Route as rootRouteImport } from './routes/__root'
 import { Route as TrainingRouteImport } from './routes/training'
 import { Route as SegmentsRouteImport } from './routes/segments'
+import { Route as SearchRouteImport } from './routes/search'
 import { Route as RecordRouteImport } from './routes/record'
 import { Route as OnboardingRouteImport } from './routes/onboarding'
 import { Route as ClubsRouteImport } from './routes/clubs'
 import { Route as ChallengesRouteImport } from './routes/challenges'
 import { Route as AuthRouteImport } from './routes/auth'
+import { Route as AthletesRouteImport } from './routes/athletes'
 import { Route as IndexRouteImport } from './routes/index'
 import { Route as SegmentIdRouteImport } from './routes/segment.$id'
 import { Route as ClubIdRouteImport } from './routes/club.$id'
@@ -30,6 +32,11 @@ const TrainingRoute = TrainingRouteImport.update({
 const SegmentsRoute = SegmentsRouteImport.update({
   id: '/segments',
   path: '/segments',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const SearchRoute = SearchRouteImport.update({
+  id: '/search',
+  path: '/search',
   getParentRoute: () => rootRouteImport,
 } as any)
 const RecordRoute = RecordRouteImport.update({
@@ -55,6 +62,11 @@ const ChallengesRoute = ChallengesRouteImport.update({
 const AuthRoute = AuthRouteImport.update({
   id: '/auth',
   path: '/auth',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const AthletesRoute = AthletesRouteImport.update({
+  id: '/athletes',
+  path: '/athletes',
   getParentRoute: () => rootRouteImport,
 } as any)
 const IndexRoute = IndexRouteImport.update({
@@ -85,11 +97,13 @@ const ActivityIdRoute = ActivityIdRouteImport.update({
 
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
+  '/athletes': typeof AthletesRoute
   '/auth': typeof AuthRoute
   '/challenges': typeof ChallengesRoute
   '/clubs': typeof ClubsRoute
   '/onboarding': typeof OnboardingRoute
   '/record': typeof RecordRoute
+  '/search': typeof SearchRoute
   '/segments': typeof SegmentsRoute
   '/training': typeof TrainingRoute
   '/activity/$id': typeof ActivityIdRoute
@@ -99,11 +113,13 @@ export interface FileRoutesByFullPath {
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
+  '/athletes': typeof AthletesRoute
   '/auth': typeof AuthRoute
   '/challenges': typeof ChallengesRoute
   '/clubs': typeof ClubsRoute
   '/onboarding': typeof OnboardingRoute
   '/record': typeof RecordRoute
+  '/search': typeof SearchRoute
   '/segments': typeof SegmentsRoute
   '/training': typeof TrainingRoute
   '/activity/$id': typeof ActivityIdRoute
@@ -114,11 +130,13 @@ export interface FileRoutesByTo {
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
   '/': typeof IndexRoute
+  '/athletes': typeof AthletesRoute
   '/auth': typeof AuthRoute
   '/challenges': typeof ChallengesRoute
   '/clubs': typeof ClubsRoute
   '/onboarding': typeof OnboardingRoute
   '/record': typeof RecordRoute
+  '/search': typeof SearchRoute
   '/segments': typeof SegmentsRoute
   '/training': typeof TrainingRoute
   '/activity/$id': typeof ActivityIdRoute
@@ -130,11 +148,13 @@ export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
   fullPaths:
     | '/'
+    | '/athletes'
     | '/auth'
     | '/challenges'
     | '/clubs'
     | '/onboarding'
     | '/record'
+    | '/search'
     | '/segments'
     | '/training'
     | '/activity/$id'
@@ -144,11 +164,13 @@ export interface FileRouteTypes {
   fileRoutesByTo: FileRoutesByTo
   to:
     | '/'
+    | '/athletes'
     | '/auth'
     | '/challenges'
     | '/clubs'
     | '/onboarding'
     | '/record'
+    | '/search'
     | '/segments'
     | '/training'
     | '/activity/$id'
@@ -158,11 +180,13 @@ export interface FileRouteTypes {
   id:
     | '__root__'
     | '/'
+    | '/athletes'
     | '/auth'
     | '/challenges'
     | '/clubs'
     | '/onboarding'
     | '/record'
+    | '/search'
     | '/segments'
     | '/training'
     | '/activity/$id'
@@ -173,11 +197,13 @@ export interface FileRouteTypes {
 }
 export interface RootRouteChildren {
   IndexRoute: typeof IndexRoute
+  AthletesRoute: typeof AthletesRoute
   AuthRoute: typeof AuthRoute
   ChallengesRoute: typeof ChallengesRoute
   ClubsRoute: typeof ClubsRoute
   OnboardingRoute: typeof OnboardingRoute
   RecordRoute: typeof RecordRoute
+  SearchRoute: typeof SearchRoute
   SegmentsRoute: typeof SegmentsRoute
   TrainingRoute: typeof TrainingRoute
   ActivityIdRoute: typeof ActivityIdRoute
@@ -200,6 +226,13 @@ declare module '@tanstack/react-router' {
       path: '/segments'
       fullPath: '/segments'
       preLoaderRoute: typeof SegmentsRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/search': {
+      id: '/search'
+      path: '/search'
+      fullPath: '/search'
+      preLoaderRoute: typeof SearchRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/record': {
@@ -235,6 +268,13 @@ declare module '@tanstack/react-router' {
       path: '/auth'
       fullPath: '/auth'
       preLoaderRoute: typeof AuthRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/athletes': {
+      id: '/athletes'
+      path: '/athletes'
+      fullPath: '/athletes'
+      preLoaderRoute: typeof AthletesRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/': {
@@ -277,11 +317,13 @@ declare module '@tanstack/react-router' {
 
 const rootRouteChildren: RootRouteChildren = {
   IndexRoute: IndexRoute,
+  AthletesRoute: AthletesRoute,
   AuthRoute: AuthRoute,
   ChallengesRoute: ChallengesRoute,
   ClubsRoute: ClubsRoute,
   OnboardingRoute: OnboardingRoute,
   RecordRoute: RecordRoute,
+  SearchRoute: SearchRoute,
   SegmentsRoute: SegmentsRoute,
   TrainingRoute: TrainingRoute,
   ActivityIdRoute: ActivityIdRoute,

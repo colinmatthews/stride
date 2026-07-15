@@ -13,7 +13,7 @@ import {
 import { ACTIVITIES, ATHLETES, CHALLENGES, ME, fmtDuration, getAthlete } from "@/lib/mock-data";
 import { AppShell } from "@/components/AppShell";
 import { ActivityCard } from "@/components/ActivityCard";
-import { toggleAthleteFollow } from "@/lib/api";
+import { FollowButton } from "@/components/FollowButton";
 
 export const Route = createFileRoute("/")({
   head: () => ({
@@ -233,12 +233,12 @@ function EmptyFeed({ filter }: { filter: Filter }) {
       <h2 className="mt-4 font-display text-lg font-semibold">{content.title}</h2>
       <p className="mt-2 max-w-sm text-sm leading-6 text-muted-foreground">{content.body}</p>
       {filter === "Following" && (
-        <a
-          href="#suggested-athletes"
+        <Link
+          to="/athletes"
           className="mt-5 rounded-md bg-primary px-4 py-2 text-sm font-medium text-primary-foreground transition-opacity hover:opacity-90"
         >
           Browse athletes
-        </a>
+        </Link>
       )}
       {filter === "You" && (
         <Link
@@ -612,26 +612,6 @@ function LandingPage() {
         </footer>
       </main>
     </div>
-  );
-}
-
-function FollowButton({ id, onChange }: { id: string; onChange?: () => void }) {
-  const [following, setFollowing] = useState(Boolean(getAthlete(id).isFollowing));
-  return (
-    <button
-      onClick={async () => {
-        const result = await toggleAthleteFollow(id);
-        setFollowing(result.following);
-        onChange?.();
-      }}
-      className={`rounded-md border px-2.5 py-1 text-xs transition-colors ${
-        following
-          ? "border-secondary bg-secondary text-secondary-foreground"
-          : "border-border hover:bg-muted"
-      }`}
-    >
-      {following ? "Following" : "Follow"}
-    </button>
   );
 }
 
