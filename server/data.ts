@@ -258,13 +258,15 @@ export async function createUser(input: {
 
 export async function listActivities(
   userId: string,
-  options: { athleteId?: string; cursor?: string; limit?: unknown } = {},
+  options: { athleteId?: string; athleteIds?: string[]; cursor?: string; limit?: unknown } = {},
 ) {
   const limit = parsePageLimit(options.limit, BOOTSTRAP_ACTIVITY_LIMIT);
   const filters: SQL[] = [];
 
   if (options.athleteId) {
     filters.push(eq(activitiesTable.athleteId, resolveAliasedUserId(options.athleteId, userId)));
+  } else if (options.athleteIds) {
+    filters.push(inArray(activitiesTable.athleteId, options.athleteIds));
   }
 
   if (options.cursor) {
@@ -290,6 +292,18 @@ export async function listActivities(
     activities,
     nextCursor: nextRow?.date.toISOString(),
   };
+}
+
+async function listFeedActivities(userId: string, limit: number) {
+  const followedUsers = await db
+    .select({ followedId: follows.followedId })
+    .from(follows)
+    .where(eq(follows.followerId, userId));
+
+  return listActivities(userId, {
+    athleteIds: [userId, ...followedUsers.map((row) => row.followedId)],
+    limit,
+  });
 }
 
 export async function getActivityById(userId: string, activityId: string) {
@@ -321,7 +335,7 @@ export async function buildBootstrap(userId: string) {
       .select({ followedId: follows.followedId })
       .from(follows)
       .where(eq(follows.followerId, userId)),
-    listActivities(userId, { limit: BOOTSTRAP_ACTIVITY_LIMIT }),
+    listFeedActivities(userId, BOOTSTRAP_ACTIVITY_LIMIT),
     db.select().from(segmentsTable).orderBy(asc(segmentsTable.name)),
     db
       .select({

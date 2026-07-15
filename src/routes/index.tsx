@@ -43,6 +43,7 @@ function Index() {
 function FeedPage() {
   const posthog = usePostHog();
   const [filter, setFilter] = useState<Filter>("Following");
+  const [feedRevision, setFeedRevision] = useState(0);
   const visible = useMemo(() => {
     if (filter === "You") return ACTIVITIES.filter((activity) => activity.athleteId === "me");
     if (filter === "Clubs")
@@ -51,7 +52,7 @@ function FeedPage() {
       (activity) =>
         activity.athleteId === "me" || Boolean(getAthlete(activity.athleteId).isFollowing),
     ).slice(0, 20);
-  }, [filter]);
+  }, [filter, feedRevision]);
 
   const myWeekKm = ACTIVITIES.filter((activity) => activity.athleteId === "me")
     .slice(0, 5)
@@ -96,9 +97,11 @@ function FeedPage() {
           </div>
 
           <div className="space-y-5">
-            {visible.map((activity) => (
-              <ActivityCard key={activity.id} activity={activity} />
-            ))}
+            {visible.length > 0 ? (
+              visible.map((activity) => <ActivityCard key={activity.id} activity={activity} />)
+            ) : (
+              <EmptyFeed filter={filter} />
+            )}
           </div>
         </div>
 
@@ -129,7 +132,10 @@ function FeedPage() {
             </Link>
           </section>
 
-          <section className="rounded-xl border border-border bg-surface p-5">
+          <section
+            id="suggested-athletes"
+            className="scroll-mt-6 rounded-xl border border-border bg-surface p-5"
+          >
             <div className="mb-4 flex items-center justify-between">
               <h3 className="flex items-center gap-2 font-display text-base font-semibold">
                 <Trophy className="h-4 w-4 text-primary" /> Your challenges
@@ -189,7 +195,10 @@ function FeedPage() {
                       {athlete.city} · {athlete.followers} followers
                     </div>
                   </div>
-                  <FollowButton id={athlete.id} />
+                  <FollowButton
+                    id={athlete.id}
+                    onChange={() => setFeedRevision((revision) => revision + 1)}
+                  />
                 </li>
               ))}
             </ul>
@@ -197,6 +206,49 @@ function FeedPage() {
         </aside>
       </div>
     </AppShell>
+  );
+}
+
+function EmptyFeed({ filter }: { filter: Filter }) {
+  const content = {
+    Following: {
+      title: "Your feed is ready for company",
+      body: "Follow a few athletes to see their latest training and adventures here.",
+    },
+    Clubs: {
+      title: "No club activity yet",
+      body: "Activity from your clubs will show up here as your communities get moving.",
+    },
+    You: {
+      title: "Your first activity starts here",
+      body: "Record a run, ride, swim, or walk and it will appear in your feed.",
+    },
+  }[filter];
+
+  return (
+    <div className="flex min-h-72 flex-col items-center justify-center rounded-xl border border-dashed border-border bg-surface px-8 text-center">
+      <div className="grid h-11 w-11 place-items-center rounded-full bg-primary/10 text-primary">
+        <Users className="h-5 w-5" />
+      </div>
+      <h2 className="mt-4 font-display text-lg font-semibold">{content.title}</h2>
+      <p className="mt-2 max-w-sm text-sm leading-6 text-muted-foreground">{content.body}</p>
+      {filter === "Following" && (
+        <a
+          href="#suggested-athletes"
+          className="mt-5 rounded-md bg-primary px-4 py-2 text-sm font-medium text-primary-foreground transition-opacity hover:opacity-90"
+        >
+          Browse athletes
+        </a>
+      )}
+      {filter === "You" && (
+        <Link
+          to="/record"
+          className="mt-5 rounded-md bg-primary px-4 py-2 text-sm font-medium text-primary-foreground transition-opacity hover:opacity-90"
+        >
+          Record an activity
+        </Link>
+      )}
+    </div>
   );
 }
 
@@ -563,13 +615,14 @@ function LandingPage() {
   );
 }
 
-function FollowButton({ id }: { id: string }) {
+function FollowButton({ id, onChange }: { id: string; onChange?: () => void }) {
   const [following, setFollowing] = useState(Boolean(getAthlete(id).isFollowing));
   return (
     <button
       onClick={async () => {
         const result = await toggleAthleteFollow(id);
         setFollowing(result.following);
+        onChange?.();
       }}
       className={`rounded-md border px-2.5 py-1 text-xs transition-colors ${
         following

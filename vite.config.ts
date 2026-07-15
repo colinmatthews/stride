@@ -14,7 +14,7 @@ export default defineConfig({
   },
   server: {
     proxy: {
-      "/api": "http://localhost:3001",
+      "/api": process.env.API_PROXY_TARGET ?? "http://localhost:3002",
       "/ingest/static": {
         target: "https://us-assets.i.posthog.com",
         changeOrigin: true,
