@@ -15,6 +15,8 @@ import {
   LoaderCircle,
 } from "lucide-react";
 import { saveActivity } from "@/lib/api";
+import { WeeklyRecapCard } from "@/components/WeeklyRecapCard";
+import { useWeeklyRecapGate } from "@/hooks/use-weekly-recap";
 
 export const Route = createFileRoute("/record")({
   head: () => ({
@@ -156,6 +158,8 @@ function ManualForm({ sport }: { sport: Sport }) {
   const [avgHr, setAvgHr] = useState("");
   const [error, setError] = useState("");
   const [busy, setBusy] = useState(false);
+  const recapGate = useWeeklyRecapGate();
+  const [continueToActivity, setContinueToActivity] = useState<(() => void) | null>(null);
 
   const distanceKm = Number(distance) || 0;
   const totalSeconds =
@@ -201,12 +205,26 @@ function ManualForm({ sport }: { sport: Sport }) {
         elevation_m: Number(elevation) || 0,
         entry_mode: "manual",
       });
-      router.navigate({ to: "/activity/$id", params: { id: activity.id } });
+
+      const goToActivity = () =>
+        router.navigate({ to: "/activity/$id", params: { id: activity.id } });
+
+      if (await recapGate.evaluate(sport)) {
+        setContinueToActivity(() => goToActivity);
+        setBusy(false);
+        return;
+      }
+
+      goToActivity();
     } catch (err) {
       posthog.captureException(err);
       setError("Couldn't save activity. Try again.");
       setBusy(false);
     }
+  }
+
+  if (recapGate.recap && continueToActivity) {
+    return <WeeklyRecapCard recap={recapGate.recap} onDismiss={continueToActivity} />;
   }
 
   return (
@@ -488,6 +506,8 @@ function TimerMode({ sport }: { sport: Sport }) {
   const [title, setTitle] = useState("");
   const [description, setDescription] = useState("");
   const [saving, setSaving] = useState(false);
+  const recapGate = useWeeklyRecapGate();
+  const [continueToActivity, setContinueToActivity] = useState<(() => void) | null>(null);
   const ref = useRef<number | null>(null);
 
   useEffect(() => {
@@ -544,7 +564,17 @@ function TimerMode({ sport }: { sport: Sport }) {
         elevation_m: Math.floor(distance * 12),
         entry_mode: "timer",
       });
-      router.navigate({ to: "/activity/$id", params: { id: activity.id } });
+
+      const goToActivity = () =>
+        router.navigate({ to: "/activity/$id", params: { id: activity.id } });
+
+      if (await recapGate.evaluate(sport)) {
+        setContinueToActivity(() => goToActivity);
+        setSaving(false);
+        return;
+      }
+
+      goToActivity();
     } catch (err) {
       posthog.captureException(err);
       setSaving(false);
@@ -561,6 +591,10 @@ function TimerMode({ sport }: { sport: Sport }) {
         : "—";
 
   const finished = !running && elapsed > 0;
+
+  if (recapGate.recap && continueToActivity) {
+    return <WeeklyRecapCard recap={recapGate.recap} onDismiss={continueToActivity} />;
+  }
 
   return (
     <section className="mt-8 border border-border">

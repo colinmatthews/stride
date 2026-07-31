@@ -8,6 +8,7 @@ import {
   type Activity,
   type AppData,
 } from "./mock-data";
+import { summarizeWeek } from "./weekly-recap";
 
 class ApiError extends Error {
   status: number;
@@ -71,6 +72,31 @@ export async function fetchActivity(activityId: string) {
 
   mergeActivities([activity]);
   return activity;
+}
+
+/**
+ * How many of the signed-in athlete's most recent activities to pull when
+ * building a weekly recap. `MAX_ACTIVITY_PAGE_LIMIT` on the server is 100, and
+ * 100 activities is roughly six months at four runs a week — comfortably more
+ * than the current week plus the streak walk-back. An athlete logging more than
+ * 100 activities inside their streak window would see the streak truncated;
+ * that is the point at which this should move to a server-side aggregate with
+ * an index on `activities(athlete_id, date)`.
+ */
+const RECAP_ACTIVITY_LOOKBACK = 100;
+
+/**
+ * Build the current week's recap from the athlete's real activity history.
+ *
+ * Fetched fresh rather than read off the in-memory `ACTIVITIES` store: that
+ * store is seeded from `/api/bootstrap`, which is capped and also holds other
+ * athletes' feed items, so it is not a reliable basis for "how many runs have I
+ * logged this week".
+ */
+export async function fetchWeeklyRecap(reference: Date = new Date()) {
+  const page = await fetchActivities({ athleteId: "me", limit: RECAP_ACTIVITY_LOOKBACK });
+
+  return summarizeWeek(page.activities, reference);
 }
 
 export async function login(email: string, password: string) {
