@@ -4,21 +4,32 @@ import { SEGMENTS, fmtDuration, type Sport } from "@/lib/mock-data";
 import { AppShell } from "@/components/AppShell";
 import { SportBadge } from "@/components/SportBadge";
 import { Mountain, Search } from "lucide-react";
+import { useUnits } from "@/lib/units-context";
 
 export const Route = createFileRoute("/segments")({
-  head: () => ({ meta: [{ title: "Segments — Stride" }, { name: "description", content: "Find segments and chase records." }] }),
+  head: () => ({
+    meta: [
+      { title: "Segments — Stride" },
+      { name: "description", content: "Find segments and chase records." },
+    ],
+  }),
   component: SegmentsPage,
 });
 
 const SPORT_FILTERS: ("All" | Sport)[] = ["All", "Run", "Ride"];
 
 function SegmentsPage() {
+  const units = useUnits();
   const [sport, setSport] = useState<"All" | Sport>("All");
   const [q, setQ] = useState("");
   const filtered = useMemo(
     () =>
-      SEGMENTS.filter((s) => (sport === "All" || s.sport === sport) && (q ? s.name.toLowerCase().includes(q.toLowerCase()) : true)),
-    [sport, q]
+      SEGMENTS.filter(
+        (s) =>
+          (sport === "All" || s.sport === sport) &&
+          (q ? s.name.toLowerCase().includes(q.toLowerCase()) : true),
+      ),
+    [sport, q],
   );
   return (
     <AppShell>
@@ -45,7 +56,9 @@ function SegmentsPage() {
               key={f}
               onClick={() => setSport(f)}
               className={`px-3 py-1.5 text-sm rounded ${
-                sport === f ? "bg-surface text-foreground shadow-sm" : "text-muted-foreground hover:text-foreground"
+                sport === f
+                  ? "bg-surface text-foreground shadow-sm"
+                  : "text-muted-foreground hover:text-foreground"
               }`}
             >
               {f}
@@ -69,20 +82,37 @@ function SegmentsPage() {
           </thead>
           <tbody>
             {filtered.map((s) => (
-              <tr key={s.id} className="border-t border-border hover:bg-surface-2 transition-colors">
+              <tr
+                key={s.id}
+                className="border-t border-border hover:bg-surface-2 transition-colors"
+              >
                 <td className="px-4 py-3">
-                  <Link to="/segment/$id" params={{ id: s.id }} className="font-medium hover:text-primary flex items-center gap-2">
+                  <Link
+                    to="/segment/$id"
+                    params={{ id: s.id }}
+                    className="font-medium hover:text-primary flex items-center gap-2"
+                  >
                     <Mountain className="h-3.5 w-3.5 text-muted-foreground" />
                     {s.name}
-                    <span className="text-xs text-muted-foreground font-normal">· {s.location}</span>
+                    <span className="text-xs text-muted-foreground font-normal">
+                      · {s.location}
+                    </span>
                   </Link>
                 </td>
-                <td className="px-4 py-3"><SportBadge sport={s.sport} /></td>
-                <td className="px-4 py-3 text-right font-mono">{s.distanceKm.toFixed(1)} km</td>
+                <td className="px-4 py-3">
+                  <SportBadge sport={s.sport} />
+                </td>
+                <td className="px-4 py-3 text-right font-mono">
+                  {units.distance(s.distanceKm, 1)}
+                </td>
                 <td className="px-4 py-3 text-right font-mono">{s.avgGrade.toFixed(1)}%</td>
-                <td className="px-4 py-3 text-right font-mono">{s.elevationM} m</td>
-                <td className="px-4 py-3 text-right font-mono text-primary">{fmtDuration(s.korSec)}</td>
-                <td className="px-4 py-3 text-right font-mono">{s.myBestSec ? fmtDuration(s.myBestSec) : "—"}</td>
+                <td className="px-4 py-3 text-right font-mono">{units.elevation(s.elevationM)}</td>
+                <td className="px-4 py-3 text-right font-mono text-primary">
+                  {fmtDuration(s.korSec)}
+                </td>
+                <td className="px-4 py-3 text-right font-mono">
+                  {s.myBestSec ? fmtDuration(s.myBestSec) : "—"}
+                </td>
               </tr>
             ))}
           </tbody>

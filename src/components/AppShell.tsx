@@ -14,6 +14,7 @@ import {
 import { ME, clearAppData } from "@/lib/mock-data";
 import { FormEvent, ReactNode, useState } from "react";
 import { logout } from "@/lib/api";
+import { UnitToggle } from "./UnitToggle";
 
 const NAV = [
   { to: "/", label: "Feed", icon: Home },
@@ -131,6 +132,7 @@ export function AppShell({ children }: { children: ReactNode }) {
               />
             </form>
             <div className="ml-auto flex items-center gap-2">
+              <UnitToggle />
               <button
                 className="h-10 w-10 grid place-items-center rounded-md hover:bg-muted relative"
                 aria-label="Notifications"
