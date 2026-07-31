@@ -340,7 +340,7 @@ function LandingPage() {
             <div className="flex items-center gap-3">
               <span className="h-px w-8 bg-foreground/40" />
               <span className="font-mono text-[11px] uppercase tracking-[0.22em] text-muted-foreground">
-                Issue 01 · Training with purpose
+                Issue 01 · Training with purpose · Preview test
               </span>
             </div>
             <h1 className="mt-7 font-display text-5xl font-bold leading-[1.02] tracking-[-0.03em] text-balance sm:text-6xl lg:text-[5.25rem]">
