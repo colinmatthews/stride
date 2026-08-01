@@ -1,5 +1,5 @@
 import { randomUUID } from "node:crypto";
-import { and, asc, desc, eq, gt, inArray, lt, min, sum, type SQL } from "drizzle-orm";
+import { and, asc, count, desc, eq, gt, gte, inArray, lt, min, sum, type SQL } from "drizzle-orm";
 import { db } from "./db.js";
 import {
   activities as activitiesTable,
@@ -12,6 +12,7 @@ import {
   clubMemberships,
   clubs as clubsTable,
   follows,
+  notificationPreferences,
   segments as segmentsTable,
   users,
 } from "./db/schema.js";
@@ -656,5 +657,110 @@ export async function toggleChallengeEntry(userId: string, challengeId: string) 
   return {
     joined: existing.length === 0,
     participants,
+  };
+}
+
+export const NOTIFICATION_TYPES = ["kudos", "follow", "challenge_reminder"] as const;
+export const NOTIFICATION_MODES = ["instant", "digest", "off"] as const;
+export type NotificationType = (typeof NOTIFICATION_TYPES)[number];
+export type NotificationMode = (typeof NOTIFICATION_MODES)[number];
+
+const WEEKLY_VOLUME_THRESHOLD = 25;
+const FIRST_TWO_WEEKS_DAYS = 14;
+const VOLUME_WINDOW_DAYS = 7;
+
+const MS_PER_DAY = 24 * 60 * 60 * 1000;
+
+export async function getNotificationPreferences(
+  userId: string,
+): Promise<Record<NotificationType, NotificationMode>> {
+  const rows = await db
+    .select({ type: notificationPreferences.type, mode: notificationPreferences.mode })
+    .from(notificationPreferences)
+    .where(eq(notificationPreferences.userId, userId));
+
+  const preferences = Object.fromEntries(
+    NOTIFICATION_TYPES.map((type) => [type, "instant"]),
+  ) as Record<NotificationType, NotificationMode>;
+
+  for (const row of rows) {
+    if (NOTIFICATION_TYPES.includes(row.type as NotificationType)) {
+      preferences[row.type as NotificationType] = row.mode as NotificationMode;
+    }
+  }
+
+  return preferences;
+}
+
+export async function setNotificationPreference(
+  userId: string,
+  type: string,
+  mode: string,
+): Promise<Record<NotificationType, NotificationMode>> {
+  if (!NOTIFICATION_TYPES.includes(type as NotificationType)) {
+    throw new Error("Invalid notification type");
+  }
+  if (!NOTIFICATION_MODES.includes(mode as NotificationMode)) {
+    throw new Error("Invalid notification mode");
+  }
+
+  await db
+    .insert(notificationPreferences)
+    .values({ userId, type, mode, updatedAt: new Date() })
+    .onConflictDoUpdate({
+      target: [notificationPreferences.userId, notificationPreferences.type],
+      set: { mode, updatedAt: new Date() },
+    });
+
+  return getNotificationPreferences(userId);
+}
+
+export async function getNotificationSummary(userId: string) {
+  const userRows = await db
+    .select({ createdAt: users.createdAt })
+    .from(users)
+    .where(eq(users.id, userId))
+    .limit(1);
+  const user = userRows[0];
+
+  if (!user) {
+    throw new Error("User not found");
+  }
+
+  const windowStart = new Date(Date.now() - VOLUME_WINDOW_DAYS * MS_PER_DAY);
+  const joinedDaysAgo = Math.floor((Date.now() - user.createdAt.getTime()) / MS_PER_DAY);
+  const isInFirstTwoWeeks = joinedDaysAgo < FIRST_TWO_WEEKS_DAYS;
+
+  const [kudosRows, followRows, preferences] = await Promise.all([
+    db
+      .select({ count: count() })
+      .from(activityKudos)
+      .innerJoin(activitiesTable, eq(activitiesTable.id, activityKudos.activityId))
+      .where(and(eq(activitiesTable.athleteId, userId), gte(activityKudos.createdAt, windowStart))),
+    db
+      .select({ count: count() })
+      .from(follows)
+      .where(and(eq(follows.followedId, userId), gte(follows.createdAt, windowStart))),
+    getNotificationPreferences(userId),
+  ]);
+
+  const kudosThisWeek = kudosRows[0]?.count ?? 0;
+  const followsThisWeek = followRows[0]?.count ?? 0;
+  // No reminder-dispatch system exists in this codebase yet — only the challenge
+  // join event is recorded, not reminder sends — so this stays honestly at 0.
+  const challengeRemindersThisWeek = 0;
+  const totalThisWeek = kudosThisWeek + followsThisWeek + challengeRemindersThisWeek;
+  const overThreshold = isInFirstTwoWeeks && totalThisWeek > WEEKLY_VOLUME_THRESHOLD;
+
+  return {
+    joinedDaysAgo,
+    isInFirstTwoWeeks,
+    kudosThisWeek,
+    followsThisWeek,
+    challengeRemindersThisWeek,
+    totalThisWeek,
+    threshold: WEEKLY_VOLUME_THRESHOLD,
+    overThreshold,
+    preferences,
   };
 }

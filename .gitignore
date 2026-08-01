@@ -34,3 +34,4 @@ dist-ssr
 
 .env
 .env.local
+.gstack/

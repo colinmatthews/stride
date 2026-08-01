@@ -8,12 +8,15 @@ import {
   BarChart3,
   Plus,
   Search,
-  Bell,
   Settings,
 } from "lucide-react";
-import { ME, clearAppData } from "@/lib/mock-data";
-import { FormEvent, ReactNode, useState } from "react";
-import { logout } from "@/lib/api";
+import { ME, clearAppData, type NotificationSummary } from "@/lib/mock-data";
+import { FormEvent, ReactNode, useEffect, useState } from "react";
+import { usePostHog } from "@posthog/react";
+import { fetchNotificationSummary, logout } from "@/lib/api";
+import { NotificationBell } from "@/components/NotificationBell";
+import { NotificationOverloadBanner } from "@/components/NotificationOverloadBanner";
+import { NotificationSettingsSheet } from "@/components/NotificationSettingsSheet";
 
 const NAV = [
   { to: "/", label: "Feed", icon: Home },
@@ -28,6 +31,22 @@ export function AppShell({ children }: { children: ReactNode }) {
   const { location } = useRouterState();
   const path = location.pathname;
   const [searchQuery, setSearchQuery] = useState("");
+  const posthog = usePostHog();
+  const [notificationSummary, setNotificationSummary] = useState<NotificationSummary | null>(null);
+  const [notificationSettingsOpen, setNotificationSettingsOpen] = useState(false);
+
+  useEffect(() => {
+    fetchNotificationSummary()
+      .then(setNotificationSummary)
+      .catch(() => {
+        // Non-critical to page render — the bell/banner simply stay hidden.
+      });
+  }, []);
+
+  function openNotificationSettings() {
+    setNotificationSettingsOpen(true);
+    posthog.capture("notification_settings_opened");
+  }
 
   function handleSearch(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
@@ -131,13 +150,7 @@ export function AppShell({ children }: { children: ReactNode }) {
               />
             </form>
             <div className="ml-auto flex items-center gap-2">
-              <button
-                className="h-10 w-10 grid place-items-center rounded-md hover:bg-muted relative"
-                aria-label="Notifications"
-              >
-                <Bell className="h-4 w-4" />
-                <span className="absolute top-2 right-2 h-2 w-2 rounded-full bg-primary" />
-              </button>
+              <NotificationBell summary={notificationSummary} onManage={openNotificationSettings} />
               <Link
                 to="/record"
                 className="hidden md:inline-flex items-center gap-2 h-10 px-3 rounded-md border border-border text-sm hover:bg-muted"
@@ -147,8 +160,19 @@ export function AppShell({ children }: { children: ReactNode }) {
             </div>
           </div>
         </header>
+        <NotificationOverloadBanner
+          userId={ME.id}
+          summary={notificationSummary}
+          onManage={openNotificationSettings}
+        />
         <main className="max-w-[1280px] mx-auto px-8 py-8">{children}</main>
       </div>
+      <NotificationSettingsSheet
+        open={notificationSettingsOpen}
+        onOpenChange={setNotificationSettingsOpen}
+        summary={notificationSummary}
+        onUpdated={setNotificationSummary}
+      />
     </div>
   );
 }

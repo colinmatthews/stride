@@ -84,6 +84,21 @@ export interface AppData {
   challenges: Challenge[];
 }
 
+export type NotificationType = "kudos" | "follow" | "challenge_reminder";
+export type NotificationMode = "instant" | "digest" | "off";
+
+export interface NotificationSummary {
+  joinedDaysAgo: number;
+  isInFirstTwoWeeks: boolean;
+  kudosThisWeek: number;
+  followsThisWeek: number;
+  challengeRemindersThisWeek: number;
+  totalThisWeek: number;
+  threshold: number;
+  overThreshold: boolean;
+  preferences: Record<NotificationType, NotificationMode>;
+}
+
 const EMPTY_ATHLETE: Athlete = {
   id: "",
   name: "",

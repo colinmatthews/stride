@@ -7,6 +7,9 @@ import {
   mergeActivities,
   type Activity,
   type AppData,
+  type NotificationMode,
+  type NotificationSummary,
+  type NotificationType,
 } from "./mock-data";
 
 class ApiError extends Error {
@@ -198,6 +201,17 @@ export async function toggleChallengeJoin(challengeId: string) {
   }
 
   return payload;
+}
+
+export async function fetchNotificationSummary() {
+  return apiFetch<NotificationSummary>("/api/notifications/summary");
+}
+
+export async function updateNotificationPreference(type: NotificationType, mode: NotificationMode) {
+  return apiFetch<NotificationSummary>("/api/notifications/preferences", {
+    method: "PATCH",
+    body: JSON.stringify({ type, mode }),
+  });
 }
 
 export { ApiError };
