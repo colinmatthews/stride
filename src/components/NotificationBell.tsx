@@ -55,7 +55,13 @@ export function NotificationBell({
               >
                 Manage notifications
               </button>
-              <button className="text-muted-foreground" onClick={() => setOpen(false)}>
+              <button
+                className="text-muted-foreground"
+                onClick={() => {
+                  setOpen(false);
+                  posthog.capture("notification_bell_nudge_dismissed");
+                }}
+              >
                 Not now
               </button>
             </div>

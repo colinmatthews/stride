@@ -1,6 +1,8 @@
 import "dotenv/config";
 import { randomUUID } from "node:crypto";
-import { afterEach, describe, expect, it } from "vitest";
+import { createServer } from "node:http";
+import type { AddressInfo } from "node:net";
+import { afterAll, afterEach, beforeAll, describe, expect, it } from "vitest";
 import { eq } from "drizzle-orm";
 import { db } from "./db.js";
 import { activities, activityKudos, follows, notificationPreferences, users } from "./db/schema.js";
@@ -9,6 +11,7 @@ import {
   getNotificationSummary,
   setNotificationPreference,
 } from "./data.js";
+import { createApp } from "./app.js";
 
 const DAY_MS = 24 * 60 * 60 * 1000;
 const createdUserIds: string[] = [];
@@ -154,5 +157,92 @@ describe("setNotificationPreference", () => {
     await expect(setNotificationPreference(userId, "kudos", "not-a-mode")).rejects.toThrow(
       "Invalid notification mode",
     );
+  });
+});
+
+describe("PATCH /api/notifications/preferences route", () => {
+  let baseUrl: string;
+  let server: ReturnType<typeof createServer>;
+  let sessionCookie: string;
+  let routeUserDbId: string;
+  const routeUserId = `test-notif-route-${randomUUID()}`;
+
+  beforeAll(async () => {
+    server = createServer(createApp());
+    await new Promise<void>((resolve) => server.listen(0, resolve));
+    const { port } = server.address() as AddressInfo;
+    baseUrl = `http://127.0.0.1:${port}`;
+
+    const registerResponse = await fetch(`${baseUrl}/api/auth/register`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        email: `${routeUserId}@example.com`,
+        password: "testpass123",
+        name: "Route Test",
+      }),
+    });
+    const setCookie = registerResponse.headers.get("set-cookie");
+    if (!setCookie) {
+      throw new Error("Register did not return a session cookie");
+    }
+    sessionCookie = setCookie.split(";")[0];
+
+    const userRows = await db
+      .select({ id: users.id })
+      .from(users)
+      .where(eq(users.email, `${routeUserId}@example.com`))
+      .limit(1);
+    routeUserDbId = userRows[0]!.id;
+  });
+
+  afterAll(async () => {
+    await new Promise<void>((resolve) => server.close(() => resolve()));
+    // Cleaned up here, not via the shared `afterEach`/`createdUserIds` queue —
+    // that queue drains after every `it`, which would delete this user (and
+    // cascade its session) after the first test in this block, breaking the rest.
+    await db.delete(users).where(eq(users.id, routeUserDbId));
+  });
+
+  it("rejects an unauthenticated request with 401", async () => {
+    const response = await fetch(`${baseUrl}/api/notifications/preferences`, {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ type: "kudos", mode: "digest" }),
+    });
+
+    expect(response.status).toBe(401);
+  });
+
+  it("rejects an invalid type with 400", async () => {
+    const response = await fetch(`${baseUrl}/api/notifications/preferences`, {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json", cookie: sessionCookie },
+      body: JSON.stringify({ type: "not-a-type", mode: "instant" }),
+    });
+
+    expect(response.status).toBe(400);
+  });
+
+  it("rejects an invalid mode with 400", async () => {
+    const response = await fetch(`${baseUrl}/api/notifications/preferences`, {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json", cookie: sessionCookie },
+      body: JSON.stringify({ type: "kudos", mode: "not-a-mode" }),
+    });
+
+    expect(response.status).toBe(400);
+  });
+
+  it("accepts a valid request and persists the preference", async () => {
+    const response = await fetch(`${baseUrl}/api/notifications/preferences`, {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json", cookie: sessionCookie },
+      body: JSON.stringify({ type: "follow", mode: "off" }),
+    });
+
+    expect(response.status).toBe(200);
+    const body = await response.json();
+    expect(body.preferences.follow).toBe("off");
   });
 });
