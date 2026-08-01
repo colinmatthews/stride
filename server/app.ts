@@ -8,7 +8,11 @@ import {
   createUser,
   findUserForAuth,
   getActivityById,
+  getNotificationSummary,
   listActivities,
+  NOTIFICATION_MODES,
+  NOTIFICATION_TYPES,
+  setNotificationPreference,
   toggleChallengeEntry,
   toggleClubMembership,
   toggleFollow,
@@ -212,6 +216,35 @@ export function createApp() {
   app.post("/api/challenges/:id/join", requireAuth, async (request, response, next) => {
     try {
       response.json(await toggleChallengeEntry(request.userId!, String(request.params.id)));
+    } catch (error) {
+      next(error);
+    }
+  });
+
+  app.get("/api/notifications/summary", requireAuth, async (request, response, next) => {
+    try {
+      response.json(await getNotificationSummary(request.userId!));
+    } catch (error) {
+      next(error);
+    }
+  });
+
+  app.patch("/api/notifications/preferences", requireAuth, async (request, response, next) => {
+    try {
+      const type = String(request.body.type ?? "");
+      const mode = String(request.body.mode ?? "");
+
+      if (!NOTIFICATION_TYPES.includes(type as (typeof NOTIFICATION_TYPES)[number])) {
+        response.status(400).json({ error: "Invalid notification type" });
+        return;
+      }
+      if (!NOTIFICATION_MODES.includes(mode as (typeof NOTIFICATION_MODES)[number])) {
+        response.status(400).json({ error: "Invalid notification mode" });
+        return;
+      }
+
+      await setNotificationPreference(request.userId!, type, mode);
+      response.json(await getNotificationSummary(request.userId!));
     } catch (error) {
       next(error);
     }
