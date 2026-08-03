@@ -66,6 +66,7 @@ export interface SeedChallenge {
   sport: Sport | "Multisport";
   goalKm: number;
   participants: number;
+  startsAt: string;
   endsAt: string;
   badge: string;
   metricType: MetricType;
@@ -336,11 +337,12 @@ export const SEEDED_CLUBS: SeedClub[] = [
 export const SEEDED_CHALLENGES: SeedChallenge[] = [
   {
     id: "ch1",
-    name: "April Distance Run",
+    name: "August Distance Run",
     sport: "Run",
     goalKm: 100,
     participants: 184230,
-    endsAt: "2026-04-30",
+    startsAt: "2026-08-01",
+    endsAt: "2026-08-31",
     badge: "RUN",
     metricType: "distance_km",
   },
@@ -350,7 +352,8 @@ export const SEEDED_CHALLENGES: SeedChallenge[] = [
     sport: "Ride",
     goalKm: 5000,
     participants: 92450,
-    endsAt: "2026-04-30",
+    startsAt: "2026-08-01",
+    endsAt: "2026-08-31",
     badge: "CLIMB",
     metricType: "elevation_m",
   },
@@ -360,27 +363,30 @@ export const SEEDED_CHALLENGES: SeedChallenge[] = [
     sport: "Ride",
     goalKm: 100,
     participants: 64200,
-    endsAt: "2026-05-15",
+    startsAt: "2026-08-01",
+    endsAt: "2026-09-15",
     badge: "GF",
     metricType: "distance_km",
   },
   {
     id: "ch4",
-    name: "10K Race Ready",
+    name: "August Race Ready 10K",
     sport: "Run",
     goalKm: 10,
     participants: 38120,
-    endsAt: "2026-05-31",
+    startsAt: "2026-08-01",
+    endsAt: "2026-08-31",
     badge: "10K",
     metricType: "distance_km",
   },
   {
     id: "ch5",
-    name: "Swim 20K",
+    name: "August Swim 20K",
     sport: "Swim",
     goalKm: 20,
     participants: 22100,
-    endsAt: "2026-04-30",
+    startsAt: "2026-08-01",
+    endsAt: "2026-08-31",
     badge: "SWIM",
     metricType: "distance_km",
   },

@@ -19,12 +19,21 @@ async function checkIntercom(token: string | undefined): Promise<CheckResult> {
     const res = await fetch("https://api.intercom.io/me", {
       headers: { ...bearer(token), "Intercom-Version": "2.11" },
     });
-    if (!res.ok) return { service: "intercom", ok: false, detail: `HTTP ${res.status} ${await res.text().then((t) => t.slice(0, 200))}` };
+    if (!res.ok)
+      return {
+        service: "intercom",
+        ok: false,
+        detail: `HTTP ${res.status} ${await res.text().then((t) => t.slice(0, 200))}`,
+      };
     const body = (await res.json()) as { app?: { name?: string; id_code?: string }; name?: string };
     const app = body.app?.name ?? body.app?.id_code ?? "unknown workspace";
     return { service: "intercom", ok: true, detail: `authenticated against workspace "${app}"` };
   } catch (err) {
-    return { service: "intercom", ok: false, detail: err instanceof Error ? err.message : String(err) };
+    return {
+      service: "intercom",
+      ok: false,
+      detail: err instanceof Error ? err.message : String(err),
+    };
   }
 }
 
@@ -38,8 +47,15 @@ async function checkPosthog(token: string | undefined, host: string): Promise<Ch
     };
   }
   try {
-    const res = await fetch(`${host.replace(/\/$/, "")}/api/users/@me/`, { headers: bearer(token) });
-    if (!res.ok) return { service: "posthog", ok: false, detail: `HTTP ${res.status} ${await res.text().then((t) => t.slice(0, 200))}` };
+    const res = await fetch(`${host.replace(/\/$/, "")}/api/users/@me/`, {
+      headers: bearer(token),
+    });
+    if (!res.ok)
+      return {
+        service: "posthog",
+        ok: false,
+        detail: `HTTP ${res.status} ${await res.text().then((t) => t.slice(0, 200))}`,
+      };
     const body = (await res.json()) as { email?: string; first_name?: string };
     return {
       service: "posthog",
@@ -47,7 +63,11 @@ async function checkPosthog(token: string | undefined, host: string): Promise<Ch
       detail: `authenticated as ${body.email ?? body.first_name ?? "unknown user"}`,
     };
   } catch (err) {
-    return { service: "posthog", ok: false, detail: err instanceof Error ? err.message : String(err) };
+    return {
+      service: "posthog",
+      ok: false,
+      detail: err instanceof Error ? err.message : String(err),
+    };
   }
 }
 
@@ -62,9 +82,18 @@ async function checkLinear(token: string | undefined): Promise<CheckResult> {
       },
       body: JSON.stringify({ query: `query { viewer { email name } }` }),
     });
-    if (!res.ok) return { service: "linear", ok: false, detail: `HTTP ${res.status} ${await res.text().then((t) => t.slice(0, 200))}` };
-    const body = (await res.json()) as { data?: { viewer?: { email?: string; name?: string } }; errors?: { message: string }[] };
-    if (body.errors?.length) return { service: "linear", ok: false, detail: body.errors.map((e) => e.message).join("; ") };
+    if (!res.ok)
+      return {
+        service: "linear",
+        ok: false,
+        detail: `HTTP ${res.status} ${await res.text().then((t) => t.slice(0, 200))}`,
+      };
+    const body = (await res.json()) as {
+      data?: { viewer?: { email?: string; name?: string } };
+      errors?: { message: string }[];
+    };
+    if (body.errors?.length)
+      return { service: "linear", ok: false, detail: body.errors.map((e) => e.message).join("; ") };
     const v = body.data?.viewer;
     return {
       service: "linear",
@@ -72,7 +101,11 @@ async function checkLinear(token: string | undefined): Promise<CheckResult> {
       detail: `authenticated as ${v?.email ?? v?.name ?? "unknown user"}`,
     };
   } catch (err) {
-    return { service: "linear", ok: false, detail: err instanceof Error ? err.message : String(err) };
+    return {
+      service: "linear",
+      ok: false,
+      detail: err instanceof Error ? err.message : String(err),
+    };
   }
 }
 

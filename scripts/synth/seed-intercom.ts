@@ -28,7 +28,10 @@ const REQUIRED_CONTACT_ATTRIBUTES: { name: string; data_type: "string" }[] = [
   { name: "cohort_id", data_type: "string" },
 ];
 
-async function ensureContactDataAttributes(token: string, region: "us" | "eu" | "au"): Promise<void> {
+async function ensureContactDataAttributes(
+  token: string,
+  region: "us" | "eu" | "au",
+): Promise<void> {
   const base = intercomApiBase(region);
   const headers = {
     Authorization: `Bearer ${token}`,
@@ -36,8 +39,11 @@ async function ensureContactDataAttributes(token: string, region: "us" | "eu" | 
     Accept: "application/json",
     "Content-Type": "application/json",
   };
-  const listRes = await fetch(`${base}/data_attributes?model=contact&include_archived=true`, { headers });
-  if (!listRes.ok) throw new Error(`list data_attributes failed: ${listRes.status} ${await listRes.text()}`);
+  const listRes = await fetch(`${base}/data_attributes?model=contact&include_archived=true`, {
+    headers,
+  });
+  if (!listRes.ok)
+    throw new Error(`list data_attributes failed: ${listRes.status} ${await listRes.text()}`);
   const listJson = (await listRes.json()) as { data: { name: string; custom?: boolean }[] };
   const existing = new Set(listJson.data.filter((a) => a.custom === true).map((a) => a.name));
 
@@ -65,8 +71,20 @@ async function ensureContactDataAttributes(token: string, region: "us" | "eu" | 
 interface IntercomOutput {
   cohortId: string;
   contacts: { userId: string; intercomId: string; email: string }[];
-  conversations: { userId: string; intercomContactId: string; conversationId: string; scenario: string; title: string }[];
-  tickets: { userId: string; intercomContactId: string; ticketId: string; scenario: string; title: string }[];
+  conversations: {
+    userId: string;
+    intercomContactId: string;
+    conversationId: string;
+    scenario: string;
+    title: string;
+  }[];
+  tickets: {
+    userId: string;
+    intercomContactId: string;
+    ticketId: string;
+    scenario: string;
+    title: string;
+  }[];
   failures: { userId: string; stage: string; error: string }[];
 }
 
@@ -84,7 +102,9 @@ async function loadUsers(): Promise<SynthUser[]> {
   return parsed;
 }
 
-async function loadLatestActivities(userIds: string[]): Promise<Map<string, { title: string; date: Date }>> {
+async function loadLatestActivities(
+  userIds: string[],
+): Promise<Map<string, { title: string; date: Date }>> {
   const pool = getPool();
   const { rows } = await pool.query<{ athlete_id: string; title: string; date: Date }>(
     `
@@ -127,10 +147,7 @@ function pickScenarioFor(user: SynthUser, rng: Rng): Scenario {
   return rng.weighted(weighted);
 }
 
-async function upsertContact(
-  client: IntercomClient,
-  user: SynthUser,
-): Promise<string> {
+async function upsertContact(client: IntercomClient, user: SynthUser): Promise<string> {
   try {
     const existing = await client.contacts.showContactByExternalId({ external_id: user.id });
     if (existing && (existing as { id?: string }).id) {
@@ -228,7 +245,11 @@ async function main() {
   const usersWithActivity: UserWithLatestActivity[] = filers.map((u) => {
     const latest = latestByUser.get(u.id);
     return latest
-      ? { ...u, latestActivityTitle: latest.title, latestActivityDate: latest.date.toISOString().slice(0, 10) }
+      ? {
+          ...u,
+          latestActivityTitle: latest.title,
+          latestActivityDate: latest.date.toISOString().slice(0, 10),
+        }
       : u;
   });
 
@@ -274,7 +295,10 @@ async function main() {
         if ((i + 1) % 25 === 0) console.log(`  generated ${i + 1}/${workItems.length}`);
         return msg;
       } catch {
-        return { title: item.scenario.label, body: `Having trouble with ${item.scenario.label.toLowerCase()}. Can someone help?` };
+        return {
+          title: item.scenario.label,
+          body: `Having trouble with ${item.scenario.label.toLowerCase()}. Can someone help?`,
+        };
       }
     });
     console.log(`Content generation took ${((Date.now() - t0) / 1000).toFixed(1)}s`);
@@ -318,7 +342,14 @@ async function main() {
           title: content.title,
         });
       } else {
-        const ticketId = await createTicket(client, intercomId, content.title, content.body, item.scenario, item.platform);
+        const ticketId = await createTicket(
+          client,
+          intercomId,
+          content.title,
+          content.body,
+          item.scenario,
+          item.platform,
+        );
         output.tickets.push({
           userId: item.user.id,
           intercomContactId: intercomId,

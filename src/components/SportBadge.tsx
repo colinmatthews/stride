@@ -11,7 +11,9 @@ const ICONS: Record<Sport, typeof Bike> = {
 export function SportBadge({ sport, className = "" }: { sport: Sport; className?: string }) {
   const Icon = ICONS[sport];
   return (
-    <span className={`inline-flex items-center gap-1.5 text-xs font-medium px-2 py-1 rounded-md bg-secondary text-secondary-foreground ${className}`}>
+    <span
+      className={`inline-flex items-center gap-1.5 text-xs font-medium px-2 py-1 rounded-md bg-secondary text-secondary-foreground ${className}`}
+    >
       <Icon className="h-3 w-3" />
       {sport}
     </span>

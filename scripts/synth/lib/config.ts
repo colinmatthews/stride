@@ -16,10 +16,7 @@ const EnvSchema = z.object({
   INTERCOM_REGION: z.enum(["us", "eu", "au"]).default("us"),
 
   POSTHOG_API_KEY: optionalString,
-  VITE_PUBLIC_POSTHOG_HOST: z
-    .string()
-    .url()
-    .default("https://us.i.posthog.com"),
+  VITE_PUBLIC_POSTHOG_HOST: z.string().url().default("https://us.i.posthog.com"),
 
   LINEAR_API_KEY: optionalString,
   LINEAR_TEAM_KEY: optionalString,

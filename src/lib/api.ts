@@ -4,9 +4,12 @@ import {
   CHALLENGES,
   CLUBS,
   ME,
+  PENDING_COMPLETIONS,
   mergeActivities,
   type Activity,
   type AppData,
+  type ChallengeCredit,
+  type PendingChallengeCompletion,
 } from "./mock-data";
 
 class ApiError extends Error {
@@ -104,14 +107,37 @@ export async function saveActivity(payload: {
   avgPaceSecPerKm?: number;
   avgSpeedKmh?: number;
   routeSeed: number;
-}) {
-  const activity = await apiFetch<Activity>("/api/activities", {
+}): Promise<
+  Activity & { challengeCredits?: ChallengeCredit[]; newCompletions?: PendingChallengeCompletion[] }
+> {
+  const activity = await apiFetch<
+    Activity & {
+      challengeCredits?: ChallengeCredit[];
+      newCompletions?: PendingChallengeCompletion[];
+    }
+  >("/api/activities", {
     method: "POST",
     body: JSON.stringify(payload),
   });
 
   mergeActivities([activity]);
+
+  for (const credit of activity.challengeCredits ?? []) {
+    const ch = CHALLENGES.find((c) => c.id === credit.challengeId);
+    if (ch) ch.myProgressKm = credit.after;
+  }
+
+  for (const completion of activity.newCompletions ?? []) {
+    if (!PENDING_COMPLETIONS.some((p) => p.challengeId === completion.challengeId)) {
+      PENDING_COMPLETIONS.push(completion);
+    }
+  }
+
   return activity;
+}
+
+export async function acknowledgeChallengeCompletion(challengeId: string) {
+  await apiFetch(`/api/challenges/${challengeId}/acknowledge`, { method: "POST" });
 }
 
 export async function toggleActivityKudo(activityId: string) {

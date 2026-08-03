@@ -172,10 +172,27 @@ function projectFor(kind: IssueType, rng: Rng): ProjectName | null {
 }
 
 function cycleSlotFor(state: IssueSpec["stateType"], rng: Rng): "current" | "next" | null {
-  if (state === "started") return rng.weighted([{ value: "current", weight: 85 }, { value: "next", weight: 10 }, { value: null, weight: 5 }]);
-  if (state === "completed" || state === "canceled") return rng.weighted([{ value: "current", weight: 40 }, { value: null, weight: 60 }]);
-  if (state === "unstarted") return rng.weighted([{ value: "current", weight: 30 }, { value: "next", weight: 35 }, { value: null, weight: 35 }]);
-  return rng.weighted([{ value: "next", weight: 20 }, { value: null, weight: 80 }]);
+  if (state === "started")
+    return rng.weighted([
+      { value: "current", weight: 85 },
+      { value: "next", weight: 10 },
+      { value: null, weight: 5 },
+    ]);
+  if (state === "completed" || state === "canceled")
+    return rng.weighted([
+      { value: "current", weight: 40 },
+      { value: null, weight: 60 },
+    ]);
+  if (state === "unstarted")
+    return rng.weighted([
+      { value: "current", weight: 30 },
+      { value: "next", weight: 35 },
+      { value: null, weight: 35 },
+    ]);
+  return rng.weighted([
+    { value: "next", weight: 20 },
+    { value: null, weight: 80 },
+  ]);
 }
 
 function buildSpecs(conversations: LinkedConversation[], rng: Rng): IssueSpec[] {
@@ -189,7 +206,8 @@ function buildSpecs(conversations: LinkedConversation[], rng: Rng): IssueSpec[] 
     areaLabels: AreaLabel[],
     conversation?: LinkedConversation,
   ) => {
-    const typeLabel: TypeLabel = kind === "feature" ? "feature" : kind === "tech-debt" ? "tech-debt" : "bug";
+    const typeLabel: TypeLabel =
+      kind === "feature" ? "feature" : kind === "tech-debt" ? "tech-debt" : "bug";
     const stateType = stateTypeFor(kind, rng);
     const cycleSlot = cycleSlotFor(stateType, rng);
     const createdDaysAgo = rng.weighted([
@@ -251,7 +269,10 @@ async function generateContents(specs: IssueSpec[]): Promise<GeneratedContent[]>
   const t0 = Date.now();
   const contents = await mapWithConcurrency(specs, 6, async (spec, i) => {
     const systemText = ENG_INSTRUCTIONS[spec.kind];
-    const userLines: string[] = [`Theme/hint: ${spec.theme}`, `Area: ${spec.areaLabels.join(", ")}`];
+    const userLines: string[] = [
+      `Theme/hint: ${spec.theme}`,
+      `Area: ${spec.areaLabels.join(", ")}`,
+    ];
     if (spec.conversation) {
       userLines.push(`Linked Intercom conversation id: ${spec.conversation.conversationId}`);
       userLines.push(`Customer-facing title: ${spec.conversation.title}`);
@@ -295,7 +316,10 @@ async function generateContents(specs: IssueSpec[]): Promise<GeneratedContent[]>
   return contents;
 }
 
-async function getOrCreateTeam(client: LinearClient, teamKey: string): Promise<{ id: string; key: string }> {
+async function getOrCreateTeam(
+  client: LinearClient,
+  teamKey: string,
+): Promise<{ id: string; key: string }> {
   const teams = await client.teams({ filter: { key: { eq: teamKey } } });
   if (teams.nodes.length > 0) {
     const t = teams.nodes[0];
@@ -306,10 +330,7 @@ async function getOrCreateTeam(client: LinearClient, teamKey: string): Promise<{
   );
 }
 
-async function ensureLabels(
-  client: LinearClient,
-  teamId: string,
-): Promise<Map<string, string>> {
+async function ensureLabels(client: LinearClient, teamId: string): Promise<Map<string, string>> {
   const allLabels = await client.issueLabels({ first: 250 });
   const byLower = new Map<string, string>();
   for (const label of allLabels.nodes) {
@@ -401,7 +422,10 @@ async function ensureProjects(
   client: LinearClient,
   teamId: string,
 ): Promise<{ byName: Map<ProjectName, string>; created: LinearOutput["projectsCreated"] }> {
-  const projects = await client.projects({ filter: { accessibleTeams: { some: { id: { eq: teamId } } } }, first: 100 });
+  const projects = await client.projects({
+    filter: { accessibleTeams: { some: { id: { eq: teamId } } } },
+    first: 100,
+  });
   const byName = new Map<ProjectName, string>();
   for (const project of projects.nodes) {
     if (PROJECTS.some((p) => p.name === project.name)) {
@@ -422,7 +446,8 @@ async function ensureProjects(
     byName.set(spec.name, project.id);
     created.push({ name: spec.name, id: project.id });
   }
-  if (created.length > 0) console.log(`  created projects: ${created.map((p) => p.name).join(", ")}`);
+  if (created.length > 0)
+    console.log(`  created projects: ${created.map((p) => p.name).join(", ")}`);
   return { byName, created };
 }
 
@@ -430,7 +455,10 @@ async function loadStateMap(
   client: LinearClient,
   teamId: string,
 ): Promise<Map<IssueSpec["stateType"], string>> {
-  const states = await client.workflowStates({ filter: { team: { id: { eq: teamId } } }, first: 100 });
+  const states = await client.workflowStates({
+    filter: { team: { id: { eq: teamId } } },
+    first: 100,
+  });
   const byType = new Map<IssueSpec["stateType"], string>();
   for (const state of states.nodes) {
     const type = state.type as IssueSpec["stateType"];
@@ -464,18 +492,24 @@ async function main() {
   const labelsByName = await ensureLabels(client, team.id);
 
   console.log("Ensuring cycles…");
-  const { current: currentCycleId, next: nextCycleId, createdCycles } = await ensureCycles(
+  const {
+    current: currentCycleId,
+    next: nextCycleId,
+    createdCycles,
+  } = await ensureCycles(client, team.id);
+
+  console.log("Ensuring projects…");
+  const { byName: projectsByName, created: createdProjects } = await ensureProjects(
     client,
     team.id,
   );
 
-  console.log("Ensuring projects…");
-  const { byName: projectsByName, created: createdProjects } = await ensureProjects(client, team.id);
-
   console.log("Loading workflow states…");
   const stateByType = await loadStateMap(client, team.id);
   if (!stateByType.has("backlog") && !stateByType.has("unstarted")) {
-    throw new Error(`Team ${teamKey} has no backlog/unstarted states. Check team workflow settings.`);
+    throw new Error(
+      `Team ${teamKey} has no backlog/unstarted states. Check team workflow settings.`,
+    );
   }
 
   const rng = new Rng(loadEnv().SYNTH_RNG_SEED + 3);
@@ -502,9 +536,14 @@ async function main() {
       ...spec.areaLabels.map((a) => labelsByName.get(a)),
     ].filter((v): v is string => typeof v === "string");
 
-    const stateId = stateByType.get(spec.stateType) ?? stateByType.get("backlog") ?? stateByType.get("unstarted");
+    const stateId =
+      stateByType.get(spec.stateType) ?? stateByType.get("backlog") ?? stateByType.get("unstarted");
     const cycleId =
-      spec.cycleSlot === "current" ? currentCycleId : spec.cycleSlot === "next" ? nextCycleId : undefined;
+      spec.cycleSlot === "current"
+        ? currentCycleId
+        : spec.cycleSlot === "next"
+          ? nextCycleId
+          : undefined;
     const projectId = spec.projectName ? projectsByName.get(spec.projectName) : undefined;
 
     try {
@@ -535,7 +574,10 @@ async function main() {
       });
       if ((i + 1) % 20 === 0) console.log(`  created ${i + 1}/${specs.length}`);
     } catch (err) {
-      output.failures.push({ kind: spec.kind, error: err instanceof Error ? err.message : String(err) });
+      output.failures.push({
+        kind: spec.kind,
+        error: err instanceof Error ? err.message : String(err),
+      });
     }
   });
 

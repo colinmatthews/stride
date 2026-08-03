@@ -1,9 +1,16 @@
 import { createFileRoute } from "@tanstack/react-router";
-import { useState } from "react";
-import { CHALLENGES } from "@/lib/mock-data";
+import { useEffect, useState } from "react";
+import {
+  CHALLENGES,
+  PENDING_COMPLETIONS,
+  challengeUnit,
+  type PendingChallengeCompletion,
+} from "@/lib/mock-data";
 import { AppShell } from "@/components/AppShell";
-import { Trophy, Users, Calendar, Check } from "lucide-react";
-import { toggleChallengeJoin } from "@/lib/api";
+import { Trophy, Users, Calendar, Check, PartyPopper } from "lucide-react";
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
+import { Badge } from "@/components/ui/badge";
+import { acknowledgeChallengeCompletion, toggleChallengeJoin } from "@/lib/api";
 import { usePostHog } from "@posthog/react";
 
 export const Route = createFileRoute("/challenges")({
@@ -26,6 +33,63 @@ function ChallengesPage() {
   );
 
   const joinedCount = Object.values(joined).filter(Boolean).length;
+
+  const [currentCompletion, setCurrentCompletion] = useState<PendingChallengeCompletion | null>(
+    () => PENDING_COMPLETIONS[0] ?? null,
+  );
+  const [recapOpen, setRecapOpen] = useState(false);
+  const [dismissing, setDismissing] = useState(false);
+
+  useEffect(() => {
+    if (!currentCompletion) return;
+    const id = setTimeout(() => setRecapOpen(true), 300);
+    return () => clearTimeout(id);
+  }, [currentCompletion]);
+
+  const completedChallenge = currentCompletion
+    ? CHALLENGES.find((c) => c.id === currentCompletion.challengeId)
+    : undefined;
+  const nextChallenge =
+    currentCompletion?.suggestedChallengeId != null
+      ? CHALLENGES.find((c) => c.id === currentCompletion.suggestedChallengeId)
+      : undefined;
+
+  async function handleDismiss() {
+    if (!currentCompletion || dismissing) return;
+    setDismissing(true);
+    setRecapOpen(false);
+    try {
+      await acknowledgeChallengeCompletion(currentCompletion.challengeId);
+      const idx = PENDING_COMPLETIONS.findIndex(
+        (p) => p.challengeId === currentCompletion.challengeId,
+      );
+      if (idx !== -1) PENDING_COMPLETIONS.splice(idx, 1);
+    } catch {
+      setCurrentCompletion(null);
+      setDismissing(false);
+      return;
+    }
+    setCurrentCompletion(PENDING_COMPLETIONS[0] ?? null);
+    setDismissing(false);
+  }
+
+  async function handleChallengeToggle(
+    challengeId: string,
+    challengeName: string,
+    sport: string,
+    goalKm: number,
+  ) {
+    const result = await toggleChallengeJoin(challengeId);
+    setJoined((state) => ({ ...state, [challengeId]: result.joined }));
+    setParticipants((state) => ({ ...state, [challengeId]: result.participants }));
+    posthog.capture(result.joined ? "challenge_joined" : "challenge_left", {
+      challenge_id: challengeId,
+      challenge_name: challengeName,
+      sport,
+      goal_km: goalKm,
+    });
+    return result;
+  }
 
   return (
     <AppShell>
@@ -52,7 +116,7 @@ function ChallengesPage() {
         {CHALLENGES.map((c) => {
           const isJoined = joined[c.id];
           const pct = Math.min(100, (c.myProgressKm / c.goalKm) * 100);
-          const unit = c.sport === "Ride" && c.goalKm > 1000 ? "m" : "km";
+          const unit = challengeUnit(c);
           return (
             <article
               key={c.id}
@@ -147,17 +211,7 @@ function ChallengesPage() {
                 </div>
 
                 <button
-                  onClick={async () => {
-                    const result = await toggleChallengeJoin(c.id);
-                    setJoined((state) => ({ ...state, [c.id]: result.joined }));
-                    setParticipants((state) => ({ ...state, [c.id]: result.participants }));
-                    posthog.capture(result.joined ? "challenge_joined" : "challenge_left", {
-                      challenge_id: c.id,
-                      challenge_name: c.name,
-                      sport: c.sport,
-                      goal_km: c.goalKm,
-                    });
-                  }}
+                  onClick={() => handleChallengeToggle(c.id, c.name, c.sport, c.goalKm)}
                   className={`mt-6 inline-flex h-11 w-full items-center justify-center gap-2 text-sm font-medium transition-opacity hover:opacity-95 ${
                     isJoined
                       ? "border border-border bg-surface text-foreground"
@@ -179,6 +233,96 @@ function ChallengesPage() {
           );
         })}
       </div>
+
+      {completedChallenge && (
+        <Dialog
+          open={recapOpen}
+          onOpenChange={(open) => {
+            if (!open) handleDismiss();
+          }}
+        >
+          <DialogContent className="sm:max-w-md">
+            <DialogHeader>
+              <DialogTitle className="flex items-center gap-2">
+                <PartyPopper className="h-4 w-4 text-primary" /> {completedChallenge.name} complete!
+              </DialogTitle>
+            </DialogHeader>
+            <div className="mt-2">
+              <div className="flex items-baseline justify-between">
+                <span className="text-sm text-muted-foreground">Your result</span>
+                <span className="stat-num text-lg font-semibold">
+                  {completedChallenge.myProgressKm.toFixed(1)}
+                  <span className="text-muted-foreground text-sm">
+                    {" "}
+                    / {completedChallenge.goalKm} {challengeUnit(completedChallenge)}
+                  </span>
+                </span>
+              </div>
+              <div className="mt-2 h-1.5 bg-muted overflow-hidden">
+                <div
+                  className="h-full bg-primary"
+                  style={{
+                    width: `${Math.min(100, (completedChallenge.myProgressKm / completedChallenge.goalKm) * 100)}%`,
+                  }}
+                />
+              </div>
+            </div>
+            {nextChallenge && (
+              <div className="mt-5">
+                <div className="text-xs uppercase tracking-[0.14em] text-muted-foreground mb-2">
+                  What's next
+                </div>
+                <div className="rounded-lg border border-border bg-surface p-4">
+                  <div className="flex items-center justify-between">
+                    <span className="font-mono text-[10px] uppercase tracking-[0.18em] text-muted-foreground">
+                      {nextChallenge.sport} · monthly
+                    </span>
+                    <Badge variant="secondary">{nextChallenge.badge}</Badge>
+                  </div>
+                  <div className="mt-2 font-display text-lg font-semibold">
+                    {nextChallenge.name}
+                  </div>
+                  <div className="mt-1 flex items-center gap-3 text-xs text-muted-foreground">
+                    <span className="inline-flex items-center gap-1">
+                      <Users className="h-3 w-3" />{" "}
+                      {participants[nextChallenge.id]?.toLocaleString()} athletes
+                    </span>
+                    <span>
+                      {nextChallenge.goalKm} {challengeUnit(nextChallenge)} goal
+                    </span>
+                  </div>
+                  <button
+                    onClick={() =>
+                      handleChallengeToggle(
+                        nextChallenge.id,
+                        nextChallenge.name,
+                        nextChallenge.sport,
+                        nextChallenge.goalKm,
+                      )
+                    }
+                    disabled={joined[nextChallenge.id]}
+                    className={`mt-4 inline-flex h-10 w-full items-center justify-center gap-2 text-sm font-medium transition-opacity hover:opacity-95 ${
+                      joined[nextChallenge.id]
+                        ? "border border-border bg-surface text-foreground"
+                        : "bg-primary text-primary-foreground"
+                    }`}
+                  >
+                    {joined[nextChallenge.id] ? (
+                      <>
+                        <Check className="h-4 w-4" /> Joined {nextChallenge.name}
+                      </>
+                    ) : (
+                      <>
+                        <Trophy className="h-4 w-4" /> Join {nextChallenge.name}
+                      </>
+                    )}
+                  </button>
+                </div>
+              </div>
+            )}
+          </DialogContent>
+        </Dialog>
+      )}
     </AppShell>
   );
 }

@@ -1,5 +1,6 @@
 import { Pool } from "pg";
 import { drizzle } from "drizzle-orm/node-postgres";
+import { sql } from "drizzle-orm";
 import * as schema from "./db/schema.js";
 import {
   SEEDED_ATHLETES,
@@ -103,11 +104,24 @@ async function seedDatabase() {
           sport: challenge.sport,
           goalKm: String(challenge.goalKm),
           participants: challenge.participants,
+          startsAt: challenge.startsAt,
           endsAt: challenge.endsAt,
           badge: challenge.badge,
           metricType: challenge.metricType,
         })
-        .onConflictDoNothing();
+        .onConflictDoUpdate({
+          target: schema.challenges.id,
+          set: {
+            name: sql`excluded.name`,
+            sport: sql`excluded.sport`,
+            startsAt: sql`excluded.starts_at`,
+            endsAt: sql`excluded.ends_at`,
+            goalKm: sql`excluded.goal_km`,
+            badge: sql`excluded.badge`,
+            metricType: sql`excluded.metric_type`,
+            // participants intentionally NOT updated — preserves user-driven counts
+          },
+        });
     }
 
     const activities = generateSeedActivities();

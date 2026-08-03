@@ -39,7 +39,8 @@ export function buildBulkInsert(
     placeholders.push(`(${placeholderList})`);
     for (const value of row) values.push(value);
   }
-  const text = `INSERT INTO ${table} (${columns.join(", ")}) VALUES ${placeholders.join(", ")} ${trailing}`.trim();
+  const text =
+    `INSERT INTO ${table} (${columns.join(", ")}) VALUES ${placeholders.join(", ")} ${trailing}`.trim();
   return { text, values };
 }
 

@@ -81,8 +81,14 @@ function AthletesPage() {
                 {athlete.bio}
               </p>
               <div className="mt-4 flex gap-5 border-t border-border pt-3 text-xs text-muted-foreground">
-                <span><strong className="text-foreground">{athlete.followers.toLocaleString()}</strong> followers</span>
-                <span><strong className="text-foreground">{athlete.following.toLocaleString()}</strong> following</span>
+                <span>
+                  <strong className="text-foreground">{athlete.followers.toLocaleString()}</strong>{" "}
+                  followers
+                </span>
+                <span>
+                  <strong className="text-foreground">{athlete.following.toLocaleString()}</strong>{" "}
+                  following
+                </span>
               </div>
             </article>
           ))}

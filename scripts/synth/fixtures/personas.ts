@@ -206,12 +206,7 @@ export const PERSONAS: Persona[] = [
     followsGivenRange: [0, 3],
     clubJoinChance: 0.1,
     challengeJoinChance: 0.15,
-    bioSamples: [
-      "New to Stride.",
-      "Just getting started.",
-      "Figuring this out.",
-      "",
-    ],
+    bioSamples: ["New to Stride.", "Just getting started.", "Figuring this out.", ""],
   },
   {
     id: "power_user",
@@ -265,12 +260,7 @@ export const PERSONAS: Persona[] = [
     followsGivenRange: [5, 50],
     clubJoinChance: 0.25,
     challengeJoinChance: 0.2,
-    bioSamples: [
-      "Used to run. Life got busy.",
-      "Taking a break.",
-      "Injured. Back soon.",
-      "",
-    ],
+    bioSamples: ["Used to run. Life got busy.", "Taking a break.", "Injured. Back soon.", ""],
   },
   {
     id: "churned",

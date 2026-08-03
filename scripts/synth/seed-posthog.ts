@@ -284,8 +284,7 @@ function buildSessionEvents(users: SynthUser[], rng: Rng): PHEvent[] {
   const windowStart = Date.now() - 90 * 86_400_000;
   for (const user of users) {
     const signup = new Date(user.signupDate).getTime();
-    const endActive =
-      (user.lastActiveAt ? new Date(user.lastActiveAt).getTime() : Date.now());
+    const endActive = user.lastActiveAt ? new Date(user.lastActiveAt).getTime() : Date.now();
     const windowEnd = Math.min(Date.now(), endActive);
     const rangeStart = Math.max(signup, windowStart);
     if (windowEnd <= rangeStart) continue;
@@ -363,21 +362,15 @@ async function main() {
   const rng = new Rng(loadEnv().SYNTH_RNG_SEED + 1);
 
   console.log("Querying DB…");
-  const [
-    activityEvents,
-    kudosEvents,
-    commentEvents,
-    followEvents,
-    clubEvents,
-    challengeEvents,
-  ] = await Promise.all([
-    buildActivityEvents(userIds),
-    buildKudosEvents(userIds),
-    buildCommentEvents(userIds),
-    buildFollowEvents(userIds),
-    buildClubJoinEvents(userIds),
-    buildChallengeJoinEvents(userIds),
-  ]);
+  const [activityEvents, kudosEvents, commentEvents, followEvents, clubEvents, challengeEvents] =
+    await Promise.all([
+      buildActivityEvents(userIds),
+      buildKudosEvents(userIds),
+      buildCommentEvents(userIds),
+      buildFollowEvents(userIds),
+      buildClubJoinEvents(userIds),
+      buildChallengeJoinEvents(userIds),
+    ]);
 
   const registrationEvents = buildRegistrationEvents(users);
   const subscriptionEvents = buildSubscriptionEvents(users, rng);

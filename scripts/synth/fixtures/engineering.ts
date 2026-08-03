@@ -65,8 +65,7 @@ export const PROJECTS = [
   },
   {
     name: "Platform Foundations",
-    description:
-      "Technical debt, infra upgrades, observability, and test coverage investments.",
+    description: "Technical debt, infra upgrades, observability, and test coverage investments.",
     color: "#7C3AED",
   },
 ] as const;

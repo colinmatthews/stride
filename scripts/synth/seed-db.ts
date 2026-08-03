@@ -102,7 +102,12 @@ function pickSport(user: SynthUser, rng: Rng): Sport {
   return rng.weighted(persona.sportMix.map((m) => ({ value: m.sport, weight: m.weight })));
 }
 
-function generateActivityFor(user: SynthUser, index: number, now: Date, rng: Rng): ActivityRow | null {
+function generateActivityFor(
+  user: SynthUser,
+  index: number,
+  now: Date,
+  rng: Rng,
+): ActivityRow | null {
   const { start, end } = activeWindow(user, now);
   const windowMs = end.getTime() - start.getTime();
   if (windowMs <= 0 || user.activityTarget <= 0) return null;
@@ -196,7 +201,13 @@ function generateCommentsFor(
 ): { id: string; activityId: string; athleteId: string; text: string; createdAt: Date }[] {
   if (!rng.chance(0.35)) return [];
   const commenterCount = rng.int(1, 2);
-  const comments: { id: string; activityId: string; athleteId: string; text: string; createdAt: Date }[] = [];
+  const comments: {
+    id: string;
+    activityId: string;
+    athleteId: string;
+    text: string;
+    createdAt: Date;
+  }[] = [];
   for (let i = 0; i < commenterCount; i += 1) {
     const commenter = users[rng.int(0, users.length - 1)];
     if (commenter.id === activity.athleteId) continue;
@@ -249,11 +260,7 @@ function generateFollows(users: SynthUser[], rng: Rng, now: Date): FollowRow[] {
   return follows;
 }
 
-function generateKudos(
-  activities: ActivityRow[],
-  users: SynthUser[],
-  rng: Rng,
-): KudoRow[] {
+function generateKudos(activities: ActivityRow[], users: SynthUser[], rng: Rng): KudoRow[] {
   const kudos: KudoRow[] = [];
   const popularityBySport = new Map<Sport, number>([
     ["Run", 0.8],
@@ -291,9 +298,7 @@ function generateClubMemberships(users: SynthUser[], rng: Rng, now: Date): Membe
   for (const user of users) {
     for (const club of SEEDED_CLUBS) {
       const sportMatch =
-        club.sport === "Multisport" ||
-        club.sport === user.primarySport ||
-        rng.chance(0.15);
+        club.sport === "Multisport" || club.sport === user.primarySport || rng.chance(0.15);
       if (!sportMatch) continue;
       if (!rng.chance(user.clubJoinChance)) continue;
       const daysAfter = rng.int(0, 60);
@@ -332,7 +337,17 @@ async function upsertUsers(client: PoolClient, users: SynthUser[]): Promise<void
     "users",
     ["id", "email", "name", "handle", "avatar_url", "city", "country", "bio", "created_at"],
     users,
-    (u) => [u.id, u.email, u.name, u.handle, u.avatar, u.city, u.country, u.bio, new Date(u.signupDate)],
+    (u) => [
+      u.id,
+      u.email,
+      u.name,
+      u.handle,
+      u.avatar,
+      u.city,
+      u.country,
+      u.bio,
+      new Date(u.signupDate),
+    ],
     `ON CONFLICT (id) DO UPDATE SET
        email = EXCLUDED.email,
        name = EXCLUDED.name,
@@ -404,10 +419,7 @@ async function insertSplits(client: PoolClient, rows: SplitRow[]): Promise<void>
   );
 }
 
-async function insertSegmentEfforts(
-  client: PoolClient,
-  rows: SegmentEffortRow[],
-): Promise<void> {
+async function insertSegmentEfforts(client: PoolClient, rows: SegmentEffortRow[]): Promise<void> {
   await bulkInsert(
     client,
     "activity_segments",
@@ -458,10 +470,7 @@ async function insertKudos(client: PoolClient, rows: KudoRow[]): Promise<void> {
   );
 }
 
-async function insertClubMemberships(
-  client: PoolClient,
-  rows: MembershipRow[],
-): Promise<void> {
+async function insertClubMemberships(client: PoolClient, rows: MembershipRow[]): Promise<void> {
   await bulkInsert(
     client,
     "club_memberships",
@@ -473,10 +482,7 @@ async function insertClubMemberships(
   );
 }
 
-async function insertChallengeEntries(
-  client: PoolClient,
-  rows: MembershipRow[],
-): Promise<void> {
+async function insertChallengeEntries(client: PoolClient, rows: MembershipRow[]): Promise<void> {
   await bulkInsert(
     client,
     "challenge_entries",
@@ -518,7 +524,13 @@ async function main() {
   const activities: ActivityRow[] = [];
   const splits: SplitRow[] = [];
   const efforts: SegmentEffortRow[] = [];
-  const comments: { id: string; activityId: string; athleteId: string; text: string; createdAt: Date }[] = [];
+  const comments: {
+    id: string;
+    activityId: string;
+    athleteId: string;
+    text: string;
+    createdAt: Date;
+  }[] = [];
 
   for (const user of users) {
     const userRng = rng.derive(user.id);
@@ -532,14 +544,18 @@ async function main() {
     }
   }
 
-  console.log(`Built ${activities.length} activities, ${splits.length} splits, ${efforts.length} segment efforts, ${comments.length} comments.`);
+  console.log(
+    `Built ${activities.length} activities, ${splits.length} splits, ${efforts.length} segment efforts, ${comments.length} comments.`,
+  );
 
   const follows = generateFollows(users, rng.derive("follows"), now);
   const kudos = generateKudos(activities, users, rng.derive("kudos"));
   const clubMemberships = generateClubMemberships(users, rng.derive("clubs"), now);
   const challengeEntries = generateChallengeEntries(users, rng.derive("challenges"), now);
 
-  console.log(`Built ${follows.length} follows, ${kudos.length} kudos, ${clubMemberships.length} club memberships, ${challengeEntries.length} challenge entries.`);
+  console.log(
+    `Built ${follows.length} follows, ${kudos.length} kudos, ${clubMemberships.length} club memberships, ${challengeEntries.length} challenge entries.`,
+  );
 
   const pool = getPool();
   const client = await pool.connect();

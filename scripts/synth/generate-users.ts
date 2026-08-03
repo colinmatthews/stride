@@ -78,9 +78,7 @@ function allocatePersonaCounts(total: number): Record<PersonaId, number> {
   let assigned = 0;
   PERSONAS.forEach((persona, index) => {
     const isLast = index === PERSONAS.length - 1;
-    const share = isLast
-      ? total - assigned
-      : Math.round((persona.weight / weightSum) * total);
+    const share = isLast ? total - assigned : Math.round((persona.weight / weightSum) * total);
     counts[persona.id] = share;
     assigned += share;
   });
@@ -170,11 +168,13 @@ function generate(): SynthUser[] {
         persona.status === "dormant"
           ? lastActiveForDormant(persona, signupDate, rng, now)
           : persona.status === "churned"
-            ? cancelledAt ?? now
+            ? (cancelledAt ?? now)
             : now;
 
       const primarySport = rng.pick(persona.primarySports);
-      const plan = rng.weighted(persona.planMix.map((pm) => ({ value: pm.plan, weight: pm.weight })));
+      const plan = rng.weighted(
+        persona.planMix.map((pm) => ({ value: pm.plan, weight: pm.weight })),
+      );
       const activityTarget = activityTargetFor(persona, rng, signupDate, now, lastActiveAt);
       const [minFollows, maxFollows] = persona.followsGivenRange;
       const followsGivenTarget = rng.int(minFollows, maxFollows);

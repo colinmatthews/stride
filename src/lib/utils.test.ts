@@ -7,6 +7,8 @@ describe("cn", () => {
   });
 
   it("handles conditional class names", () => {
-    expect(cn("base", false && "hidden", true && "block")).toBe("base block");
+    const show = true;
+    const hide = false;
+    expect(cn("base", hide && "hidden", show && "block")).toBe("base block");
   });
 });

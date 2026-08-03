@@ -1,4 +1,13 @@
-import { date, integer, numeric, pgTable, primaryKey, text, timestamp } from "drizzle-orm/pg-core";
+import {
+  date,
+  index,
+  integer,
+  numeric,
+  pgTable,
+  primaryKey,
+  text,
+  timestamp,
+} from "drizzle-orm/pg-core";
 
 export const users = pgTable("users", {
   id: text("id").primaryKey(),
@@ -41,26 +50,32 @@ export const follows = pgTable(
   }),
 );
 
-export const activities = pgTable("activities", {
-  id: text("id").primaryKey(),
-  athleteId: text("athlete_id")
-    .notNull()
-    .references(() => users.id, { onDelete: "cascade" }),
-  sport: text("sport").notNull(),
-  title: text("title").notNull(),
-  description: text("description"),
-  date: timestamp("date", { withTimezone: true }).notNull(),
-  distanceKm: numeric("distance_km", { precision: 10, scale: 2 }).notNull(),
-  movingSeconds: integer("moving_seconds").notNull(),
-  elevationM: integer("elevation_m").notNull(),
-  avgHr: integer("avg_hr"),
-  avgPaceSecPerKm: integer("avg_pace_sec_per_km"),
-  avgSpeedKmh: numeric("avg_speed_kmh", { precision: 10, scale: 1 }),
-  kudos: integer("kudos").notNull().default(0),
-  achievements: integer("achievements").notNull().default(0),
-  photo: text("photo"),
-  routeSeed: integer("route_seed").notNull(),
-});
+export const activities = pgTable(
+  "activities",
+  {
+    id: text("id").primaryKey(),
+    athleteId: text("athlete_id")
+      .notNull()
+      .references(() => users.id, { onDelete: "cascade" }),
+    sport: text("sport").notNull(),
+    title: text("title").notNull(),
+    description: text("description"),
+    date: timestamp("date", { withTimezone: true }).notNull(),
+    distanceKm: numeric("distance_km", { precision: 10, scale: 2 }).notNull(),
+    movingSeconds: integer("moving_seconds").notNull(),
+    elevationM: integer("elevation_m").notNull(),
+    avgHr: integer("avg_hr"),
+    avgPaceSecPerKm: integer("avg_pace_sec_per_km"),
+    avgSpeedKmh: numeric("avg_speed_kmh", { precision: 10, scale: 1 }),
+    kudos: integer("kudos").notNull().default(0),
+    achievements: integer("achievements").notNull().default(0),
+    photo: text("photo"),
+    routeSeed: integer("route_seed").notNull(),
+  },
+  (table) => ({
+    athleteDateIdx: index("activities_athlete_date_idx").on(table.athleteId, table.date),
+  }),
+);
 
 export const activityComments = pgTable("activity_comments", {
   id: text("id").primaryKey(),
@@ -156,6 +171,7 @@ export const challenges = pgTable("challenges", {
   sport: text("sport").notNull(),
   goalKm: numeric("goal_km", { precision: 10, scale: 2 }).notNull(),
   participants: integer("participants").notNull(),
+  startsAt: date("starts_at").notNull(),
   endsAt: date("ends_at").notNull(),
   badge: text("badge").notNull(),
   metricType: text("metric_type").notNull(),
@@ -171,6 +187,8 @@ export const challengeEntries = pgTable(
       .notNull()
       .references(() => challenges.id, { onDelete: "cascade" }),
     createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+    completedAt: timestamp("completed_at", { withTimezone: true }),
+    completionSeenAt: timestamp("completion_seen_at", { withTimezone: true }),
   },
   (table) => ({
     pk: primaryKey({ columns: [table.userId, table.challengeId] }),

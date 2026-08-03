@@ -14,15 +14,27 @@ async function main() {
     clubmems: (await q("SELECT COUNT(*) FROM club_memberships"))[0],
     chmems: (await q("SELECT COUNT(*) FROM challenge_entries"))[0],
   });
-  console.log("Sport mix:", await q("SELECT sport, COUNT(*)::int AS n FROM activities GROUP BY sport ORDER BY n DESC"));
-  console.log("Top followed:", await q("SELECT name, followers_count FROM users ORDER BY followers_count DESC LIMIT 5"));
-  console.log("Activity date range:", await q("SELECT MIN(date)::text AS mn, MAX(date)::text AS mx FROM activities"));
+  console.log(
+    "Sport mix:",
+    await q("SELECT sport, COUNT(*)::int AS n FROM activities GROUP BY sport ORDER BY n DESC"),
+  );
+  console.log(
+    "Top followed:",
+    await q("SELECT name, followers_count FROM users ORDER BY followers_count DESC LIMIT 5"),
+  );
+  console.log(
+    "Activity date range:",
+    await q("SELECT MIN(date)::text AS mn, MAX(date)::text AS mx FROM activities"),
+  );
   console.log("Clubs:", await q("SELECT name, members FROM clubs ORDER BY members DESC"));
-  console.log("Top-kudoed:", await q(`
+  console.log(
+    "Top-kudoed:",
+    await q(`
     SELECT a.sport, a.title, a.kudos, u.name
     FROM activities a JOIN users u ON u.id = a.athlete_id
     ORDER BY a.kudos DESC LIMIT 3
-  `));
+  `),
+  );
 
   await closePool();
 }

@@ -1,5 +1,5 @@
 import { randomUUID } from "node:crypto";
-import { and, asc, desc, eq, gt, inArray, lt, min, sum, type SQL } from "drizzle-orm";
+import { and, asc, desc, eq, inArray, isNotNull, lt, min, or, sql, type SQL } from "drizzle-orm";
 import { db } from "./db.js";
 import {
   activities as activitiesTable,
@@ -24,6 +24,22 @@ type Sport = "Run" | "Ride" | "Swim" | "Hike" | "Walk";
 
 type ActivityRow = typeof activitiesTable.$inferSelect;
 type AthleteRow = typeof users.$inferSelect;
+type ChallengeRow = typeof challengesTable.$inferSelect;
+
+// Drizzle's transaction client has a different type than db. Accept both.
+type DbOrTx = typeof db | Parameters<Parameters<typeof db.transaction>[0]>[0];
+
+type ChallengeCredit = {
+  challengeId: string;
+  before: number;
+  after: number;
+  completedNow: boolean;
+};
+
+type PendingCompletion = {
+  challengeId: string;
+  suggestedChallengeId: string | null;
+};
 
 type ActivityDto = {
   id: string;
@@ -46,6 +62,8 @@ type ActivityDto = {
   splits?: { km: number; paceSec: number; hr: number; elev: number }[];
   segments?: { id: string; rank: number }[];
   kudoed?: boolean;
+  challengeCredits?: ChallengeCredit[];
+  newCompletions?: PendingCompletion[];
 };
 
 function aliasUserId(id: string, currentUserId: string) {
@@ -213,6 +231,63 @@ async function hydrateActivities(rows: ActivityRow[], userId: string): Promise<A
   }));
 }
 
+// Compute per-challenge progress for the given user and challenge IDs in a single query.
+// Returns 0 for any challenge with no qualifying activities.
+async function computeChallengeProgress(
+  executor: DbOrTx,
+  userId: string,
+  challengeIds: string[],
+): Promise<Map<string, number>> {
+  if (challengeIds.length === 0) return new Map();
+
+  const rows = await executor
+    .select({
+      challengeId: challengeEntries.challengeId,
+      progress: sql<string>`COALESCE(SUM(CASE WHEN ${challengesTable.metricType} = 'elevation_m'
+        THEN ${activitiesTable.elevationM}
+        ELSE CAST(${activitiesTable.distanceKm} AS NUMERIC) END), 0)`,
+    })
+    .from(challengeEntries)
+    .innerJoin(challengesTable, eq(challengesTable.id, challengeEntries.challengeId))
+    .leftJoin(
+      activitiesTable,
+      and(
+        eq(activitiesTable.athleteId, userId),
+        or(
+          eq(challengesTable.sport, "Multisport"),
+          eq(activitiesTable.sport, challengesTable.sport),
+        ),
+        sql`${activitiesTable.date} >= ${challengesTable.startsAt}::timestamp AT TIME ZONE 'UTC'`,
+        sql`${activitiesTable.date} < (${challengesTable.endsAt} + 1)::timestamp AT TIME ZONE 'UTC'`,
+      ),
+    )
+    .where(
+      and(eq(challengeEntries.userId, userId), inArray(challengeEntries.challengeId, challengeIds)),
+    )
+    .groupBy(challengeEntries.challengeId);
+
+  return new Map(rows.map((row) => [row.challengeId, Number(row.progress)]));
+}
+
+// Pick the best challenge to suggest after a completion: same sport, earliest end date.
+// Falls back to any unjoined active challenge. Returns null when none exist.
+function selectSuggestedChallenge(
+  completedId: string,
+  completedSport: string,
+  allChallenges: ChallengeRow[],
+  joinedIds: Set<string>,
+  at: Date,
+): string | null {
+  const today = at.toISOString().slice(0, 10);
+  const eligible = allChallenges.filter(
+    (c) => !joinedIds.has(c.id) && c.id !== completedId && c.endsAt >= today,
+  );
+  const sameSport = eligible.filter((c) => c.sport === completedSport || c.sport === "Multisport");
+  const pool = sameSport.length > 0 ? sameSport : eligible;
+  pool.sort((a, b) => a.endsAt.localeCompare(b.endsAt));
+  return pool[0]?.id ?? null;
+}
+
 export async function findUserForAuth(email: string) {
   const rows = await db
     .select({
@@ -328,7 +403,6 @@ export async function buildBootstrap(userId: string) {
     clubMembershipsResult,
     challengesResult,
     challengeEntriesResult,
-    challengeProgressResult,
   ] = await Promise.all([
     db.select().from(users).orderBy(asc(users.createdAt)),
     db
@@ -353,18 +427,13 @@ export async function buildBootstrap(userId: string) {
       .where(eq(clubMemberships.userId, userId)),
     db.select().from(challengesTable).orderBy(asc(challengesTable.endsAt)),
     db
-      .select({ challengeId: challengeEntries.challengeId })
+      .select({
+        challengeId: challengeEntries.challengeId,
+        completedAt: challengeEntries.completedAt,
+        completionSeenAt: challengeEntries.completionSeenAt,
+      })
       .from(challengeEntries)
       .where(eq(challengeEntries.userId, userId)),
-    db
-      .select({
-        sport: activitiesTable.sport,
-        distanceKm: sum(activitiesTable.distanceKm),
-        elevationM: sum(activitiesTable.elevationM),
-      })
-      .from(activitiesTable)
-      .where(eq(activitiesTable.athleteId, userId))
-      .groupBy(activitiesTable.sport),
   ]);
 
   const followedIds = new Set(followsResult.map((row) => row.followedId));
@@ -374,19 +443,14 @@ export async function buildBootstrap(userId: string) {
     mySegmentBests.map((row) => [row.segmentId, row.effortSeconds ?? undefined]),
   );
 
+  // Compute per-challenge progress (correct sport + date boundary scoping)
+  const progressMap = await computeChallengeProgress(db, userId, Array.from(joinedChallengeIds));
+
   const athletes = usersResult.map((row) => mapAthlete(row, userId, followedIds));
   const me = athletes.find((athlete) => athlete.id === "me");
 
   if (!me) {
     throw new Error("Authenticated user not found");
-  }
-
-  const distanceBySport = new Map<string, number>();
-  let totalElevation = 0;
-
-  for (const row of challengeProgressResult) {
-    distanceBySport.set(row.sport, (distanceBySport.get(row.sport) ?? 0) + Number(row.distanceKm));
-    totalElevation += Number(row.elevationM);
   }
 
   const segments = segmentsResult.map((row) => ({
@@ -421,15 +485,38 @@ export async function buildBootstrap(userId: string) {
     name: row.name,
     sport: row.sport,
     goalKm: Number(row.goalKm),
-    myProgressKm:
-      row.metricType === "elevation_m"
-        ? totalElevation
-        : Number((distanceBySport.get(row.sport) ?? 0).toFixed(1)),
+    myProgressKm: joinedChallengeIds.has(row.id)
+      ? Number((progressMap.get(row.id) ?? 0).toFixed(2))
+      : 0,
     participants: row.participants,
+    startsAt: row.startsAt,
     endsAt: row.endsAt,
     badge: row.badge,
+    metricType: row.metricType,
     joined: joinedChallengeIds.has(row.id),
   }));
+
+  // Pending completions: completed but not yet acknowledged
+  const pendingCompletions: PendingCompletion[] = [];
+  const allJoinedIds = joinedChallengeIds;
+
+  for (const entry of challengeEntriesResult) {
+    if (entry.completedAt !== null && entry.completionSeenAt === null) {
+      const completedChallenge = challengesResult.find((c) => c.id === entry.challengeId);
+      pendingCompletions.push({
+        challengeId: entry.challengeId,
+        suggestedChallengeId: completedChallenge
+          ? selectSuggestedChallenge(
+              entry.challengeId,
+              completedChallenge.sport,
+              challengesResult,
+              allJoinedIds,
+              new Date(),
+            )
+          : null,
+      });
+    }
+  }
 
   return {
     me,
@@ -439,6 +526,7 @@ export async function buildBootstrap(userId: string) {
     segments,
     clubs,
     challenges,
+    pendingCompletions,
   };
 }
 
@@ -454,29 +542,125 @@ export async function createActivity(input: {
   avgPaceSecPerKm?: number;
   avgSpeedKmh?: number;
   routeSeed: number;
-}) {
-  const id = `act-${randomUUID()}`;
+}): Promise<{
+  id: string;
+  challengeCredits: ChallengeCredit[];
+  newCompletions: PendingCompletion[];
+}> {
+  const activityDate = new Date();
+  // Normalize to 2 decimal places, matching numeric(10,2) storage
+  const distanceKm = Math.round(input.distanceKm * 100) / 100;
 
-  await db.insert(activitiesTable).values({
-    id,
-    athleteId: input.userId,
-    sport: input.sport,
-    title: input.title,
-    description: input.description ?? null,
-    date: new Date(),
-    distanceKm: String(input.distanceKm),
-    movingSeconds: input.movingSeconds,
-    elevationM: input.elevationM,
-    avgHr: input.avgHr ?? null,
-    avgPaceSecPerKm: input.avgPaceSecPerKm ?? null,
-    avgSpeedKmh: input.avgSpeedKmh === undefined ? null : String(input.avgSpeedKmh),
-    kudos: 0,
-    achievements: 0,
-    photo: null,
-    routeSeed: input.routeSeed,
+  return db.transaction(async (tx) => {
+    // Lock all active challenge entries matching this activity's sport.
+    // Includes already-completed challenges so credits continue accumulating.
+    // ORDER BY challenge_id for consistent lock ordering to prevent deadlocks.
+    const lockedEntries = await tx.execute(sql`
+      SELECT ce.challenge_id, ce.completed_at, c.goal_km, c.metric_type, c.sport
+      FROM challenge_entries ce
+      JOIN challenges c ON c.id = ce.challenge_id
+      WHERE ce.user_id = ${input.userId}
+        AND (c.sport = 'Multisport' OR c.sport = ${input.sport})
+        AND ${activityDate} >= c.starts_at::timestamp AT TIME ZONE 'UTC'
+        AND ${activityDate} < (c.ends_at + 1)::timestamp AT TIME ZONE 'UTC'
+      ORDER BY ce.challenge_id
+      FOR UPDATE OF ce
+    `);
+
+    type LockedEntry = {
+      challenge_id: string;
+      completed_at: Date | null;
+      goal_km: string;
+      metric_type: string;
+      sport: string;
+    };
+    const entries = lockedEntries.rows as LockedEntry[];
+    const lockedChallengeIds = entries.map((e) => e.challenge_id);
+
+    // Compute progress before this activity is inserted
+    const beforeMap = await computeChallengeProgress(tx, input.userId, lockedChallengeIds);
+
+    // Insert the activity
+    const id = `act-${randomUUID()}`;
+
+    await tx.insert(activitiesTable).values({
+      id,
+      athleteId: input.userId,
+      sport: input.sport,
+      title: input.title,
+      description: input.description ?? null,
+      date: activityDate,
+      distanceKm: String(distanceKm),
+      movingSeconds: input.movingSeconds,
+      elevationM: input.elevationM,
+      avgHr: input.avgHr ?? null,
+      avgPaceSecPerKm: input.avgPaceSecPerKm ?? null,
+      avgSpeedKmh: input.avgSpeedKmh === undefined ? null : String(input.avgSpeedKmh),
+      kudos: 0,
+      achievements: 0,
+      photo: null,
+      routeSeed: input.routeSeed,
+    });
+
+    // Compute credits for each locked challenge
+    const challengeCredits: ChallengeCredit[] = [];
+    const newlyCompletedIds: string[] = [];
+
+    for (const entry of entries) {
+      const goal = Number(entry.goal_km);
+      const before = Number(beforeMap.get(entry.challenge_id) ?? 0);
+      const contribution = entry.metric_type === "elevation_m" ? input.elevationM : distanceKm;
+      const after = before + contribution;
+      const completedNow = entry.completed_at === null && before < goal && after >= goal;
+
+      challengeCredits.push({ challengeId: entry.challenge_id, before, after, completedNow });
+
+      if (completedNow) {
+        newlyCompletedIds.push(entry.challenge_id);
+      }
+    }
+
+    // Persist first-time completions
+    if (newlyCompletedIds.length > 0) {
+      await tx
+        .update(challengeEntries)
+        .set({ completedAt: activityDate })
+        .where(
+          and(
+            eq(challengeEntries.userId, input.userId),
+            inArray(challengeEntries.challengeId, newlyCompletedIds),
+            sql`${challengeEntries.completedAt} IS NULL`,
+          ),
+        );
+    }
+
+    // Fetch the full catalog and all of the user's joined challenges for suggestion logic.
+    // The locked query above only covers active, sport-matched challenges.
+    const [allChallenges, allJoinedRows] = await Promise.all([
+      tx.select().from(challengesTable),
+      tx
+        .select({ challengeId: challengeEntries.challengeId })
+        .from(challengeEntries)
+        .where(eq(challengeEntries.userId, input.userId)),
+    ]);
+    const allJoinedIds = new Set(allJoinedRows.map((r) => r.challengeId));
+
+    const newCompletions: PendingCompletion[] = newlyCompletedIds.map((completedId) => {
+      const completedEntry = entries.find((e) => e.challenge_id === completedId)!;
+      return {
+        challengeId: completedId,
+        suggestedChallengeId: selectSuggestedChallenge(
+          completedId,
+          completedEntry.sport,
+          allChallenges,
+          allJoinedIds,
+          activityDate,
+        ),
+      };
+    });
+
+    return { id, challengeCredits, newCompletions };
   });
-
-  return id;
 }
 
 export async function toggleKudo(userId: string, activityId: string) {
@@ -657,4 +841,17 @@ export async function toggleChallengeEntry(userId: string, challengeId: string) 
     joined: existing.length === 0,
     participants,
   };
+}
+
+export async function acknowledgeChallengeCompletion(userId: string, challengeId: string) {
+  await db
+    .update(challengeEntries)
+    .set({ completionSeenAt: new Date() })
+    .where(
+      and(
+        eq(challengeEntries.userId, userId),
+        eq(challengeEntries.challengeId, challengeId),
+        isNotNull(challengeEntries.completedAt),
+      ),
+    );
 }
