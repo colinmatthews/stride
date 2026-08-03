@@ -9,6 +9,9 @@ import {
   findUserForAuth,
   getActivityById,
   listActivities,
+  listDeviceConnections,
+  reauthorizeConnection,
+  retrySync,
   toggleChallengeEntry,
   toggleClubMembership,
   toggleFollow,
@@ -216,6 +219,34 @@ export function createApp() {
       next(error);
     }
   });
+
+  app.get("/api/device-connections", requireAuth, async (request, response, next) => {
+    try {
+      response.json(await listDeviceConnections(request.userId!));
+    } catch (error) {
+      next(error);
+    }
+  });
+
+  app.post("/api/device-connections/:id/retry", requireAuth, async (request, response, next) => {
+    try {
+      response.json(await retrySync(request.userId!, String(request.params.id)));
+    } catch (error) {
+      next(error);
+    }
+  });
+
+  app.post(
+    "/api/device-connections/:id/reauthorize",
+    requireAuth,
+    async (request, response, next) => {
+      try {
+        response.json(await reauthorizeConnection(request.userId!, String(request.params.id)));
+      } catch (error) {
+        next(error);
+      }
+    },
+  );
 
   if (existsSync(clientIndexPath)) {
     app.use("/api", (_request, response) => {

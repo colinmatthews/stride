@@ -3,10 +3,12 @@ import {
   ATHLETES,
   CHALLENGES,
   CLUBS,
+  DEVICE_CONNECTIONS,
   ME,
   mergeActivities,
   type Activity,
   type AppData,
+  type DeviceConnection,
 } from "./mock-data";
 
 class ApiError extends Error {
@@ -198,6 +200,38 @@ export async function toggleChallengeJoin(challengeId: string) {
   }
 
   return payload;
+}
+
+export async function fetchDeviceConnections() {
+  return apiFetch<DeviceConnection[]>("/api/device-connections");
+}
+
+export async function retryDeviceSync(connectionId: string) {
+  const updated = await apiFetch<DeviceConnection>(
+    `/api/device-connections/${connectionId}/retry`,
+    { method: "POST" },
+  );
+  const index = DEVICE_CONNECTIONS.findIndex((entry) => entry.id === connectionId);
+
+  if (index !== -1) {
+    DEVICE_CONNECTIONS[index] = updated;
+  }
+
+  return updated;
+}
+
+export async function reauthorizeDeviceConnection(connectionId: string) {
+  const updated = await apiFetch<DeviceConnection>(
+    `/api/device-connections/${connectionId}/reauthorize`,
+    { method: "POST" },
+  );
+  const index = DEVICE_CONNECTIONS.findIndex((entry) => entry.id === connectionId);
+
+  if (index !== -1) {
+    DEVICE_CONNECTIONS[index] = updated;
+  }
+
+  return updated;
 }
 
 export { ApiError };

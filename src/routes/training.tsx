@@ -1,7 +1,14 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { useMemo, useState } from "react";
-import { fmtDuration, type Activity, type Sport } from "@/lib/mock-data";
-import { fetchActivities } from "@/lib/api";
+import { ChevronRight, RefreshCw, Watch, Bluetooth, WifiOff } from "lucide-react";
+import {
+  DEVICE_CONNECTIONS,
+  fmtDuration,
+  type Activity,
+  type DeviceConnection,
+  type Sport,
+} from "@/lib/mock-data";
+import { fetchActivities, reauthorizeDeviceConnection, retryDeviceSync } from "@/lib/api";
 import { AppShell } from "@/components/AppShell";
 import {
   ResponsiveContainer,
@@ -17,6 +24,8 @@ import {
   Legend,
 } from "recharts";
 import { SportBadge } from "@/components/SportBadge";
+import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
 
 export const Route = createFileRoute("/training")({
   head: () => ({
@@ -89,6 +98,8 @@ function Training() {
         <Card label="Time" value={fmtDuration(totals.time)} />
         <Card label="Elevation" value={`${totals.elev.toLocaleString()} m`} />
       </div>
+
+      <ConnectedDevicesSection />
 
       <div className="grid grid-cols-3 gap-6 mb-10">
         <section className="bg-surface border border-border rounded-xl p-5 col-span-2">
@@ -256,6 +267,165 @@ function weeklyStatsForActivities(activities: Activity[]) {
   }
 
   return weeks;
+}
+
+function deviceIcon(type: string) {
+  if (type === "watch") return Watch;
+  if (type === "bike") return Bluetooth;
+  if (type === "strap") return RefreshCw;
+  return WifiOff;
+}
+
+function statusTone(status: DeviceConnection["status"]) {
+  if (status === "error")
+    return {
+      border: "border-destructive/40",
+      bg: "bg-destructive/8",
+      text: "text-destructive",
+      dot: "bg-destructive",
+      label: "Sync failing",
+    };
+  if (status === "warning")
+    return {
+      border: "border-[color:var(--accent)]/40",
+      bg: "bg-[color:var(--accent)]/8",
+      text: "text-[color:var(--accent)]",
+      dot: "bg-[color:var(--accent)]",
+      label: "Degraded",
+    };
+  return {
+    border: "border-border",
+    bg: "bg-surface-2",
+    text: "text-muted-foreground",
+    dot: "bg-[color:var(--pr)]",
+    label: "Healthy",
+  };
+}
+
+function lastSyncLabel(minutes: number) {
+  if (minutes < 60) return `${minutes}m ago`;
+  if (minutes < 60 * 24) return `${Math.round(minutes / 60)}h ago`;
+  return `${Math.round(minutes / (60 * 24))}d ago`;
+}
+
+function ConnectedDevicesSection() {
+  const [devices, setDevices] = useState(DEVICE_CONNECTIONS);
+  const [openId, setOpenId] = useState<string | null>(
+    devices.find((d) => d.status === "error")?.id ?? null,
+  );
+  const [pendingAction, setPendingAction] = useState<string | null>(null);
+
+  if (devices.length === 0) return null;
+
+  const runAction = async (
+    connectionId: string,
+    action: (id: string) => Promise<DeviceConnection>,
+  ) => {
+    setPendingAction(connectionId);
+    try {
+      const updated = await action(connectionId);
+      setDevices((current) => current.map((d) => (d.id === updated.id ? updated : d)));
+    } finally {
+      setPendingAction(null);
+    }
+  };
+
+  return (
+    <section className="mb-10 rounded-xl border border-border bg-surface overflow-hidden">
+      <header className="flex items-center justify-between px-5 py-4 border-b border-border">
+        <div>
+          <h2 className="text-base font-display font-semibold">Connected devices</h2>
+          <p className="text-xs text-muted-foreground mt-0.5">
+            Activities flow from your devices into the log below.
+          </p>
+        </div>
+        <div className="flex items-center gap-2">
+          <Badge variant="destructive">
+            {devices.filter((d) => d.status === "error").length} failing
+          </Badge>
+          <Badge variant="outline">
+            {devices.filter((d) => d.status === "warning").length} degraded
+          </Badge>
+        </div>
+      </header>
+      <ul className="divide-y divide-border">
+        {devices.map((d) => {
+          const tone = statusTone(d.status);
+          const Icon = deviceIcon(d.type);
+          const open = openId === d.id;
+          const busy = pendingAction === d.id;
+          return (
+            <li key={d.id} className={tone.bg}>
+              <button
+                onClick={() => setOpenId(open ? null : d.id)}
+                className="w-full px-5 py-4 flex items-center gap-4 text-left hover:bg-background/40 transition-colors"
+              >
+                <div
+                  className={`grid h-10 w-10 place-items-center rounded-md bg-background/60 border ${tone.border}`}
+                >
+                  <Icon className={`h-4 w-4 ${tone.text}`} />
+                </div>
+                <div className="min-w-0 flex-1">
+                  <div className="flex items-center gap-2">
+                    <span className="text-sm font-semibold">{d.name}</span>
+                    <span className={`h-1.5 w-1.5 rounded-full ${tone.dot}`} />
+                    <span className={`font-mono text-[10px] uppercase tracking-[0.18em] ${tone.text}`}>
+                      {tone.label}
+                    </span>
+                  </div>
+                  <div className="mt-0.5 text-xs text-muted-foreground">
+                    {d.model} · last sync {lastSyncLabel(d.lastSyncMinutesAgo)}
+                    {d.pendingActivities > 0 && (
+                      <span className="ml-2 text-destructive font-medium">
+                        {d.pendingActivities} pending
+                      </span>
+                    )}
+                  </div>
+                </div>
+                <ChevronRight
+                  className={`h-4 w-4 text-muted-foreground transition-transform ${open ? "rotate-90" : ""}`}
+                />
+              </button>
+              {open && (
+                <div className="px-5 pb-5 -mt-1">
+                  <div className="rounded-md border border-border bg-background p-4">
+                    <p className="text-sm">{d.detail}</p>
+                    {d.fix && (
+                      <p className="mt-2 text-xs text-muted-foreground">
+                        <span className="font-mono uppercase tracking-[0.18em] text-foreground/80">
+                          Next step
+                        </span>{" "}
+                        — {d.fix}
+                      </p>
+                    )}
+                    {d.status !== "ok" && (
+                      <div className="mt-3 flex items-center gap-2">
+                        <Button
+                          size="sm"
+                          disabled={busy}
+                          onClick={() => runAction(d.id, reauthorizeDeviceConnection)}
+                        >
+                          Re-authorize
+                        </Button>
+                        <Button
+                          size="sm"
+                          variant="outline"
+                          disabled={busy}
+                          onClick={() => runAction(d.id, retryDeviceSync)}
+                        >
+                          <RefreshCw className="h-3.5 w-3.5" /> Retry now
+                        </Button>
+                      </div>
+                    )}
+                  </div>
+                </div>
+              )}
+            </li>
+          );
+        })}
+      </ul>
+    </section>
+  );
 }
 
 function Card({ label, value }: { label: string; value: string | number }) {

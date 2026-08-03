@@ -75,6 +75,20 @@ export interface Challenge {
   joined?: boolean;
 }
 
+export interface DeviceConnection {
+  id: string;
+  provider: string;
+  name: string;
+  model: string;
+  type: string;
+  status: "ok" | "warning" | "error";
+  lastSyncMinutesAgo: number;
+  battery: number | null;
+  detail: string | null;
+  fix: string | null;
+  pendingActivities: number;
+}
+
 export interface AppData {
   me: Athlete;
   athletes: Athlete[];
@@ -82,6 +96,7 @@ export interface AppData {
   segments: Segment[];
   clubs: Club[];
   challenges: Challenge[];
+  deviceConnections: DeviceConnection[];
 }
 
 const EMPTY_ATHLETE: Athlete = {
@@ -102,6 +117,7 @@ export let ACTIVITIES: Activity[] = [];
 export let SEGMENTS: Segment[] = [];
 export let CLUBS: Club[] = [];
 export let CHALLENGES: Challenge[] = [];
+export let DEVICE_CONNECTIONS: DeviceConnection[] = [];
 
 export function initializeAppData(data: AppData) {
   ME = data.me;
@@ -110,6 +126,7 @@ export function initializeAppData(data: AppData) {
   SEGMENTS = data.segments;
   CLUBS = data.clubs;
   CHALLENGES = data.challenges;
+  DEVICE_CONNECTIONS = data.deviceConnections;
 }
 
 export function mergeActivities(activities: Activity[]) {
@@ -131,6 +148,7 @@ export function clearAppData() {
   SEGMENTS = [];
   CLUBS = [];
   CHALLENGES = [];
+  DEVICE_CONNECTIONS = [];
 }
 
 function pad(value: number) {
