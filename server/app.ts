@@ -21,6 +21,13 @@ import {
   requireAuth,
   verifyPassword,
 } from "./auth.js";
+import {
+  DeviceSyncError,
+  getDeviceSync,
+  getSyncedActivity,
+  retryDeviceSync,
+  startDeviceSync,
+} from "./device-sync.js";
 
 export function createApp() {
   const app = express();
@@ -189,6 +196,67 @@ export function createApp() {
 
       response.status(201).json(await addComment(request.userId!, activityId, text));
     } catch (error) {
+      next(error);
+    }
+  });
+
+  app.get("/api/device-sync", requireAuth, async (request, response, next) => {
+    try {
+      const sync = await getDeviceSync(request.userId!);
+
+      if (!sync) {
+        response.json({ sync: null, activity: null });
+        return;
+      }
+
+      response.json({
+        sync,
+        activity: sync.status === "synced" ? await getSyncedActivity(request.userId!) : null,
+      });
+    } catch (error) {
+      next(error);
+    }
+  });
+
+  app.post("/api/device-sync", requireAuth, async (request, response, next) => {
+    try {
+      const deviceName = String(request.body?.deviceName ?? "").trim();
+
+      if (!deviceName) {
+        response.status(400).json({ error: "A device name is required" });
+        return;
+      }
+
+      const sync = await startDeviceSync(request.userId!, deviceName);
+
+      response.status(201).json({
+        sync,
+        activity: sync.status === "synced" ? await getSyncedActivity(request.userId!) : null,
+      });
+    } catch (error) {
+      if (error instanceof DeviceSyncError) {
+        response.status(error.status).json({ error: error.message });
+        return;
+      }
+
+      next(error);
+    }
+  });
+
+  app.post("/api/device-sync/retry", requireAuth, async (request, response, next) => {
+    try {
+      const sync = await retryDeviceSync(request.userId!);
+
+      response.json({
+        sync,
+        activity: sync.status === "synced" ? await getSyncedActivity(request.userId!) : null,
+      });
+    } catch (error) {
+      if (error instanceof DeviceSyncError) {
+        response.status(error.status).json({ error: error.message });
+        return;
+      }
+
       next(error);
     }
   });
