@@ -13,6 +13,13 @@ export interface Athlete {
   isFollowing?: boolean;
 }
 
+export interface ChallengeCredit {
+  challengeId: string;
+  before: number;
+  after: number;
+  completedNow: boolean;
+}
+
 export interface Activity {
   id: string;
   athleteId: string;
@@ -34,6 +41,7 @@ export interface Activity {
   splits?: { km: number; paceSec: number; hr: number; elev: number }[];
   segments?: { id: string; rank: number }[];
   kudoed?: boolean;
+  challengeCredits?: ChallengeCredit[];
 }
 
 export interface Segment {
@@ -70,10 +78,23 @@ export interface Challenge {
   goalKm: number;
   myProgressKm: number;
   participants: number;
+  startsAt: string;
   endsAt: string;
   badge: string;
+  metricType: "distance_km" | "elevation_m";
   joined?: boolean;
 }
+
+export function challengeUnit(c: Challenge): "km" | "m" {
+  return c.metricType === "elevation_m" ? "m" : "km";
+}
+
+export interface PendingChallengeCompletion {
+  challengeId: string;
+  suggestedChallengeId: string | null;
+}
+
+export const PENDING_COMPLETIONS: PendingChallengeCompletion[] = [];
 
 export interface AppData {
   me: Athlete;
@@ -82,6 +103,7 @@ export interface AppData {
   segments: Segment[];
   clubs: Club[];
   challenges: Challenge[];
+  pendingCompletions?: PendingChallengeCompletion[];
 }
 
 const EMPTY_ATHLETE: Athlete = {
@@ -110,6 +132,12 @@ export function initializeAppData(data: AppData) {
   SEGMENTS = data.segments;
   CLUBS = data.clubs;
   CHALLENGES = data.challenges;
+  PENDING_COMPLETIONS.length = 0;
+  for (const item of data.pendingCompletions ?? []) {
+    if (!PENDING_COMPLETIONS.some((p) => p.challengeId === item.challengeId)) {
+      PENDING_COMPLETIONS.push(item);
+    }
+  }
 }
 
 export function mergeActivities(activities: Activity[]) {
@@ -131,6 +159,7 @@ export function clearAppData() {
   SEGMENTS = [];
   CLUBS = [];
   CHALLENGES = [];
+  PENDING_COMPLETIONS.length = 0;
 }
 
 function pad(value: number) {

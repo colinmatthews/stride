@@ -1,5 +1,5 @@
 import { createFileRoute, Link, useRouter, notFound } from "@tanstack/react-router";
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { usePostHog } from "@posthog/react";
 import {
   ResponsiveContainer,
@@ -24,9 +24,13 @@ import {
   Mountain,
   Clock,
   Zap,
+  CheckCircle2,
+  ChevronDown,
 } from "lucide-react";
 import {
   ACTIVITIES,
+  CHALLENGES,
+  challengeUnit,
   fmtDate,
   fmtDuration,
   fmtPace,
@@ -451,6 +455,9 @@ function ActivityDetail() {
 
         {/* Right rail */}
         <aside className="space-y-5">
+          {(activity.challengeCredits?.length ?? 0) > 0 && (
+            <ChallengeCreditCard credits={activity.challengeCredits!} />
+          )}
           <div className="bg-surface rounded-xl border border-border p-5">
             <h3 className="text-xs uppercase tracking-[0.14em] text-muted-foreground mb-3">
               Effort
@@ -499,6 +506,83 @@ function ActivityDetail() {
         </aside>
       </div>
     </AppShell>
+  );
+}
+
+function ChallengeCreditCard({
+  credits,
+}: {
+  credits: { challengeId: string; before: number; after: number }[];
+}) {
+  const [expanded, setExpanded] = useState(false);
+  const [animated, setAnimated] = useState(false);
+
+  useEffect(() => {
+    const id = setTimeout(() => setAnimated(true), 150);
+    return () => clearTimeout(id);
+  }, []);
+
+  const rows = credits
+    .map((credit) => {
+      const challenge = CHALLENGES.find((c) => c.id === credit.challengeId);
+      return challenge ? { challenge, ...credit, unit: challengeUnit(challenge) } : null;
+    })
+    .filter((r): r is NonNullable<typeof r> => r !== null);
+
+  if (rows.length === 0) return null;
+
+  return (
+    <div className="rounded-xl border border-primary/30 bg-primary/5 p-5">
+      <div className="flex items-center gap-2 text-sm font-medium text-foreground">
+        <CheckCircle2 className="h-4 w-4 text-primary" />
+        Counted toward {rows.length} challenge{rows.length === 1 ? "" : "s"}
+      </div>
+      <div className="mt-4 space-y-4">
+        {rows.map(({ challenge, before, after, unit }) => {
+          const pctBefore = Math.min(100, (before / challenge.goalKm) * 100);
+          const pctAfter = Math.min(100, (after / challenge.goalKm) * 100);
+          return (
+            <div key={challenge.id}>
+              <div className="flex items-baseline justify-between gap-2">
+                <span className="text-sm font-medium truncate">{challenge.name}</span>
+                <span className="stat-num text-sm shrink-0">
+                  {after.toFixed(1)}
+                  <span className="text-muted-foreground">
+                    {" "}
+                    / {challenge.goalKm} {unit}
+                  </span>
+                </span>
+              </div>
+              <div className="mt-2 h-1.5 bg-muted overflow-hidden">
+                <div
+                  className="h-full bg-primary transition-all duration-700 ease-out"
+                  style={{ width: `${animated ? pctAfter : pctBefore}%` }}
+                />
+              </div>
+            </div>
+          );
+        })}
+      </div>
+      <button
+        onClick={() => setExpanded((e) => !e)}
+        className="mt-4 inline-flex items-center gap-1 text-xs text-muted-foreground hover:text-foreground"
+      >
+        <ChevronDown
+          className={`h-3.5 w-3.5 transition-transform ${expanded ? "rotate-180" : ""}`}
+        />
+        See how this counted
+      </button>
+      {expanded && (
+        <div className="mt-3 rounded-md bg-surface border border-border p-3 font-mono text-xs text-muted-foreground space-y-1">
+          {rows.map(({ challenge, before, after, unit }) => (
+            <div key={challenge.id}>
+              {challenge.name}: {before.toFixed(1)} {unit} existing + {(after - before).toFixed(1)}{" "}
+              {unit} this activity = {after.toFixed(1)} {unit}
+            </div>
+          ))}
+        </div>
+      )}
+    </div>
   );
 }
 
