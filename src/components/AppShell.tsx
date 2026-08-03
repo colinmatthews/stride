@@ -8,12 +8,13 @@ import {
   BarChart3,
   Plus,
   Search,
-  Bell,
   Settings,
 } from "lucide-react";
 import { ME, clearAppData } from "@/lib/mock-data";
 import { FormEvent, ReactNode, useState } from "react";
 import { logout } from "@/lib/api";
+import { NotificationsProvider } from "@/components/notifications/NotificationsProvider";
+import { NotificationTray } from "@/components/notifications/NotificationTray";
 
 const NAV = [
   { to: "/", label: "Feed", icon: Home },
@@ -25,6 +26,16 @@ const NAV = [
 ] as const;
 
 export function AppShell({ children }: { children: ReactNode }) {
+  // The provider wraps the whole shell so the header bell badge and the
+  // notification page share one inbox state.
+  return (
+    <NotificationsProvider>
+      <AppShellInner>{children}</AppShellInner>
+    </NotificationsProvider>
+  );
+}
+
+function AppShellInner({ children }: { children: ReactNode }) {
   const { location } = useRouterState();
   const path = location.pathname;
   const [searchQuery, setSearchQuery] = useState("");
@@ -131,13 +142,7 @@ export function AppShell({ children }: { children: ReactNode }) {
               />
             </form>
             <div className="ml-auto flex items-center gap-2">
-              <button
-                className="h-10 w-10 grid place-items-center rounded-md hover:bg-muted relative"
-                aria-label="Notifications"
-              >
-                <Bell className="h-4 w-4" />
-                <span className="absolute top-2 right-2 h-2 w-2 rounded-full bg-primary" />
-              </button>
+              <NotificationTray />
               <Link
                 to="/record"
                 className="hidden md:inline-flex items-center gap-2 h-10 px-3 rounded-md border border-border text-sm hover:bg-muted"

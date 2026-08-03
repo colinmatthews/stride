@@ -4,9 +4,17 @@ import {
   CHALLENGES,
   CLUBS,
   ME,
+  applyAllNotificationsRead,
+  applyNotificationRead,
   mergeActivities,
+  mergeNotifications,
+  setNotificationPreferences,
+  setNotificationsNextCursor,
+  setNotificationsUnread,
   type Activity,
   type AppData,
+  type AppNotification,
+  type NotificationPreferences,
 } from "./mock-data";
 
 class ApiError extends Error {
@@ -196,6 +204,87 @@ export async function toggleChallengeJoin(challengeId: string) {
     challenge.joined = payload.joined;
     challenge.participants = payload.participants;
   }
+
+  return payload;
+}
+
+export async function fetchNotifications(options: { cursor?: string; limit?: number } = {}) {
+  const params = new URLSearchParams();
+
+  if (options.cursor) {
+    params.set("cursor", options.cursor);
+  }
+
+  if (options.limit) {
+    params.set("limit", String(options.limit));
+  }
+
+  const query = params.toString();
+  const page = await apiFetch<{
+    notifications: AppNotification[];
+    nextCursor?: string;
+    unread: number;
+  }>(`/api/notifications${query ? `?${query}` : ""}`);
+
+  mergeNotifications(page.notifications);
+  setNotificationsNextCursor(page.nextCursor);
+  setNotificationsUnread(page.unread);
+
+  return page;
+}
+
+export async function markNotificationRead(notificationId: string, read = true) {
+  const payload = await apiFetch<{ id: string; read: boolean; unread: number }>(
+    `/api/notifications/${notificationId}/read`,
+    {
+      method: "PUT",
+      body: JSON.stringify({ read }),
+    },
+  );
+
+  applyNotificationRead(payload.id, payload.read);
+  setNotificationsUnread(payload.unread);
+
+  return payload;
+}
+
+export async function markAllNotificationsRead() {
+  const payload = await apiFetch<{ unread: number; updated: number }>(
+    "/api/notifications/read-all",
+    { method: "PUT" },
+  );
+
+  applyAllNotificationsRead();
+  setNotificationsUnread(payload.unread);
+
+  return payload;
+}
+
+export async function fetchNotificationPreferences() {
+  const payload = await apiFetch<NotificationPreferences>("/api/notifications/preferences");
+  setNotificationPreferences(payload);
+
+  return payload;
+}
+
+/**
+ * Absolute values, not toggles — a retry or double-tap converges on the state
+ * the UI is already showing. The server returns the full recomputed
+ * preferences, so the caller replaces its state rather than patching it.
+ */
+export async function updateNotificationPreferences(patch: {
+  channels?: Partial<Record<"push" | "email", boolean>>;
+  categories?: {
+    kind: AppNotification["kind"];
+    channels: Partial<Record<"push" | "email", boolean>>;
+  }[];
+}) {
+  const payload = await apiFetch<NotificationPreferences>("/api/notifications/preferences", {
+    method: "PUT",
+    body: JSON.stringify(patch),
+  });
+
+  setNotificationPreferences(payload);
 
   return payload;
 }

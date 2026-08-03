@@ -40,6 +40,9 @@ export default defineConfig({
   },
   test: {
     environment: "node",
-    include: ["src/**/*.test.ts", "src/**/*.test.tsx"],
+    // server/** is included for pure modules only. CI has no Postgres and
+    // server/db.ts throws at import time without DB_URL, so anything under test
+    // here must avoid importing it (see server/notifications/catalog.ts).
+    include: ["src/**/*.test.ts", "src/**/*.test.tsx", "server/**/*.test.ts"],
   },
 });

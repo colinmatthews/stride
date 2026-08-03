@@ -1,4 +1,15 @@
-import { date, integer, numeric, pgTable, primaryKey, text, timestamp } from "drizzle-orm/pg-core";
+import { sql } from "drizzle-orm";
+import {
+  boolean,
+  date,
+  index,
+  integer,
+  numeric,
+  pgTable,
+  primaryKey,
+  text,
+  timestamp,
+} from "drizzle-orm/pg-core";
 
 export const users = pgTable("users", {
   id: text("id").primaryKey(),
@@ -192,3 +203,82 @@ export const activityKudos = pgTable(
     pk: primaryKey({ columns: [table.userId, table.activityId] }),
   }),
 );
+
+/**
+ * In-app notification inbox. This is the complete record of social events
+ * directed at a user, independent of whether push/email was delivered for them.
+ *
+ * `title`/`body` are templated server-side and frozen at insert: a comment
+ * notification quotes an activity the client usually does not hold, so the
+ * client cannot render the prose itself.
+ *
+ * Delete behavior is deliberately asymmetric with the rest of the schema. The
+ * recipient and the linked entity cascade (a dead link means a dead row), but
+ * `actor_id`/`target_user_id` are `set null` — the prose is frozen, so
+ * "Maya gave you kudos" stays meaningful after Maya deletes her account, and
+ * cascading there would erase other people's inbox history.
+ */
+export const notifications = pgTable(
+  "notifications",
+  {
+    id: text("id").primaryKey(),
+    userId: text("user_id")
+      .notNull()
+      .references(() => users.id, { onDelete: "cascade" }),
+    kind: text("kind").notNull(),
+    title: text("title").notNull(),
+    body: text("body").notNull(),
+    actorId: text("actor_id").references(() => users.id, { onDelete: "set null" }),
+    activityId: text("activity_id").references(() => activities.id, { onDelete: "cascade" }),
+    clubId: text("club_id").references(() => clubs.id, { onDelete: "cascade" }),
+    challengeId: text("challenge_id").references(() => challenges.id, { onDelete: "cascade" }),
+    segmentId: text("segment_id").references(() => segments.id, { onDelete: "cascade" }),
+    targetUserId: text("target_user_id").references(() => users.id, { onDelete: "set null" }),
+    readAt: timestamp("read_at", { withTimezone: true }),
+    createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+  },
+  (table) => ({
+    // The first explicit indexes in this schema. Justified: notifications is the
+    // only unbounded per-user list that is both paged and counted on every
+    // bootstrap. The composite matches the (created_at, id) keyset cursor.
+    userCreatedIdx: index("notifications_user_created_idx").on(
+      table.userId,
+      table.createdAt.desc(),
+      table.id.desc(),
+    ),
+    userUnreadIdx: index("notifications_user_unread_idx")
+      .on(table.userId)
+      .where(sql`${table.readAt} is null`),
+  }),
+);
+
+/**
+ * Per-type delivery preferences, one row per (user, kind). Rows are sparse: a
+ * missing row means "use the code default" (see server/notifications/catalog.ts),
+ * so changing a default does not require a data migration.
+ */
+export const notificationPreferences = pgTable(
+  "notification_preferences",
+  {
+    userId: text("user_id")
+      .notNull()
+      .references(() => users.id, { onDelete: "cascade" }),
+    kind: text("kind").notNull(),
+    push: boolean("push").notNull(),
+    email: boolean("email").notNull(),
+    createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+  },
+  (table) => ({
+    pk: primaryKey({ columns: [table.userId, table.kind] }),
+  }),
+);
+
+/** Channel master switches. When a master is off, nothing ships on that channel. */
+export const notificationChannelSettings = pgTable("notification_channel_settings", {
+  userId: text("user_id")
+    .primaryKey()
+    .references(() => users.id, { onDelete: "cascade" }),
+  pushEnabled: boolean("push_enabled").notNull(),
+  emailEnabled: boolean("email_enabled").notNull(),
+  createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+});

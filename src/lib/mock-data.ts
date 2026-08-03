@@ -75,6 +75,48 @@ export interface Challenge {
   joined?: boolean;
 }
 
+export type NotificationKind =
+  | "kudos"
+  | "comment"
+  | "follow"
+  | "challenge"
+  | "segment"
+  | "club"
+  | "system";
+
+export interface AppNotification {
+  id: string;
+  kind: NotificationKind;
+  /** Athlete who triggered it, if any (system notifications have none). */
+  actorId?: string;
+  title: string;
+  body: string;
+  date: string;
+  read: boolean;
+}
+
+export type NotificationChannelKey = "push" | "email";
+
+export interface NotificationChannel {
+  key: NotificationChannelKey;
+  label: string;
+  description: string;
+  /** Master switch — when off, that channel is silenced everywhere. */
+  enabled: boolean;
+}
+
+export interface NotificationCategory {
+  kind: NotificationKind;
+  label: string;
+  description: string;
+  channels: Record<NotificationChannelKey, boolean>;
+}
+
+export interface NotificationPreferences {
+  channels: NotificationChannel[];
+  categories: NotificationCategory[];
+}
+
 export interface AppData {
   me: Athlete;
   athletes: Athlete[];
@@ -82,6 +124,10 @@ export interface AppData {
   segments: Segment[];
   clubs: Club[];
   challenges: Challenge[];
+  notifications: AppNotification[];
+  notificationsUnread: number;
+  notificationsNextCursor?: string;
+  notificationPreferences: NotificationPreferences;
 }
 
 const EMPTY_ATHLETE: Athlete = {
@@ -96,12 +142,21 @@ const EMPTY_ATHLETE: Athlete = {
   bio: "",
 };
 
+const EMPTY_NOTIFICATION_PREFERENCES: NotificationPreferences = {
+  channels: [],
+  categories: [],
+};
+
 export let ME: Athlete = EMPTY_ATHLETE;
 export let ATHLETES: Athlete[] = [];
 export let ACTIVITIES: Activity[] = [];
 export let SEGMENTS: Segment[] = [];
 export let CLUBS: Club[] = [];
 export let CHALLENGES: Challenge[] = [];
+export let NOTIFICATIONS: AppNotification[] = [];
+export let NOTIFICATIONS_UNREAD = 0;
+export let NOTIFICATIONS_NEXT_CURSOR: string | undefined = undefined;
+export let NOTIFICATION_PREFERENCES: NotificationPreferences = EMPTY_NOTIFICATION_PREFERENCES;
 
 export function initializeAppData(data: AppData) {
   ME = data.me;
@@ -110,6 +165,10 @@ export function initializeAppData(data: AppData) {
   SEGMENTS = data.segments;
   CLUBS = data.clubs;
   CHALLENGES = data.challenges;
+  NOTIFICATIONS = data.notifications;
+  NOTIFICATIONS_UNREAD = data.notificationsUnread;
+  NOTIFICATIONS_NEXT_CURSOR = data.notificationsNextCursor;
+  NOTIFICATION_PREFERENCES = data.notificationPreferences;
 }
 
 export function mergeActivities(activities: Activity[]) {
@@ -124,6 +183,41 @@ export function mergeActivities(activities: Activity[]) {
   );
 }
 
+export function mergeNotifications(notifications: AppNotification[]) {
+  const byId = new Map(NOTIFICATIONS.map((notification) => [notification.id, notification]));
+
+  for (const notification of notifications) {
+    byId.set(notification.id, notification);
+  }
+
+  NOTIFICATIONS = Array.from(byId.values()).sort(
+    (left, right) => new Date(right.date).getTime() - new Date(left.date).getTime(),
+  );
+}
+
+export function setNotificationsUnread(unread: number) {
+  NOTIFICATIONS_UNREAD = unread;
+}
+
+export function setNotificationsNextCursor(cursor: string | undefined) {
+  NOTIFICATIONS_NEXT_CURSOR = cursor;
+}
+
+export function setNotificationPreferences(preferences: NotificationPreferences) {
+  NOTIFICATION_PREFERENCES = preferences;
+}
+
+/** Reflect a read/unread change into the shared store so remounts stay in sync. */
+export function applyNotificationRead(notificationId: string, read: boolean) {
+  NOTIFICATIONS = NOTIFICATIONS.map((notification) =>
+    notification.id === notificationId ? { ...notification, read } : notification,
+  );
+}
+
+export function applyAllNotificationsRead() {
+  NOTIFICATIONS = NOTIFICATIONS.map((notification) => ({ ...notification, read: true }));
+}
+
 export function clearAppData() {
   ME = EMPTY_ATHLETE;
   ATHLETES = [];
@@ -131,6 +225,10 @@ export function clearAppData() {
   SEGMENTS = [];
   CLUBS = [];
   CHALLENGES = [];
+  NOTIFICATIONS = [];
+  NOTIFICATIONS_UNREAD = 0;
+  NOTIFICATIONS_NEXT_CURSOR = undefined;
+  NOTIFICATION_PREFERENCES = EMPTY_NOTIFICATION_PREFERENCES;
 }
 
 function pad(value: number) {
