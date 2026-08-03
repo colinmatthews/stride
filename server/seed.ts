@@ -1,6 +1,80 @@
 export type Sport = "Run" | "Ride" | "Swim" | "Hike" | "Walk";
 export type MetricType = "distance_km" | "elevation_m";
 
+export interface SeedDeviceConnection {
+  idSuffix: string;
+  provider: string;
+  deviceName: string;
+  model: string;
+  deviceType: "watch" | "bike" | "strap" | "phone";
+  status: "ok" | "warning" | "error";
+  lastSyncMinutesAgo: number;
+  batteryPct: number | null;
+  tokenExpired: boolean;
+  detail: string | null;
+  fix: string | null;
+  pendingActivityCount: number;
+}
+
+export const DEFAULT_DEVICE_CONNECTIONS: SeedDeviceConnection[] = [
+  {
+    idSuffix: "garmin",
+    provider: "garmin",
+    deviceName: "Garmin Forerunner 965",
+    model: "FR965 · firmware 18.16",
+    deviceType: "watch",
+    status: "error",
+    lastSyncMinutesAgo: 1880,
+    batteryPct: 12,
+    tokenExpired: true,
+    detail: "Connect IQ token expired 31 hours ago.",
+    fix: "Re-authorize Garmin Connect to resume sync.",
+    pendingActivityCount: 3,
+  },
+  {
+    idSuffix: "wahoo",
+    provider: "wahoo",
+    deviceName: "Wahoo Kickr",
+    model: "Kickr v6 · 1.4.21",
+    deviceType: "bike",
+    status: "warning",
+    lastSyncMinutesAgo: 220,
+    batteryPct: null,
+    tokenExpired: false,
+    detail: "Bluetooth handshake retried 4× — power data partial.",
+    fix: "Move bridge closer to the trainer and retry.",
+    pendingActivityCount: 1,
+  },
+  {
+    idSuffix: "polar",
+    provider: "polar",
+    deviceName: "Polar H10 Chest Strap",
+    model: "H10 · firmware 3.2.1",
+    deviceType: "strap",
+    status: "ok",
+    lastSyncMinutesAgo: 6,
+    batteryPct: 78,
+    tokenExpired: false,
+    detail: null,
+    fix: null,
+    pendingActivityCount: 0,
+  },
+  {
+    idSuffix: "iphone",
+    provider: "apple_health",
+    deviceName: "iPhone Health",
+    model: "iOS 18 · auto-import",
+    deviceType: "phone",
+    status: "ok",
+    lastSyncMinutesAgo: 12,
+    batteryPct: 64,
+    tokenExpired: false,
+    detail: null,
+    fix: null,
+    pendingActivityCount: 0,
+  },
+];
+
 export interface SeedAthlete {
   id: string;
   name: string;

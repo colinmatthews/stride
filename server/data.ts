@@ -11,11 +11,13 @@ import {
   challenges as challengesTable,
   clubMemberships,
   clubs as clubsTable,
+  deviceConnections,
   follows,
   segments as segmentsTable,
+  syncEvents,
   users,
 } from "./db/schema.js";
-import { USER_AVATARS } from "./seed.js";
+import { DEFAULT_DEVICE_CONNECTIONS, USER_AVATARS } from "./seed.js";
 
 const BOOTSTRAP_ACTIVITY_LIMIT = 40;
 const MAX_ACTIVITY_PAGE_LIMIT = 100;
@@ -329,6 +331,7 @@ export async function buildBootstrap(userId: string) {
     challengesResult,
     challengeEntriesResult,
     challengeProgressResult,
+    deviceConnectionsResult,
   ] = await Promise.all([
     db.select().from(users).orderBy(asc(users.createdAt)),
     db
@@ -365,6 +368,7 @@ export async function buildBootstrap(userId: string) {
       .from(activitiesTable)
       .where(eq(activitiesTable.athleteId, userId))
       .groupBy(activitiesTable.sport),
+    listDeviceConnections(userId),
   ]);
 
   const followedIds = new Set(followsResult.map((row) => row.followedId));
@@ -439,6 +443,7 @@ export async function buildBootstrap(userId: string) {
     segments,
     clubs,
     challenges,
+    deviceConnections: deviceConnectionsResult,
   };
 }
 
@@ -620,6 +625,175 @@ export async function toggleClubMembership(userId: string, clubId: string) {
     joined: existing.length === 0,
     members,
   };
+}
+
+type DeviceConnectionRow = typeof deviceConnections.$inferSelect;
+
+type DeviceConnectionDto = {
+  id: string;
+  provider: string;
+  name: string;
+  model: string;
+  type: string;
+  status: string;
+  lastSyncMinutesAgo: number;
+  battery: number | null;
+  detail: string | null;
+  fix: string | null;
+  pendingActivities: number;
+};
+
+function mapDeviceConnection(row: DeviceConnectionRow): DeviceConnectionDto {
+  const minutesAgo = Math.max(
+    0,
+    Math.round((Date.now() - row.lastSyncAt.getTime()) / 60000),
+  );
+
+  return {
+    id: row.id,
+    provider: row.provider,
+    name: row.deviceName,
+    model: row.model,
+    type: row.deviceType,
+    status: row.status,
+    lastSyncMinutesAgo: minutesAgo,
+    battery: row.batteryPct,
+    detail: row.detail,
+    fix: row.fix,
+    pendingActivities: row.pendingActivityCount,
+  };
+}
+
+async function seedDefaultDeviceConnections(userId: string) {
+  const now = Date.now();
+
+  await db
+    .insert(deviceConnections)
+    .values(
+      DEFAULT_DEVICE_CONNECTIONS.map((seed) => ({
+        id: `dev-${userId}-${seed.idSuffix}`,
+        userId,
+        provider: seed.provider,
+        deviceName: seed.deviceName,
+        model: seed.model,
+        deviceType: seed.deviceType,
+        status: seed.status,
+        lastSyncAt: new Date(now - seed.lastSyncMinutesAgo * 60000),
+        batteryPct: seed.batteryPct,
+        tokenExpiresAt: seed.tokenExpired ? new Date(now - 60 * 60 * 1000) : null,
+        detail: seed.detail,
+        fix: seed.fix,
+        pendingActivityCount: seed.pendingActivityCount,
+      })),
+    )
+    .onConflictDoNothing();
+}
+
+export async function listDeviceConnections(userId: string) {
+  let rows = await db
+    .select()
+    .from(deviceConnections)
+    .where(eq(deviceConnections.userId, userId))
+    .orderBy(asc(deviceConnections.createdAt));
+
+  if (rows.length === 0) {
+    await seedDefaultDeviceConnections(userId);
+    rows = await db
+      .select()
+      .from(deviceConnections)
+      .where(eq(deviceConnections.userId, userId))
+      .orderBy(asc(deviceConnections.createdAt));
+  }
+
+  return rows.map(mapDeviceConnection);
+}
+
+async function getOwnedDeviceConnection(userId: string, connectionId: string) {
+  const rows = await db
+    .select()
+    .from(deviceConnections)
+    .where(and(eq(deviceConnections.id, connectionId), eq(deviceConnections.userId, userId)))
+    .limit(1);
+
+  return rows[0] ?? null;
+}
+
+export async function retrySync(userId: string, connectionId: string) {
+  const connection = await getOwnedDeviceConnection(userId, connectionId);
+
+  if (!connection) {
+    throw new Error("Device connection not found");
+  }
+
+  const tokenExpired = Boolean(
+    connection.tokenExpiresAt && connection.tokenExpiresAt.getTime() <= Date.now(),
+  );
+
+  if (connection.status === "error" || tokenExpired) {
+    await db.insert(syncEvents).values({
+      id: `sync-${randomUUID()}`,
+      connectionId,
+      kind: "retry",
+      outcome: "failure",
+      activitiesImported: 0,
+      errorMessage: connection.detail ?? "Retry failed: authorization required.",
+    });
+
+    return mapDeviceConnection(connection);
+  }
+
+  await db.insert(syncEvents).values({
+    id: `sync-${randomUUID()}`,
+    connectionId,
+    kind: "retry",
+    outcome: "success",
+    activitiesImported: connection.pendingActivityCount,
+  });
+
+  const [updated] = await db
+    .update(deviceConnections)
+    .set({
+      status: "ok",
+      detail: null,
+      fix: null,
+      pendingActivityCount: 0,
+      lastSyncAt: new Date(),
+    })
+    .where(eq(deviceConnections.id, connectionId))
+    .returning();
+
+  return mapDeviceConnection(updated);
+}
+
+export async function reauthorizeConnection(userId: string, connectionId: string) {
+  const connection = await getOwnedDeviceConnection(userId, connectionId);
+
+  if (!connection) {
+    throw new Error("Device connection not found");
+  }
+
+  await db.insert(syncEvents).values({
+    id: `sync-${randomUUID()}`,
+    connectionId,
+    kind: "reauthorize",
+    outcome: "success",
+    activitiesImported: connection.pendingActivityCount,
+  });
+
+  const [updated] = await db
+    .update(deviceConnections)
+    .set({
+      status: "ok",
+      detail: null,
+      fix: null,
+      pendingActivityCount: 0,
+      lastSyncAt: new Date(),
+      tokenExpiresAt: new Date(Date.now() + 90 * 24 * 60 * 60 * 1000),
+    })
+    .where(eq(deviceConnections.id, connectionId))
+    .returning();
+
+  return mapDeviceConnection(updated);
 }
 
 export async function toggleChallengeEntry(userId: string, challengeId: string) {

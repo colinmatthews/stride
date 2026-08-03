@@ -177,6 +177,37 @@ export const challengeEntries = pgTable(
   }),
 );
 
+export const deviceConnections = pgTable("device_connections", {
+  id: text("id").primaryKey(),
+  userId: text("user_id")
+    .notNull()
+    .references(() => users.id, { onDelete: "cascade" }),
+  provider: text("provider").notNull(),
+  deviceName: text("device_name").notNull(),
+  model: text("model").notNull(),
+  deviceType: text("device_type").notNull(),
+  status: text("status").notNull(),
+  lastSyncAt: timestamp("last_sync_at", { withTimezone: true }).notNull(),
+  batteryPct: integer("battery_pct"),
+  tokenExpiresAt: timestamp("token_expires_at", { withTimezone: true }),
+  detail: text("detail"),
+  fix: text("fix"),
+  pendingActivityCount: integer("pending_activity_count").notNull().default(0),
+  createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+});
+
+export const syncEvents = pgTable("sync_events", {
+  id: text("id").primaryKey(),
+  connectionId: text("connection_id")
+    .notNull()
+    .references(() => deviceConnections.id, { onDelete: "cascade" }),
+  kind: text("kind").notNull(),
+  outcome: text("outcome").notNull(),
+  activitiesImported: integer("activities_imported").notNull().default(0),
+  errorMessage: text("error_message"),
+  createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+});
+
 export const activityKudos = pgTable(
   "activity_kudos",
   {
