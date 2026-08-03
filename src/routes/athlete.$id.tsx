@@ -1,7 +1,15 @@
 import { createFileRoute, Link, notFound } from "@tanstack/react-router";
 import { useState } from "react";
 import { usePostHog } from "@posthog/react";
-import { ACTIVITIES, ATHLETES, type Activity, fmtDate, fmtDuration, getAthlete, weeklyStats } from "@/lib/mock-data";
+import {
+  ACTIVITIES,
+  ATHLETES,
+  type Activity,
+  fmtDate,
+  fmtDuration,
+  getAthlete,
+  weeklyStats,
+} from "@/lib/mock-data";
 import { AppShell } from "@/components/AppShell";
 import { ActivityCard } from "@/components/ActivityCard";
 import { ResponsiveContainer, BarChart, Bar, XAxis, YAxis, Tooltip, CartesianGrid } from "recharts";

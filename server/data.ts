@@ -1,17 +1,5 @@
 import { randomUUID } from "node:crypto";
-import {
-  and,
-  asc,
-  desc,
-  eq,
-  inArray,
-  isNotNull,
-  lt,
-  min,
-  or,
-  sql,
-  type SQL,
-} from "drizzle-orm";
+import { and, asc, desc, eq, inArray, isNotNull, lt, min, or, sql, type SQL } from "drizzle-orm";
 import { db } from "./db.js";
 import {
   activities as activitiesTable,
@@ -273,7 +261,9 @@ async function computeChallengeProgress(
         sql`${activitiesTable.date} < (${challengesTable.endsAt} + 1)::timestamp AT TIME ZONE 'UTC'`,
       ),
     )
-    .where(and(eq(challengeEntries.userId, userId), inArray(challengeEntries.challengeId, challengeIds)))
+    .where(
+      and(eq(challengeEntries.userId, userId), inArray(challengeEntries.challengeId, challengeIds)),
+    )
     .groupBy(challengeEntries.challengeId);
 
   return new Map(rows.map((row) => [row.challengeId, Number(row.progress)]));
@@ -292,9 +282,7 @@ function selectSuggestedChallenge(
   const eligible = allChallenges.filter(
     (c) => !joinedIds.has(c.id) && c.id !== completedId && c.endsAt >= today,
   );
-  const sameSport = eligible.filter(
-    (c) => c.sport === completedSport || c.sport === "Multisport",
-  );
+  const sameSport = eligible.filter((c) => c.sport === completedSport || c.sport === "Multisport");
   const pool = sameSport.length > 0 ? sameSport : eligible;
   pool.sort((a, b) => a.endsAt.localeCompare(b.endsAt));
   return pool[0]?.id ?? null;
@@ -456,11 +444,7 @@ export async function buildBootstrap(userId: string) {
   );
 
   // Compute per-challenge progress (correct sport + date boundary scoping)
-  const progressMap = await computeChallengeProgress(
-    db,
-    userId,
-    Array.from(joinedChallengeIds),
-  );
+  const progressMap = await computeChallengeProgress(db, userId, Array.from(joinedChallengeIds));
 
   const athletes = usersResult.map((row) => mapAthlete(row, userId, followedIds));
   const me = athletes.find((athlete) => athlete.id === "me");
@@ -558,7 +542,11 @@ export async function createActivity(input: {
   avgPaceSecPerKm?: number;
   avgSpeedKmh?: number;
   routeSeed: number;
-}): Promise<{ id: string; challengeCredits: ChallengeCredit[]; newCompletions: PendingCompletion[] }> {
+}): Promise<{
+  id: string;
+  challengeCredits: ChallengeCredit[];
+  newCompletions: PendingCompletion[];
+}> {
   const activityDate = new Date();
   // Normalize to 2 decimal places, matching numeric(10,2) storage
   const distanceKm = Math.round(input.distanceKm * 100) / 100;

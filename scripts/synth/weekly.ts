@@ -36,7 +36,12 @@ import {
 } from "./fixtures/personas.js";
 import { PLACES } from "./fixtures/places.js";
 import { SCENARIOS, scenarioById, type Scenario } from "./fixtures/scenarios.js";
-import { ACTIVITY_DESCRIPTIONS, ACTIVITY_PHOTOS, SPORT_PROFILES, USER_AVATARS } from "./fixtures/sports.js";
+import {
+  ACTIVITY_DESCRIPTIONS,
+  ACTIVITY_PHOTOS,
+  SPORT_PROFILES,
+  USER_AVATARS,
+} from "./fixtures/sports.js";
 import type { SynthUser } from "./generate-users.js";
 
 const __filename = fileURLToPath(import.meta.url);
@@ -99,7 +104,11 @@ function handleFromName(first: string, last: string, used: Set<string>, rng: Rng
     .toLowerCase()
     .replace(/[^a-z0-9.]/g, "")
     .slice(0, 20);
-  for (const candidate of [base, `${first.toLowerCase()}${last.charAt(0).toLowerCase()}`, `${base}${rng.int(10, 9999)}`]) {
+  for (const candidate of [
+    base,
+    `${first.toLowerCase()}${last.charAt(0).toLowerCase()}`,
+    `${base}${rng.int(10, 9999)}`,
+  ]) {
     if (candidate && !used.has(candidate)) {
       used.add(candidate);
       return candidate;
@@ -122,14 +131,22 @@ function generateNewUsers(count: number, existing: SynthUser[], now: Date, rng: 
     const firstName = faker.person.firstName();
     const lastName = faker.person.lastName();
     const handle = handleFromName(firstName, lastName, usedHandles, rng);
-    const domain = faker.helpers.arrayElement(["gmail.com", "hotmail.com", "outlook.com", "proton.me", "icloud.com"]);
+    const domain = faker.helpers.arrayElement([
+      "gmail.com",
+      "hotmail.com",
+      "outlook.com",
+      "proton.me",
+      "icloud.com",
+    ]);
     let email = `${handle}@${domain}`.toLowerCase();
     while (usedEmails.has(email)) email = `${handle}.${rng.int(10, 9999)}@${domain}`.toLowerCase();
     usedEmails.add(email);
     const signupDate = new Date(now.getTime() - rng.int(0, WEEK_DAYS - 1) * 86_400_000);
     signupDate.setUTCHours(rng.int(0, 23), rng.int(0, 59), 0, 0);
     const place = rng.weighted(PLACES.map((p) => ({ value: p, weight: p.weight })));
-    const plan = rng.weighted<Plan>(persona.planMix.map((pm) => ({ value: pm.plan, weight: pm.weight })));
+    const plan = rng.weighted<Plan>(
+      persona.planMix.map((pm) => ({ value: pm.plan, weight: pm.weight })),
+    );
     const primarySport = rng.pick(persona.primarySports);
     users.push({
       id: faker.string.uuid(),
@@ -166,7 +183,17 @@ async function upsertUsersInDb(client: PoolClient, users: SynthUser[]): Promise<
     "users",
     ["id", "email", "name", "handle", "avatar_url", "city", "country", "bio", "created_at"],
     users,
-    (u) => [u.id, u.email, u.name, u.handle, u.avatar, u.city, u.country, u.bio, new Date(u.signupDate)],
+    (u) => [
+      u.id,
+      u.email,
+      u.name,
+      u.handle,
+      u.avatar,
+      u.city,
+      u.country,
+      u.bio,
+      new Date(u.signupDate),
+    ],
     `ON CONFLICT (id) DO UPDATE SET
        email = EXCLUDED.email,
        name = EXCLUDED.name,
@@ -214,7 +241,9 @@ function generateWeeklyActivities(
     const userRng = rng.derive(user.id);
     const count = userRng.int(Math.floor(minPerWeek), Math.ceil(maxPerWeek));
     for (let i = 0; i < count; i += 1) {
-      const sport = userRng.weighted<Sport>(persona.sportMix.map((m) => ({ value: m.sport, weight: m.weight })));
+      const sport = userRng.weighted<Sport>(
+        persona.sportMix.map((m) => ({ value: m.sport, weight: m.weight })),
+      );
       const profile = SPORT_PROFILES[sport];
       const rangeMs = now.getTime() - effectiveStart.getTime();
       const date = new Date(effectiveStart.getTime() + userRng.next() * rangeMs);
@@ -240,7 +269,9 @@ function generateWeeklyActivities(
         athleteId: user.id,
         sport,
         title: userRng.pick(profile.titles),
-        description: userRng.chance(profile.descriptionChance) ? userRng.pick(ACTIVITY_DESCRIPTIONS) : null,
+        description: userRng.chance(profile.descriptionChance)
+          ? userRng.pick(ACTIVITY_DESCRIPTIONS)
+          : null,
         date,
         distanceKm: Math.round(distanceKm * 100) / 100,
         movingSeconds,
@@ -263,17 +294,41 @@ async function insertActivities(client: PoolClient, rows: ActivityRow[]): Promis
     client,
     "activities",
     [
-      "id", "athlete_id", "sport", "title", "description", "date",
-      "distance_km", "moving_seconds", "elevation_m",
-      "avg_hr", "avg_pace_sec_per_km", "avg_speed_kmh",
-      "kudos", "achievements", "photo", "route_seed",
+      "id",
+      "athlete_id",
+      "sport",
+      "title",
+      "description",
+      "date",
+      "distance_km",
+      "moving_seconds",
+      "elevation_m",
+      "avg_hr",
+      "avg_pace_sec_per_km",
+      "avg_speed_kmh",
+      "kudos",
+      "achievements",
+      "photo",
+      "route_seed",
     ],
     rows,
     (a) => [
-      a.id, a.athleteId, a.sport, a.title, a.description, a.date,
-      a.distanceKm, a.movingSeconds, a.elevationM,
-      a.avgHr, a.avgPaceSecPerKm, a.avgSpeedKmh,
-      0, a.achievements, a.photo, a.routeSeed,
+      a.id,
+      a.athleteId,
+      a.sport,
+      a.title,
+      a.description,
+      a.date,
+      a.distanceKm,
+      a.movingSeconds,
+      a.elevationM,
+      a.avgHr,
+      a.avgPaceSecPerKm,
+      a.avgSpeedKmh,
+      0,
+      a.achievements,
+      a.photo,
+      a.routeSeed,
     ],
     "ON CONFLICT (id) DO NOTHING",
     500,
@@ -318,10 +373,17 @@ function registrationEvents(newUsers: SynthUser[]): PHEvent[] {
       city: u.city,
       country: u.country,
       $set: {
-        email: u.email, name: u.name, handle: u.handle,
-        persona: u.persona, plan: u.plan, status: u.status,
-        city: u.city, country: u.country, primary_sport: u.primarySport,
-        signup_date: u.signupDate, cohort_id: cohortTag(),
+        email: u.email,
+        name: u.name,
+        handle: u.handle,
+        persona: u.persona,
+        plan: u.plan,
+        status: u.status,
+        city: u.city,
+        country: u.country,
+        primary_sport: u.primarySport,
+        signup_date: u.signupDate,
+        cohort_id: cohortTag(),
       },
     },
   }));
@@ -350,9 +412,14 @@ function sessionEvents(users: SynthUser[], weekStart: Date, now: Date, rng: Rng)
   for (const user of users) {
     if (user.status !== "active") continue;
     const persona = personaById(user.persona);
-    const sessions = Math.max(0, Math.floor(rng.float(persona.activitiesPerWeek[0], persona.activitiesPerWeek[1]) * 1.2));
+    const sessions = Math.max(
+      0,
+      Math.floor(rng.float(persona.activitiesPerWeek[0], persona.activitiesPerWeek[1]) * 1.2),
+    );
     for (let s = 0; s < sessions; s += 1) {
-      const sessionStart = new Date(weekStart.getTime() + rng.next() * (now.getTime() - weekStart.getTime()));
+      const sessionStart = new Date(
+        weekStart.getTime() + rng.next() * (now.getTime() - weekStart.getTime()),
+      );
       events.push({
         event: "user_logged_in",
         distinct_id: user.id,
@@ -446,14 +513,14 @@ ${scenario.instructions}`;
     const parsed = JSON.parse(text.slice(first, last + 1));
     return { title: String(parsed.title).trim(), body: String(parsed.body).trim() };
   } catch {
-    return { title: scenario.label, body: `Having trouble with ${scenario.label.toLowerCase()}. Can someone help?` };
+    return {
+      title: scenario.label,
+      body: `Having trouble with ${scenario.label.toLowerCase()}. Can someone help?`,
+    };
   }
 }
 
-async function upsertIntercomContact(
-  client: IntercomClient,
-  user: SynthUser,
-): Promise<string> {
+async function upsertIntercomContact(client: IntercomClient, user: SynthUser): Promise<string> {
   try {
     const existing = await client.contacts.showContactByExternalId({ external_id: user.id });
     if (existing && (existing as { id?: string }).id) return (existing as { id: string }).id;
@@ -520,7 +587,9 @@ async function runIntercomBatch(
         from: { type: "user", id: contactId },
         body: item.body,
       } as Parameters<typeof intercom.conversations.create>[0]);
-      const id = (resp as { conversation_id?: string; id?: string }).conversation_id ?? (resp as { id?: string }).id;
+      const id =
+        (resp as { conversation_id?: string; id?: string }).conversation_id ??
+        (resp as { id?: string }).id;
       if (!id) throw new Error(`no conversation id: ${JSON.stringify(resp)}`);
       item.conversationId = id;
     } else {
@@ -616,11 +685,7 @@ function buildLinearSpecs(
       ]),
       stateType: "backlog",
       projectName:
-        kind === "feature"
-          ? "New Metrics"
-          : kind === "tech-debt"
-            ? "Platform Foundations"
-            : null,
+        kind === "feature" ? "New Metrics" : kind === "tech-debt" ? "Platform Foundations" : null,
     });
   }
 
@@ -672,11 +737,17 @@ async function runLinearBatch(
   const labelsByLower = new Map<string, string>();
   for (const l of labels.nodes) labelsByLower.set(l.name.toLowerCase(), l.id);
 
-  const states = await linearClient.workflowStates({ filter: { team: { id: { eq: team.id } } }, first: 50 });
+  const states = await linearClient.workflowStates({
+    filter: { team: { id: { eq: team.id } } },
+    first: 50,
+  });
   const stateByType = new Map<string, string>();
   for (const s of states.nodes) if (!stateByType.has(s.type)) stateByType.set(s.type, s.id);
 
-  const projects = await linearClient.projects({ filter: { accessibleTeams: { some: { id: { eq: team.id } } } }, first: 50 });
+  const projects = await linearClient.projects({
+    filter: { accessibleTeams: { some: { id: { eq: team.id } } } },
+    first: 50,
+  });
   const projectsByName = new Map<string, string>();
   for (const p of projects.nodes) projectsByName.set(p.name, p.id);
 
@@ -690,7 +761,9 @@ async function runLinearBatch(
   console.log(`Creating Linear issues…`);
   for (const spec of specs) {
     const labelIds = [
-      labelsByLower.get(spec.kind === "feature" ? "feature" : spec.kind === "tech-debt" ? "tech-debt" : "bug"),
+      labelsByLower.get(
+        spec.kind === "feature" ? "feature" : spec.kind === "tech-debt" ? "tech-debt" : "bug",
+      ),
       ...spec.areaLabels.map((a) => labelsByLower.get(a)),
     ].filter((x): x is string => typeof x === "string");
     const stateId = stateByType.get(spec.stateType) ?? stateByType.get("backlog");

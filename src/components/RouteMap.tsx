@@ -75,12 +75,7 @@ export function RouteMap({
           <rect width={width} height={height} />
         </clipPath>
         <pattern id={gridId} x="0" y="0" width="56" height="56" patternUnits="userSpaceOnUse">
-          <path
-            d={`M 56 0 L 0 0 0 56`}
-            fill="none"
-            stroke={colors.street}
-            strokeWidth="0.6"
-          />
+          <path d={`M 56 0 L 0 0 0 56`} fill="none" stroke={colors.street} strokeWidth="0.6" />
         </pattern>
       </defs>
 
@@ -90,12 +85,7 @@ export function RouteMap({
 
         {/* park (optional) */}
         {features.park && (
-          <path
-            d={features.park}
-            fill={colors.park}
-            stroke={colors.park}
-            strokeWidth="1"
-          />
+          <path d={features.park} fill={colors.park} stroke={colors.park} strokeWidth="1" />
         )}
 
         {/* water (optional) */}
@@ -303,9 +293,7 @@ function smoothPath(path: string): string {
   const lineMatches = [...path.matchAll(/L([\d.]+),([\d.]+)/g)];
   const points: [number, number][] = [
     [Number(moveMatch[1]), Number(moveMatch[2])],
-    ...lineMatches.map(
-      (match) => [Number(match[1]), Number(match[2])] as [number, number],
-    ),
+    ...lineMatches.map((match) => [Number(match[1]), Number(match[2])] as [number, number]),
   ];
   if (points.length < 3) return path;
 

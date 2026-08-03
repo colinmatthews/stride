@@ -235,7 +235,12 @@ function ChallengesPage() {
       </div>
 
       {completedChallenge && (
-        <Dialog open={recapOpen} onOpenChange={(open) => { if (!open) handleDismiss(); }}>
+        <Dialog
+          open={recapOpen}
+          onOpenChange={(open) => {
+            if (!open) handleDismiss();
+          }}
+        >
           <DialogContent className="sm:max-w-md">
             <DialogHeader>
               <DialogTitle className="flex items-center gap-2">
@@ -274,11 +279,13 @@ function ChallengesPage() {
                     </span>
                     <Badge variant="secondary">{nextChallenge.badge}</Badge>
                   </div>
-                  <div className="mt-2 font-display text-lg font-semibold">{nextChallenge.name}</div>
+                  <div className="mt-2 font-display text-lg font-semibold">
+                    {nextChallenge.name}
+                  </div>
                   <div className="mt-1 flex items-center gap-3 text-xs text-muted-foreground">
                     <span className="inline-flex items-center gap-1">
-                      <Users className="h-3 w-3" /> {participants[nextChallenge.id]?.toLocaleString()}{" "}
-                      athletes
+                      <Users className="h-3 w-3" />{" "}
+                      {participants[nextChallenge.id]?.toLocaleString()} athletes
                     </span>
                     <span>
                       {nextChallenge.goalKm} {challengeUnit(nextChallenge)} goal

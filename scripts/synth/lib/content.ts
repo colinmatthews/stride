@@ -55,7 +55,10 @@ function userPrompt(ctx: TicketContext): string {
     `City: ${ctx.city}`,
     `Primary sport: ${ctx.primarySport}`,
   ];
-  if (ctx.recentActivityTitle) lines.push(`Recent activity: "${ctx.recentActivityTitle}" on ${ctx.recentActivityDate ?? "recently"}`);
+  if (ctx.recentActivityTitle)
+    lines.push(
+      `Recent activity: "${ctx.recentActivityTitle}" on ${ctx.recentActivityDate ?? "recently"}`,
+    );
   lines.push("", "Write the support message now.");
   return lines.join("\n");
 }

@@ -107,8 +107,15 @@ export async function saveActivity(payload: {
   avgPaceSecPerKm?: number;
   avgSpeedKmh?: number;
   routeSeed: number;
-}): Promise<Activity & { challengeCredits?: ChallengeCredit[]; newCompletions?: PendingChallengeCompletion[] }> {
-  const activity = await apiFetch<Activity & { challengeCredits?: ChallengeCredit[]; newCompletions?: PendingChallengeCompletion[] }>("/api/activities", {
+}): Promise<
+  Activity & { challengeCredits?: ChallengeCredit[]; newCompletions?: PendingChallengeCompletion[] }
+> {
+  const activity = await apiFetch<
+    Activity & {
+      challengeCredits?: ChallengeCredit[];
+      newCompletions?: PendingChallengeCompletion[];
+    }
+  >("/api/activities", {
     method: "POST",
     body: JSON.stringify(payload),
   });
