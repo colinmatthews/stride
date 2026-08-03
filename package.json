@@ -14,6 +14,7 @@
     "db:migrate": "drizzle-kit migrate",
     "synth:users": "tsx scripts/synth/generate-users.ts",
     "synth:db": "tsx scripts/synth/seed-db.ts",
+    "synth:notifications": "tsx scripts/synth/backfill-notifications.ts",
     "synth:posthog": "tsx scripts/synth/seed-posthog.ts",
     "synth:intercom": "tsx scripts/synth/seed-intercom.ts",
     "synth:linear": "tsx scripts/synth/seed-linear.ts",

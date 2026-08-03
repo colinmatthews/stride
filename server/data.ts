@@ -15,6 +15,13 @@ import {
   segments as segmentsTable,
   users,
 } from "./db/schema.js";
+import {
+  BOOTSTRAP_NOTIFICATION_LIMIT,
+  createNotification,
+  deleteNotification,
+  getNotificationPreferences,
+  listNotifications,
+} from "./notifications/queries.js";
 import { USER_AVATARS } from "./seed.js";
 
 const BOOTSTRAP_ACTIVITY_LIMIT = 40;
@@ -329,6 +336,8 @@ export async function buildBootstrap(userId: string) {
     challengesResult,
     challengeEntriesResult,
     challengeProgressResult,
+    notificationPage,
+    notificationPreferences,
   ] = await Promise.all([
     db.select().from(users).orderBy(asc(users.createdAt)),
     db
@@ -365,6 +374,8 @@ export async function buildBootstrap(userId: string) {
       .from(activitiesTable)
       .where(eq(activitiesTable.athleteId, userId))
       .groupBy(activitiesTable.sport),
+    listNotifications(userId, { limit: BOOTSTRAP_NOTIFICATION_LIMIT }),
+    getNotificationPreferences(userId),
   ]);
 
   const followedIds = new Set(followsResult.map((row) => row.followedId));
@@ -439,6 +450,10 @@ export async function buildBootstrap(userId: string) {
     segments,
     clubs,
     challenges,
+    notifications: notificationPage.notifications,
+    notificationsNextCursor: notificationPage.nextCursor,
+    notificationsUnread: notificationPage.unread,
+    notificationPreferences,
   };
 }
 
@@ -480,47 +495,111 @@ export async function createActivity(input: {
 }
 
 export async function toggleKudo(userId: string, activityId: string) {
-  const existing = await db
-    .select({ activityId: activityKudos.activityId })
-    .from(activityKudos)
-    .where(and(eq(activityKudos.userId, userId), eq(activityKudos.activityId, activityId)))
-    .limit(1);
-  const activityRows = await db
-    .select({ kudos: activitiesTable.kudos })
-    .from(activitiesTable)
-    .where(eq(activitiesTable.id, activityId))
-    .limit(1);
+  const [existing, activityRows, actorRows] = await Promise.all([
+    db
+      .select({ activityId: activityKudos.activityId })
+      .from(activityKudos)
+      .where(and(eq(activityKudos.userId, userId), eq(activityKudos.activityId, activityId)))
+      .limit(1),
+    db
+      // athleteId and title are read for the notification: the recipient and the
+      // prose. Before the notification center this only selected kudos.
+      .select({
+        kudos: activitiesTable.kudos,
+        athleteId: activitiesTable.athleteId,
+        title: activitiesTable.title,
+      })
+      .from(activitiesTable)
+      .where(eq(activitiesTable.id, activityId))
+      .limit(1),
+    db.select({ name: users.name }).from(users).where(eq(users.id, userId)).limit(1),
+  ]);
   const current = activityRows[0];
+  const actor = actorRows[0];
 
-  if (!current) {
+  if (!current || !actor) {
     throw new Error("Activity not found");
   }
 
-  if (existing.length > 0) {
-    await db
-      .delete(activityKudos)
-      .where(and(eq(activityKudos.userId, userId), eq(activityKudos.activityId, activityId)));
-  } else {
-    await db.insert(activityKudos).values({ userId, activityId });
-  }
+  const removing = existing.length > 0;
+  const kudos = removing ? Math.max(current.kudos - 1, 0) : current.kudos + 1;
+  const notificationId = `ntf-kudos-${activityId}-${userId}`;
 
-  const kudos = existing.length > 0 ? Math.max(current.kudos - 1, 0) : current.kudos + 1;
-  await db.update(activitiesTable).set({ kudos }).where(eq(activitiesTable.id, activityId));
+  await db.transaction(async (tx) => {
+    if (removing) {
+      await tx
+        .delete(activityKudos)
+        .where(and(eq(activityKudos.userId, userId), eq(activityKudos.activityId, activityId)));
+    } else {
+      await tx.insert(activityKudos).values({ userId, activityId });
+    }
+
+    await tx.update(activitiesTable).set({ kudos }).where(eq(activitiesTable.id, activityId));
+
+    if (current.athleteId === userId) {
+      return;
+    }
+
+    if (removing) {
+      await deleteNotification(tx, notificationId);
+    } else {
+      await createNotification(tx, {
+        id: notificationId,
+        userId: current.athleteId,
+        actorId: userId,
+        kind: "kudos",
+        title: `${actor.name} gave you kudos`,
+        body: `On your activity “${current.title}”.`,
+        activityId,
+      });
+    }
+  });
 
   return {
     kudos,
-    kudoed: existing.length === 0,
+    kudoed: !removing,
   };
 }
 
 export async function addComment(userId: string, activityId: string, text: string) {
   const commentId = `comment-${randomUUID()}`;
+  const [activityRows, actorRows] = await Promise.all([
+    db
+      .select({ athleteId: activitiesTable.athleteId })
+      .from(activitiesTable)
+      .where(eq(activitiesTable.id, activityId))
+      .limit(1),
+    db.select({ name: users.name }).from(users).where(eq(users.id, userId)).limit(1),
+  ]);
+  const activity = activityRows[0];
+  const actor = actorRows[0];
 
-  await db.insert(activityComments).values({
-    id: commentId,
-    activityId,
-    athleteId: userId,
-    text,
+  if (!activity || !actor) {
+    // Previously an unknown activity id surfaced as an opaque 500 from the FK.
+    throw new Error("Activity not found");
+  }
+
+  await db.transaction(async (tx) => {
+    await tx.insert(activityComments).values({
+      id: commentId,
+      activityId,
+      athleteId: userId,
+      text,
+    });
+
+    if (activity.athleteId === userId) {
+      return;
+    }
+
+    await createNotification(tx, {
+      id: `ntf-comment-${commentId}`,
+      userId: activity.athleteId,
+      actorId: userId,
+      kind: "comment",
+      title: `${actor.name} commented on your activity`,
+      body: `“${text}”`,
+      activityId,
+    });
   });
 
   return {
@@ -544,7 +623,8 @@ export async function toggleFollow(userId: string, athleteId: string) {
     .limit(1);
   const [currentUser, targetUser] = await Promise.all([
     db
-      .select({ followingCount: users.followingCount })
+      // name is read for the notification title.
+      .select({ followingCount: users.followingCount, name: users.name })
       .from(users)
       .where(eq(users.id, userId))
       .limit(1),
@@ -559,30 +639,46 @@ export async function toggleFollow(userId: string, athleteId: string) {
     throw new Error("Athlete not found");
   }
 
-  if (existing.length > 0) {
-    await db
-      .delete(follows)
-      .where(and(eq(follows.followerId, userId), eq(follows.followedId, targetId)));
-  } else {
-    await db.insert(follows).values({ followerId: userId, followedId: targetId });
-  }
+  const removing = existing.length > 0;
+  const followers = removing
+    ? Math.max(targetUser[0].followersCount - 1, 0)
+    : targetUser[0].followersCount + 1;
+  const meFollowing = removing
+    ? Math.max(currentUser[0].followingCount - 1, 0)
+    : currentUser[0].followingCount + 1;
+  const notificationId = `ntf-follow-${userId}-${targetId}`;
 
-  const followers =
-    existing.length > 0
-      ? Math.max(targetUser[0].followersCount - 1, 0)
-      : targetUser[0].followersCount + 1;
-  const meFollowing =
-    existing.length > 0
-      ? Math.max(currentUser[0].followingCount - 1, 0)
-      : currentUser[0].followingCount + 1;
+  await db.transaction(async (tx) => {
+    if (removing) {
+      await tx
+        .delete(follows)
+        .where(and(eq(follows.followerId, userId), eq(follows.followedId, targetId)));
+    } else {
+      await tx.insert(follows).values({ followerId: userId, followedId: targetId });
+    }
 
-  await Promise.all([
-    db.update(users).set({ followersCount: followers }).where(eq(users.id, targetId)),
-    db.update(users).set({ followingCount: meFollowing }).where(eq(users.id, userId)),
-  ]);
+    await Promise.all([
+      tx.update(users).set({ followersCount: followers }).where(eq(users.id, targetId)),
+      tx.update(users).set({ followingCount: meFollowing }).where(eq(users.id, userId)),
+    ]);
+
+    if (removing) {
+      await deleteNotification(tx, notificationId);
+    } else {
+      await createNotification(tx, {
+        id: notificationId,
+        userId: targetId,
+        actorId: userId,
+        kind: "follow",
+        title: `${currentUser[0].name} started following you`,
+        body: "Take a look at their recent activities.",
+        targetUserId: userId,
+      });
+    }
+  });
 
   return {
-    following: existing.length === 0,
+    following: !removing,
     followers,
     meFollowing,
   };
@@ -595,7 +691,11 @@ export async function toggleClubMembership(userId: string, clubId: string) {
     .where(and(eq(clubMemberships.userId, userId), eq(clubMemberships.clubId, clubId)))
     .limit(1);
   const clubRows = await db
-    .select({ members: clubsTable.members })
+    .select({
+      members: clubsTable.members,
+      name: clubsTable.name,
+      description: clubsTable.description,
+    })
     .from(clubsTable)
     .where(eq(clubsTable.id, clubId))
     .limit(1);
@@ -605,19 +705,39 @@ export async function toggleClubMembership(userId: string, clubId: string) {
     throw new Error("Club not found");
   }
 
-  if (existing.length > 0) {
-    await db
-      .delete(clubMemberships)
-      .where(and(eq(clubMemberships.userId, userId), eq(clubMemberships.clubId, clubId)));
-  } else {
-    await db.insert(clubMemberships).values({ userId, clubId });
-  }
+  const removing = existing.length > 0;
+  const members = removing ? Math.max(club.members - 1, 0) : club.members + 1;
+  const notificationId = `ntf-club-join-${clubId}-${userId}`;
 
-  const members = existing.length > 0 ? Math.max(club.members - 1, 0) : club.members + 1;
-  await db.update(clubsTable).set({ members }).where(eq(clubsTable.id, clubId));
+  await db.transaction(async (tx) => {
+    if (removing) {
+      await tx
+        .delete(clubMemberships)
+        .where(and(eq(clubMemberships.userId, userId), eq(clubMemberships.clubId, clubId)));
+    } else {
+      await tx.insert(clubMemberships).values({ userId, clubId });
+    }
+
+    await tx.update(clubsTable).set({ members }).where(eq(clubsTable.id, clubId));
+
+    if (removing) {
+      await deleteNotification(tx, notificationId);
+    } else {
+      // Actor-less on purpose: no other athlete triggered this, and the inbox
+      // renders a bell icon rather than an avatar for actor-less rows.
+      await createNotification(tx, {
+        id: notificationId,
+        userId,
+        kind: "club",
+        title: `You joined ${club.name}`,
+        body: club.description,
+        clubId,
+      });
+    }
+  });
 
   return {
-    joined: existing.length === 0,
+    joined: !removing,
     members,
   };
 }
@@ -629,7 +749,11 @@ export async function toggleChallengeEntry(userId: string, challengeId: string) 
     .where(and(eq(challengeEntries.userId, userId), eq(challengeEntries.challengeId, challengeId)))
     .limit(1);
   const challengeRows = await db
-    .select({ participants: challengesTable.participants })
+    .select({
+      participants: challengesTable.participants,
+      name: challengesTable.name,
+      goalKm: challengesTable.goalKm,
+    })
     .from(challengesTable)
     .where(eq(challengesTable.id, challengeId))
     .limit(1);
@@ -639,22 +763,47 @@ export async function toggleChallengeEntry(userId: string, challengeId: string) 
     throw new Error("Challenge not found");
   }
 
-  if (existing.length > 0) {
-    await db
-      .delete(challengeEntries)
-      .where(
-        and(eq(challengeEntries.userId, userId), eq(challengeEntries.challengeId, challengeId)),
-      );
-  } else {
-    await db.insert(challengeEntries).values({ userId, challengeId });
-  }
+  const removing = existing.length > 0;
+  const participants = removing
+    ? Math.max(challenge.participants - 1, 0)
+    : challenge.participants + 1;
+  const notificationId = `ntf-challenge-join-${challengeId}-${userId}`;
 
-  const participants =
-    existing.length > 0 ? Math.max(challenge.participants - 1, 0) : challenge.participants + 1;
-  await db.update(challengesTable).set({ participants }).where(eq(challengesTable.id, challengeId));
+  await db.transaction(async (tx) => {
+    if (removing) {
+      await tx
+        .delete(challengeEntries)
+        .where(
+          and(eq(challengeEntries.userId, userId), eq(challengeEntries.challengeId, challengeId)),
+        );
+    } else {
+      await tx.insert(challengeEntries).values({ userId, challengeId });
+    }
+
+    await tx
+      .update(challengesTable)
+      .set({ participants })
+      .where(eq(challengesTable.id, challengeId));
+
+    if (removing) {
+      await deleteNotification(tx, notificationId);
+    } else {
+      // This branch is the only producer of challenge notifications, which is
+      // what guarantees a user is never notified about a challenge they have not
+      // joined (spec R5.2).
+      await createNotification(tx, {
+        id: notificationId,
+        userId,
+        kind: "challenge",
+        title: `You joined ${challenge.name}`,
+        body: `Goal: ${Math.round(Number(challenge.goalKm))} km. Progress updates will land here.`,
+        challengeId,
+      });
+    }
+  });
 
   return {
-    joined: existing.length === 0,
+    joined: !removing,
     participants,
   };
 }

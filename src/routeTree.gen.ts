@@ -14,6 +14,7 @@ import { Route as SegmentsRouteImport } from './routes/segments'
 import { Route as SearchRouteImport } from './routes/search'
 import { Route as RecordRouteImport } from './routes/record'
 import { Route as OnboardingRouteImport } from './routes/onboarding'
+import { Route as NotificationsRouteImport } from './routes/notifications'
 import { Route as ClubsRouteImport } from './routes/clubs'
 import { Route as ChallengesRouteImport } from './routes/challenges'
 import { Route as AuthRouteImport } from './routes/auth'
@@ -47,6 +48,11 @@ const RecordRoute = RecordRouteImport.update({
 const OnboardingRoute = OnboardingRouteImport.update({
   id: '/onboarding',
   path: '/onboarding',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const NotificationsRoute = NotificationsRouteImport.update({
+  id: '/notifications',
+  path: '/notifications',
   getParentRoute: () => rootRouteImport,
 } as any)
 const ClubsRoute = ClubsRouteImport.update({
@@ -101,6 +107,7 @@ export interface FileRoutesByFullPath {
   '/auth': typeof AuthRoute
   '/challenges': typeof ChallengesRoute
   '/clubs': typeof ClubsRoute
+  '/notifications': typeof NotificationsRoute
   '/onboarding': typeof OnboardingRoute
   '/record': typeof RecordRoute
   '/search': typeof SearchRoute
@@ -117,6 +124,7 @@ export interface FileRoutesByTo {
   '/auth': typeof AuthRoute
   '/challenges': typeof ChallengesRoute
   '/clubs': typeof ClubsRoute
+  '/notifications': typeof NotificationsRoute
   '/onboarding': typeof OnboardingRoute
   '/record': typeof RecordRoute
   '/search': typeof SearchRoute
@@ -134,6 +142,7 @@ export interface FileRoutesById {
   '/auth': typeof AuthRoute
   '/challenges': typeof ChallengesRoute
   '/clubs': typeof ClubsRoute
+  '/notifications': typeof NotificationsRoute
   '/onboarding': typeof OnboardingRoute
   '/record': typeof RecordRoute
   '/search': typeof SearchRoute
@@ -152,6 +161,7 @@ export interface FileRouteTypes {
     | '/auth'
     | '/challenges'
     | '/clubs'
+    | '/notifications'
     | '/onboarding'
     | '/record'
     | '/search'
@@ -168,6 +178,7 @@ export interface FileRouteTypes {
     | '/auth'
     | '/challenges'
     | '/clubs'
+    | '/notifications'
     | '/onboarding'
     | '/record'
     | '/search'
@@ -184,6 +195,7 @@ export interface FileRouteTypes {
     | '/auth'
     | '/challenges'
     | '/clubs'
+    | '/notifications'
     | '/onboarding'
     | '/record'
     | '/search'
@@ -201,6 +213,7 @@ export interface RootRouteChildren {
   AuthRoute: typeof AuthRoute
   ChallengesRoute: typeof ChallengesRoute
   ClubsRoute: typeof ClubsRoute
+  NotificationsRoute: typeof NotificationsRoute
   OnboardingRoute: typeof OnboardingRoute
   RecordRoute: typeof RecordRoute
   SearchRoute: typeof SearchRoute
@@ -247,6 +260,13 @@ declare module '@tanstack/react-router' {
       path: '/onboarding'
       fullPath: '/onboarding'
       preLoaderRoute: typeof OnboardingRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/notifications': {
+      id: '/notifications'
+      path: '/notifications'
+      fullPath: '/notifications'
+      preLoaderRoute: typeof NotificationsRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/clubs': {
@@ -321,6 +341,7 @@ const rootRouteChildren: RootRouteChildren = {
   AuthRoute: AuthRoute,
   ChallengesRoute: ChallengesRoute,
   ClubsRoute: ClubsRoute,
+  NotificationsRoute: NotificationsRoute,
   OnboardingRoute: OnboardingRoute,
   RecordRoute: RecordRoute,
   SearchRoute: SearchRoute,

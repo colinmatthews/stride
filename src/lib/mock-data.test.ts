@@ -1,13 +1,17 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import {
+  NOTIFICATIONS,
+  NOTIFICATIONS_UNREAD,
   clearAppData,
   fmtDuration,
   fmtPace,
   fmtTimeAgo,
   getAthlete,
   initializeAppData,
+  mergeNotifications,
   type Athlete,
   type AppData,
+  type AppNotification,
 } from "./mock-data";
 
 function athlete(overrides: Partial<Athlete> = {}): Athlete {
@@ -25,6 +29,19 @@ function athlete(overrides: Partial<Athlete> = {}): Athlete {
   };
 }
 
+function notification(overrides: Partial<AppNotification> = {}): AppNotification {
+  return {
+    id: "ntf-1",
+    kind: "kudos",
+    actorId: "a1",
+    title: "Pat gave you kudos",
+    body: "On your activity “Morning run”.",
+    date: "2025-06-01T10:00:00.000Z",
+    read: false,
+    ...overrides,
+  };
+}
+
 function minimalAppData(overrides: Partial<AppData> = {}): AppData {
   return {
     me: athlete({ id: "me", name: "Me" }),
@@ -33,6 +50,9 @@ function minimalAppData(overrides: Partial<AppData> = {}): AppData {
     segments: [],
     clubs: [],
     challenges: [],
+    notifications: [],
+    notificationsUnread: 0,
+    notificationPreferences: { channels: [], categories: [] },
     ...overrides,
   };
 }
@@ -98,5 +118,50 @@ describe("getAthlete", () => {
 
   it("falls back to ME when id is unknown", () => {
     expect(getAthlete("nope").id).toBe("me");
+  });
+});
+
+describe("notification store", () => {
+  afterEach(() => {
+    clearAppData();
+  });
+
+  it("hydrates notifications and the unread count from bootstrap", () => {
+    initializeAppData(
+      minimalAppData({
+        notifications: [notification()],
+        notificationsUnread: 1,
+      }),
+    );
+
+    expect(NOTIFICATIONS).toHaveLength(1);
+    expect(NOTIFICATIONS_UNREAD).toBe(1);
+  });
+
+  it("clears notifications on logout so they cannot leak across sessions", () => {
+    initializeAppData(
+      minimalAppData({
+        notifications: [notification()],
+        notificationsUnread: 1,
+        notificationsNextCursor: "2025-06-01T10:00:00.000Z|ntf-1",
+      }),
+    );
+
+    clearAppData();
+
+    expect(NOTIFICATIONS).toEqual([]);
+    expect(NOTIFICATIONS_UNREAD).toBe(0);
+  });
+
+  it("merges pages by id and keeps newest first", () => {
+    initializeAppData(minimalAppData({ notifications: [notification()] }));
+
+    mergeNotifications([
+      notification({ id: "ntf-1", read: true }),
+      notification({ id: "ntf-2", date: "2025-06-02T10:00:00.000Z" }),
+    ]);
+
+    expect(NOTIFICATIONS.map((entry) => entry.id)).toEqual(["ntf-2", "ntf-1"]);
+    expect(NOTIFICATIONS.find((entry) => entry.id === "ntf-1")?.read).toBe(true);
   });
 });

@@ -7,6 +7,7 @@ import type { Sport } from "../../server/seed.js";
 import { SEEDED_CLUBS, SEEDED_CHALLENGES, SEEDED_SEGMENTS } from "../../server/seed.js";
 import { personaById } from "./fixtures/personas.js";
 import { ACTIVITY_DESCRIPTIONS, ACTIVITY_PHOTOS, SPORT_PROFILES } from "./fixtures/sports.js";
+import { backfillNotifications } from "./backfill-notifications.js";
 import { bulkInsert, closePool, getPool } from "./lib/db.js";
 import { Rng } from "./lib/rng.js";
 import type { SynthUser } from "./generate-users.js";
@@ -575,6 +576,11 @@ async function main() {
 
     console.log("Recomputing counters…");
     await recomputeCounters(client);
+
+    // The inserts above bypass the Express handlers, so the live notification
+    // fan-out never sees them — derive the inbox from what was just written.
+    console.log("Backfilling notifications…");
+    await backfillNotifications(client);
 
     await client.query("COMMIT");
     console.log("Done.");

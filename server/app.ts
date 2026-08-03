@@ -21,6 +21,16 @@ import {
   requireAuth,
   verifyPassword,
 } from "./auth.js";
+import {
+  PreferencesValidationError,
+  getNotificationPreferences,
+  listNotifications,
+  markAllNotificationsRead,
+  markNotificationRead,
+  parseNotificationPageLimit,
+  parsePreferencesPatch,
+  updateNotificationPreferences,
+} from "./notifications/queries.js";
 
 export function createApp() {
   const app = express();
@@ -212,6 +222,71 @@ export function createApp() {
   app.post("/api/challenges/:id/join", requireAuth, async (request, response, next) => {
     try {
       response.json(await toggleChallengeEntry(request.userId!, String(request.params.id)));
+    } catch (error) {
+      next(error);
+    }
+  });
+
+  // Registered before any /api/notifications/:id route so "preferences" is never
+  // matched as a notification id.
+  app.get("/api/notifications/preferences", requireAuth, async (request, response, next) => {
+    try {
+      response.json(await getNotificationPreferences(request.userId!));
+    } catch (error) {
+      next(error);
+    }
+  });
+
+  app.put("/api/notifications/preferences", requireAuth, async (request, response, next) => {
+    try {
+      const patch = parsePreferencesPatch(request.body);
+      response.json(await updateNotificationPreferences(request.userId!, patch));
+    } catch (error) {
+      if (error instanceof PreferencesValidationError) {
+        response.status(400).json({ error: error.message });
+        return;
+      }
+
+      next(error);
+    }
+  });
+
+  app.put("/api/notifications/read-all", requireAuth, async (request, response, next) => {
+    try {
+      response.json(await markAllNotificationsRead(request.userId!));
+    } catch (error) {
+      next(error);
+    }
+  });
+
+  app.get("/api/notifications", requireAuth, async (request, response, next) => {
+    try {
+      response.json(
+        await listNotifications(request.userId!, {
+          cursor: request.query.cursor ? String(request.query.cursor) : undefined,
+          limit: parseNotificationPageLimit(request.query.limit),
+        }),
+      );
+    } catch (error) {
+      next(error);
+    }
+  });
+
+  // PUT with the desired absolute state rather than a POST toggle: safe to
+  // retry, and a double-tap converges instead of landing opposite to the
+  // optimistic UI.
+  app.put("/api/notifications/:id/read", requireAuth, async (request, response, next) => {
+    try {
+      const read = request.body?.read === undefined ? true : Boolean(request.body.read);
+      const result = await markNotificationRead(request.userId!, String(request.params.id), read);
+
+      if (!result) {
+        // Also the response for someone else's notification — never leak existence.
+        response.status(404).json({ error: "Notification not found" });
+        return;
+      }
+
+      response.json(result);
     } catch (error) {
       next(error);
     }
