@@ -192,3 +192,19 @@ export const activityKudos = pgTable(
     pk: primaryKey({ columns: [table.userId, table.activityId] }),
   }),
 );
+
+// One row per athlete: the state of pulling their first activity in from a
+// connected device. Onboarding reads this to show Pending → Synced/Failed
+// instead of leaving the screen blank when an import stalls.
+export const deviceSyncs = pgTable("device_syncs", {
+  userId: text("user_id")
+    .primaryKey()
+    .references(() => users.id, { onDelete: "cascade" }),
+  deviceName: text("device_name").notNull(),
+  status: text("status").notNull(),
+  attemptCount: integer("attempt_count").notNull().default(0),
+  failureReason: text("failure_reason"),
+  activityId: text("activity_id").references(() => activities.id, { onDelete: "set null" }),
+  startedAt: timestamp("started_at", { withTimezone: true }).notNull().defaultNow(),
+  updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow(),
+});

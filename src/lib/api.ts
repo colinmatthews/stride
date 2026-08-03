@@ -148,6 +148,52 @@ export async function addActivityComment(activityId: string, text: string) {
   return comment;
 }
 
+export type DeviceSyncStatus = "pending" | "synced" | "failed";
+
+export type DeviceSync = {
+  status: DeviceSyncStatus;
+  attemptCount: number;
+  failureReason: string | null;
+  activityId: string | null;
+  deviceName: string;
+  startedAt: string;
+  updatedAt: string;
+  canRetry: boolean;
+  stuck: boolean;
+};
+
+export type DeviceSyncPayload = {
+  sync: DeviceSync | null;
+  activity: Activity | null;
+};
+
+function absorbSyncedActivity(payload: DeviceSyncPayload) {
+  if (payload.activity) {
+    mergeActivities([payload.activity]);
+  }
+
+  return payload;
+}
+
+export async function fetchDeviceSync() {
+  return absorbSyncedActivity(await apiFetch<DeviceSyncPayload>("/api/device-sync"));
+}
+
+export async function startDeviceSync(deviceName: string) {
+  return absorbSyncedActivity(
+    await apiFetch<DeviceSyncPayload>("/api/device-sync", {
+      method: "POST",
+      body: JSON.stringify({ deviceName }),
+    }),
+  );
+}
+
+export async function retryDeviceSync() {
+  return absorbSyncedActivity(
+    await apiFetch<DeviceSyncPayload>("/api/device-sync/retry", { method: "POST" }),
+  );
+}
+
 export async function toggleAthleteFollow(athleteId: string) {
   const payload = await apiFetch<{ following: boolean; followers: number; meFollowing: number }>(
     `/api/athletes/${athleteId}/follow`,
@@ -201,3 +247,4 @@ export async function toggleChallengeJoin(challengeId: string) {
 }
 
 export { ApiError };
+export type { Activity };

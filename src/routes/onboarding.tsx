@@ -13,6 +13,7 @@ import {
 import { ATHLETES, ME } from "@/lib/mock-data";
 import { toggleAthleteFollow } from "@/lib/api";
 import { usePostHog } from "@posthog/react";
+import { DeviceSyncStatus } from "@/components/DeviceSyncStatus";
 
 export const ONBOARDING_STORAGE_KEY = "stride:onboarding:v1";
 
@@ -37,7 +38,9 @@ const GOAL_PRESETS = [15, 30, 50, 80, 120];
 const DONE_IMG =
   "https://images.unsplash.com/photo-1502904550040-7534597429ae?w=1200&q=80&auto=format&fit=crop";
 
-const STEPS = ["Discipline", "Weekly target", "Your circle", "Ready"] as const;
+const STEPS = ["Discipline", "Weekly target", "Your circle", "Device sync", "Ready"] as const;
+
+const DEVICE_SYNC_STEP = 3;
 
 function OnboardingPage() {
   const posthog = usePostHog();
@@ -59,6 +62,7 @@ function OnboardingPage() {
   const [goalKm, setGoalKm] = useState(30);
   const [followed, setFollowed] = useState<Set<string>>(new Set());
   const [saving, setSaving] = useState(false);
+  const [deviceSynced, setDeviceSynced] = useState(false);
 
   const suggested = useMemo(
     () => ATHLETES.filter((athlete) => athlete.id !== "me" && athlete.id !== ME.id).slice(0, 6),
@@ -92,6 +96,7 @@ function OnboardingPage() {
         goal_km: goalKm,
         follow_count: ids.length,
         auto_followed: followed.size === 0,
+        device_synced: deviceSynced,
       });
     } finally {
       localStorage.setItem(
@@ -167,7 +172,8 @@ function OnboardingPage() {
               }
             />
           )}
-          {step === 3 && (
+          {step === DEVICE_SYNC_STEP && <DeviceSyncStep onSynced={() => setDeviceSynced(true)} />}
+          {step === 4 && (
             <DoneStep
               name={ME.name.split(" ")[0] || "athlete"}
               sport={sport}
@@ -189,9 +195,14 @@ function OnboardingPage() {
           </button>
 
           <div className="flex items-center gap-3">
-            {step === 2 && (
+            {(step === 2 || step === DEVICE_SYNC_STEP) && (
               <button
-                onClick={next}
+                onClick={() => {
+                  if (step === DEVICE_SYNC_STEP && !deviceSynced) {
+                    posthog.capture("device_sync_skipped");
+                  }
+                  next();
+                }}
                 className="px-3 py-2 text-sm text-muted-foreground transition-colors hover:text-foreground"
               >
                 Skip for now
@@ -451,6 +462,21 @@ function FollowStep({
       </div>
       <div className="mt-6 font-mono text-[10px] uppercase tracking-[0.22em] text-muted-foreground">
         {followed.size} selected · optional
+      </div>
+    </div>
+  );
+}
+
+function DeviceSyncStep({ onSynced }: { onSynced: () => void }) {
+  return (
+    <div>
+      <StepHeader
+        eyebrow="Device sync"
+        title="Your first activity is on its way."
+        body="Connect a device and Stride pulls in your most recent activity automatically. If anything gets stuck, you'll see exactly what's happening — never a silent blank screen."
+      />
+      <div className="mt-10">
+        <DeviceSyncStatus onSynced={onSynced} />
       </div>
     </div>
   );
