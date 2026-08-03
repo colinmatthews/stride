@@ -1,8 +1,8 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { usePostHog } from "@posthog/react";
-import { buildWeeklyRecapShownEvent } from "@/lib/analytics";
+import { buildWeeklyRecapShownEvent, type ShareSurface } from "@/lib/analytics";
 import { fetchWeeklyRecap } from "@/lib/api";
-import { qualifiesForRecap, type WeeklyRecap } from "@/lib/weekly-recap";
+import { qualifiesForRecap, type RecapTier, type WeeklyRecap } from "@/lib/weekly-recap";
 
 /**
  * Follows the `stride:onboarding:v1` precedent in `src/routes/auth.tsx` — there
@@ -28,7 +28,7 @@ function markShownWeek(weekStart: string): void {
 }
 
 /**
- * Decides whether a just-logged run earns the Weekly Recap moment.
+ * Decides whether a just-logged run earns the Power Runner moment.
  *
  * `evaluate()` is called from the save handler — not a `useEffect` — so the
  * impression event fires at the moment of the decision, matching the repo's
@@ -39,7 +39,7 @@ export function useWeeklyRecapGate() {
   const posthog = usePostHog();
   const [recap, setRecap] = useState<WeeklyRecap | null>(null);
 
-  /** Resolves true when the caller should show the card instead of navigating. */
+  /** Resolves true when the caller should show the modal instead of navigating. */
   async function evaluate(sport: string): Promise<boolean> {
     if (sport !== "Run") {
       return false;
@@ -59,6 +59,7 @@ export function useWeeklyRecapGate() {
         weekRunCount: next.runCount,
         weekDistanceKm: next.distanceKm,
         streakWeeks: next.streakWeeks,
+        tier: next.tier,
       });
       posthog.capture(event.name, event.properties);
 
@@ -72,4 +73,64 @@ export function useWeeklyRecapGate() {
   }
 
   return { recap, evaluate, dismiss: () => setRecap(null) };
+}
+
+/**
+ * Loads the current week's recap for the always-on surfaces (feed rail,
+ * training log). Unlike the gate, this runs on mount because those surfaces
+ * display progress continuously rather than reacting to an action.
+ */
+export function useWeeklyRecap() {
+  const [recap, setRecap] = useState<WeeklyRecap | null>(null);
+
+  useEffect(() => {
+    let cancelled = false;
+
+    fetchWeeklyRecap()
+      .then((next) => {
+        if (!cancelled) {
+          setRecap(next);
+        }
+      })
+      .catch(() => {
+        // Leave the surface unrendered rather than breaking the page around it.
+      });
+
+    return () => {
+      cancelled = true;
+    };
+  }, []);
+
+  return recap;
+}
+
+export type RecapShareRequest = {
+  recap: WeeklyRecap;
+  surface: ShareSurface;
+};
+
+/**
+ * Opens the share modal, optionally forcing a tier — "Share standard recap"
+ * stays available even once Power Runner has unlocked.
+ */
+export function useRecapShare() {
+  const posthog = usePostHog();
+  const [request, setRequest] = useState<RecapShareRequest | null>(null);
+
+  function open(recap: WeeklyRecap, surface: ShareSurface, tier?: RecapTier) {
+    const shaped = tier ? { ...recap, tier } : recap;
+
+    const event = buildWeeklyRecapShownEvent({
+      weekStart: shaped.weekStart,
+      weekRunCount: shaped.runCount,
+      weekDistanceKm: shaped.distanceKm,
+      streakWeeks: shaped.streakWeeks,
+      tier: shaped.tier,
+    });
+    posthog.capture(event.name, event.properties);
+
+    setRequest({ recap: shaped, surface });
+  }
+
+  return { request, open, close: () => setRequest(null) };
 }

@@ -3,6 +3,7 @@ import {
   WEEKLY_RECAP_RUN_THRESHOLD,
   isRun,
   qualifiesForRecap,
+  recapTier,
   runsInRange,
   streakWeeksFor,
   summarizeWeek,
@@ -123,6 +124,26 @@ describe("summarizeWeek", () => {
     expect(summarizeWeek(activities, WEDNESDAY).distanceKm).toBe(0.3);
   });
 
+  it("classifies the tier and progress from the run count", () => {
+    const four = Array.from({ length: 4 }, (_, index) => run(2026, 0, 12 + index));
+
+    expect(summarizeWeek(four, WEDNESDAY).tier).toBe("power_runner");
+    expect(summarizeWeek(four, WEDNESDAY).runsToUnlock).toBe(0);
+    expect(summarizeWeek(four, WEDNESDAY).progressPct).toBe(100);
+
+    const three = four.slice(0, 3);
+    expect(summarizeWeek(three, WEDNESDAY).tier).toBe("standard");
+    expect(summarizeWeek(three, WEDNESDAY).runsToUnlock).toBe(1);
+    expect(summarizeWeek(three, WEDNESDAY).progressPct).toBe(75);
+  });
+
+  it("caps progress at 100 once past the threshold", () => {
+    const six = Array.from({ length: 6 }, (_, index) => run(2026, 0, 12 + index));
+
+    expect(summarizeWeek(six, WEDNESDAY).progressPct).toBe(100);
+    expect(summarizeWeek(six, WEDNESDAY).runsToUnlock).toBe(0);
+  });
+
   it("returns a zeroed recap for a week with no runs", () => {
     const recap = summarizeWeek([], WEDNESDAY);
 
@@ -130,6 +151,8 @@ describe("summarizeWeek", () => {
     expect(recap.distanceKm).toBe(0);
     expect(recap.movingSeconds).toBe(0);
     expect(recap.streakWeeks).toBe(0);
+    expect(recap.tier).toBe("standard");
+    expect(recap.progressPct).toBe(0);
   });
 
   it("reports the week bounds it aggregated", () => {
@@ -168,6 +191,14 @@ describe("streakWeeksFor", () => {
     ];
 
     expect(streakWeeksFor(activities, WEDNESDAY)).toBe(1);
+  });
+});
+
+describe("recapTier", () => {
+  it("unlocks power_runner at the threshold", () => {
+    expect(recapTier(3)).toBe("standard");
+    expect(recapTier(4)).toBe("power_runner");
+    expect(recapTier(9)).toBe("power_runner");
   });
 });
 

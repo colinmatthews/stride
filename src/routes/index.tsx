@@ -29,6 +29,10 @@ export const Route = createFileRoute("/")({
   component: Index,
 });
 
+import { PowerRunnerRail } from "@/components/PowerRunnerRail";
+import { WeeklyRecapModal } from "@/components/WeeklyRecapModal";
+import { useRecapShare, useWeeklyRecap } from "@/hooks/use-weekly-recap";
+
 const FILTERS = ["Following", "Clubs", "You"] as const;
 type Filter = (typeof FILTERS)[number];
 
@@ -43,6 +47,8 @@ function Index() {
 function FeedPage() {
   const posthog = usePostHog();
   const [filter, setFilter] = useState<Filter>("Following");
+  const weeklyRecap = useWeeklyRecap();
+  const recapShare = useRecapShare();
   const [feedRevision, setFeedRevision] = useState(0);
   const visible = useMemo(() => {
     if (filter === "You") return ACTIVITIES.filter((activity) => activity.athleteId === "me");
@@ -69,6 +75,14 @@ function FeedPage() {
 
   return (
     <AppShell>
+      {recapShare.request && (
+        <WeeklyRecapModal
+          recap={recapShare.request.recap}
+          athlete={{ name: ME.name, handle: ME.handle }}
+          surface={recapShare.request.surface}
+          onDismiss={recapShare.close}
+        />
+      )}
       <div className="grid grid-cols-[1fr_320px] gap-8">
         <div className="min-w-0">
           <div className="mb-6 flex items-end justify-between">
@@ -106,6 +120,14 @@ function FeedPage() {
         </div>
 
         <aside className="space-y-6">
+          {weeklyRecap && (
+            <PowerRunnerRail
+              recap={weeklyRecap}
+              onSharePowerRunner={() => recapShare.open(weeklyRecap, "feed_rail")}
+              onShareStandard={() => recapShare.open(weeklyRecap, "feed_rail", "standard")}
+            />
+          )}
+
           <section className="rounded-xl bg-secondary p-5 text-secondary-foreground">
             <div className="flex items-center gap-2 text-xs uppercase tracking-[0.14em] opacity-70">
               <TrendingUp className="h-3.5 w-3.5" /> Your week

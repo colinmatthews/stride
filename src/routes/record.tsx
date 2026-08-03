@@ -1,6 +1,6 @@
 import { createFileRoute, useRouter } from "@tanstack/react-router";
 import { useEffect, useRef, useState } from "react";
-import { fmtDuration, fmtPace, type Sport } from "@/lib/mock-data";
+import { ME, fmtDuration, fmtPace, type Sport } from "@/lib/mock-data";
 import { AppShell } from "@/components/AppShell";
 import { usePostHog } from "@posthog/react";
 import {
@@ -15,7 +15,7 @@ import {
   LoaderCircle,
 } from "lucide-react";
 import { saveActivity } from "@/lib/api";
-import { WeeklyRecapCard } from "@/components/WeeklyRecapCard";
+import { WeeklyRecapModal } from "@/components/WeeklyRecapModal";
 import { useWeeklyRecapGate } from "@/hooks/use-weekly-recap";
 
 export const Route = createFileRoute("/record")({
@@ -223,12 +223,19 @@ function ManualForm({ sport }: { sport: Sport }) {
     }
   }
 
-  if (recapGate.recap && continueToActivity) {
-    return <WeeklyRecapCard recap={recapGate.recap} onDismiss={continueToActivity} />;
-  }
+  const recapModal =
+    recapGate.recap && continueToActivity ? (
+      <WeeklyRecapModal
+        recap={recapGate.recap}
+        athlete={{ name: ME.name, handle: ME.handle }}
+        surface="weekly_recap_modal"
+        onDismiss={continueToActivity}
+      />
+    ) : null;
 
   return (
     <section className="mt-8 border border-border bg-surface">
+      {recapModal}
       <div className="border-b border-border p-6">
         <div className="font-mono text-[10px] uppercase tracking-[0.22em] text-muted-foreground">
           The essentials
@@ -592,12 +599,19 @@ function TimerMode({ sport }: { sport: Sport }) {
 
   const finished = !running && elapsed > 0;
 
-  if (recapGate.recap && continueToActivity) {
-    return <WeeklyRecapCard recap={recapGate.recap} onDismiss={continueToActivity} />;
-  }
+  const recapModal =
+    recapGate.recap && continueToActivity ? (
+      <WeeklyRecapModal
+        recap={recapGate.recap}
+        athlete={{ name: ME.name, handle: ME.handle }}
+        surface="weekly_recap_modal"
+        onDismiss={continueToActivity}
+      />
+    ) : null;
 
   return (
     <section className="mt-8 border border-border">
+      {recapModal}
       <div className="bg-secondary p-10 text-center text-secondary-foreground">
         <div className="inline-flex items-center gap-2 font-mono text-[10px] uppercase tracking-[0.22em] text-secondary-foreground/70">
           <ActivityIcon className="h-3 w-3" /> {sport}

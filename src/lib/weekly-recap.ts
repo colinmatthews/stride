@@ -34,6 +34,13 @@ export type WeekRange = {
   end: Date;
 };
 
+/**
+ * Two tiers, per the prototype's "Recap Tiers" spec frame: the standard recap
+ * is always shareable, and Power Runner unlocks on the 4th run and adds the
+ * gold award banner.
+ */
+export type RecapTier = "standard" | "power_runner";
+
 export type WeeklyRecap = {
   weekStart: string;
   weekEnd: string;
@@ -42,7 +49,19 @@ export type WeeklyRecap = {
   movingSeconds: number;
   /** Consecutive weeks (this one included) that each hit the run threshold. */
   streakWeeks: number;
+  tier: RecapTier;
+  /** Runs still needed to unlock Power Runner. 0 once unlocked. */
+  runsToUnlock: number;
+  /** 0–100, clamped. Drives the rail's progress bar. */
+  progressPct: number;
 };
+
+export function recapTier(
+  runCount: number,
+  threshold: number = WEEKLY_RECAP_RUN_THRESHOLD,
+): RecapTier {
+  return runCount >= threshold ? "power_runner" : "standard";
+}
 
 /**
  * The Mon–Sun week containing `reference`, as a half-open `[start, end)` range
@@ -128,6 +147,9 @@ export function summarizeWeek(
     distanceKm: Math.round(distanceKm * 100) / 100,
     movingSeconds,
     streakWeeks: streakWeeksFor(activities, reference, threshold),
+    tier: recapTier(runs.length, threshold),
+    runsToUnlock: Math.max(threshold - runs.length, 0),
+    progressPct: Math.min(Math.round((runs.length / threshold) * 100), 100),
   };
 }
 

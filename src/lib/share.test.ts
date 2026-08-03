@@ -1,11 +1,5 @@
 import { describe, expect, it, vi } from "vitest";
-import {
-  isAbortError,
-  recapImageFilename,
-  shareOrCopy,
-  type ShareEnvironment,
-  type ShareLike,
-} from "./share";
+import { isAbortError, shareOrCopy, type ShareEnvironment, type ShareLike } from "./share";
 
 function abortError() {
   const error = new Error("Share canceled");
@@ -58,7 +52,7 @@ describe("shareOrCopy", () => {
 
     expect(await shareOrCopy(PAYLOAD, { writeText })).toEqual({
       status: "shared",
-      destination: "clipboard",
+      destination: "copy_link",
       withFiles: false,
     });
     expect(writeText).toHaveBeenCalledWith(PAYLOAD.url);
@@ -72,7 +66,7 @@ describe("shareOrCopy", () => {
 
     expect(await shareOrCopy(PAYLOAD, environment)).toEqual({
       status: "shared",
-      destination: "clipboard",
+      destination: "copy_link",
       withFiles: false,
     });
   });
@@ -119,11 +113,5 @@ describe("shareOrCopy", () => {
     const outcome = await shareOrCopy(PAYLOAD, { writeText: vi.fn().mockRejectedValue(error) });
 
     expect(outcome).toEqual({ status: "failed", error });
-  });
-});
-
-describe("recapImageFilename", () => {
-  it("names the file after the week it summarises", () => {
-    expect(recapImageFilename("2026-01-12T00:00:00.000Z")).toBe("stride-week-2026-01-12.png");
   });
 });

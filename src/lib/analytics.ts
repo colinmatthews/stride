@@ -9,6 +9,8 @@
  * existing node-environment vitest setup with no DOM and no new dependency.
  */
 
+import type { RecapTier } from "./weekly-recap";
+
 export const ACTIVITY_SHARED = "activity_shared" as const;
 export const WEEKLY_RECAP_SHOWN = "weekly_recap_shown" as const;
 
@@ -17,23 +19,38 @@ export const WEEKLY_RECAP_SHOWN = "weekly_recap_shown" as const;
  * already used on `activity_saved` (src/routes/record.tsx) — same event, one
  * literal property separating origins.
  */
-export const SHARE_SURFACES = ["weekly_recap", "activity_detail"] as const;
+export const SHARE_SURFACES = [
+  "weekly_recap_modal",
+  "feed_rail",
+  "training_log",
+  "activity_detail",
+] as const;
 export type ShareSurface = (typeof SHARE_SURFACES)[number];
 
 /**
  * Where the share went.
  *
- * These are the destinations *our own UI* controls. The Web Share API is
- * deliberately opaque — `navigator.share()` resolves without telling us which
- * app the user picked — so `system_share_sheet` is as granular as an OS share
- * can honestly get. Inventing finer values (e.g. "instagram") would be a lie.
+ * The prototype's "OR SEND STRAIGHT TO" row is what makes this property
+ * meaningful. `navigator.share()` is deliberately opaque — it resolves without
+ * revealing which app the user picked — so `system_share_sheet` is the honest
+ * ceiling for the generic CTA. The named values below are only ever emitted
+ * from their own dedicated buttons, where we know the target for certain.
  */
-export const SHARE_DESTINATIONS = ["system_share_sheet", "image_download", "clipboard"] as const;
+export const SHARE_DESTINATIONS = [
+  "system_share_sheet",
+  "instagram",
+  "whatsapp",
+  "x",
+  "copy_link",
+  "save_image",
+] as const;
 export type ShareDestination = (typeof SHARE_DESTINATIONS)[number];
 
 export type ActivitySharedInput = {
   surface: ShareSurface;
   destination: ShareDestination;
+  /** Which card artefact travelled — the always-available recap, or the unlocked award. */
+  tier?: RecapTier;
   /** Present when the share came from a single activity, absent for a week recap. */
   activityId?: string;
   weekStart?: string;
@@ -69,6 +86,7 @@ export function buildActivitySharedEvent(input: ActivitySharedInput) {
     properties: omitUndefined({
       surface: input.surface,
       destination: input.destination,
+      tier: input.tier,
       activity_id: input.activityId,
       week_start: input.weekStart,
       week_run_count: input.weekRunCount,
@@ -84,6 +102,7 @@ export type WeeklyRecapShownInput = {
   weekRunCount: number;
   weekDistanceKm: number;
   streakWeeks: number;
+  tier: RecapTier;
 };
 
 /**
@@ -99,6 +118,7 @@ export function buildWeeklyRecapShownEvent(input: WeeklyRecapShownInput) {
       week_run_count: input.weekRunCount,
       week_distance_km: input.weekDistanceKm,
       streak_weeks: input.streakWeeks,
+      tier: input.tier,
     },
   } satisfies AnalyticsEvent<typeof WEEKLY_RECAP_SHOWN, Record<string, unknown>>;
 }

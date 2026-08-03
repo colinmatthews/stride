@@ -9,7 +9,7 @@ import {
 
 function sharedInput(overrides: Partial<ActivitySharedInput> = {}): ActivitySharedInput {
   return {
-    surface: "weekly_recap",
+    surface: "weekly_recap_modal",
     destination: "system_share_sheet",
     ...overrides,
   };
@@ -23,11 +23,11 @@ describe("buildActivitySharedEvent", () => {
 
   it("always carries surface and destination — the two properties share rate is read by", () => {
     const { properties } = buildActivitySharedEvent(
-      sharedInput({ surface: "activity_detail", destination: "clipboard" }),
+      sharedInput({ surface: "activity_detail", destination: "copy_link" }),
     );
 
     expect(properties.surface).toBe("activity_detail");
-    expect(properties.destination).toBe("clipboard");
+    expect(properties.destination).toBe("copy_link");
   });
 
   it("omits properties that do not apply to the surface", () => {
@@ -62,7 +62,7 @@ describe("buildActivitySharedEvent", () => {
     );
 
     expect(properties).toEqual({
-      surface: "weekly_recap",
+      surface: "weekly_recap_modal",
       destination: "system_share_sheet",
       week_start: "2026-01-12T00:00:00.000Z",
       week_run_count: 4,
@@ -80,6 +80,7 @@ describe("buildWeeklyRecapShownEvent", () => {
       weekRunCount: 4,
       weekDistanceKm: 32.4,
       streakWeeks: 1,
+      tier: "power_runner",
     });
 
     expect(event.name).toBe(WEEKLY_RECAP_SHOWN);
@@ -88,6 +89,7 @@ describe("buildWeeklyRecapShownEvent", () => {
       week_run_count: 4,
       week_distance_km: 32.4,
       streak_weeks: 1,
+      tier: "power_runner",
     });
   });
 });

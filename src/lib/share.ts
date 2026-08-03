@@ -98,17 +98,11 @@ export async function shareOrCopy(
   if (environment.writeText && data.url) {
     try {
       await environment.writeText(data.url);
-      return { status: "shared", destination: "clipboard", withFiles: false };
+      return { status: "shared", destination: "copy_link", withFiles: false };
     } catch (error) {
       return { status: "failed", error };
     }
   }
 
   return { status: "unsupported" };
-}
-
-/** Filename for the downloaded recap card, e.g. `stride-week-2026-01-12.png`. */
-export function recapImageFilename(weekStart: string): string {
-  const day = weekStart.slice(0, 10);
-  return `stride-week-${day}.png`;
 }
