@@ -5,8 +5,10 @@ import {
   CLUBS,
   ME,
   mergeActivities,
+  setBadges,
   type Activity,
   type AppData,
+  type Badge,
 } from "./mock-data";
 
 class ApiError extends Error {
@@ -181,6 +183,17 @@ export async function toggleClubJoin(clubId: string) {
   }
 
   return payload;
+}
+
+export async function fetchBadges() {
+  const badges = await apiFetch<Badge[]>("/api/badges");
+
+  setBadges(badges);
+  return badges;
+}
+
+export async function markBadgesSeen() {
+  await apiFetch("/api/badges/mark-seen", { method: "POST" });
 }
 
 export async function toggleChallengeJoin(challengeId: string) {

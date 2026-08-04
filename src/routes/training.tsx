@@ -17,6 +17,7 @@ import {
   Legend,
 } from "recharts";
 import { SportBadge } from "@/components/SportBadge";
+import { TrainingBadges } from "@/components/TrainingBadges";
 
 export const Route = createFileRoute("/training")({
   head: () => ({
@@ -82,6 +83,8 @@ function Training() {
         <p className="text-sm text-muted-foreground">Every effort, logged.</p>
         <h1 className="text-3xl font-display font-bold tracking-tight mt-1">Training log</h1>
       </div>
+
+      <TrainingBadges />
 
       <div className="grid grid-cols-4 gap-4 mb-8">
         <Card label="Activities" value={totals.count} />

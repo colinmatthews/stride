@@ -71,6 +71,170 @@ export interface SeedChallenge {
   metricType: MetricType;
 }
 
+export interface SeedBadge {
+  id: string;
+  name: string;
+  tone: "orange" | "green" | "amber";
+  /** Lucide component key, resolved to an icon client-side via badge-icons.ts. */
+  icon: string;
+  howTo: string;
+  /** Threshold for the progress UI on locked badges. Omit for binary badges. */
+  target?: number;
+  unit?: string;
+  sortOrder: number;
+}
+
+// The milestone badge catalog. Display metadata only; the earn/progress logic
+// lives in BADGE_RULES (server/data.ts), keyed by these ids. "explorer" from the
+// prototype is intentionally omitted — it needs a segment-starring feature that
+// does not exist yet.
+export const SEEDED_BADGES: SeedBadge[] = [
+  {
+    id: "first-activity",
+    name: "First activity",
+    tone: "orange",
+    icon: "Footprints",
+    howTo: "Record your very first activity.",
+    sortOrder: 0,
+  },
+  {
+    id: "first-challenge",
+    name: "First challenge",
+    tone: "amber",
+    icon: "Trophy",
+    howTo: "Join your first community challenge.",
+    sortOrder: 1,
+  },
+  {
+    id: "triathlete",
+    name: "Triathlete",
+    tone: "green",
+    icon: "Medal",
+    howTo: "Log a run, a swim, and a ride.",
+    target: 3,
+    unit: "sports",
+    sortOrder: 2,
+  },
+  {
+    id: "century-week",
+    name: "Century week",
+    tone: "orange",
+    icon: "Crown",
+    howTo: "Cover 100 km in a single week.",
+    target: 100,
+    unit: "km",
+    sortOrder: 3,
+  },
+  {
+    id: "kudos-magnet",
+    name: "Kudos magnet",
+    tone: "orange",
+    icon: "Heart",
+    howTo: "Collect 100 kudos across your activities.",
+    target: 100,
+    unit: "kudos",
+    sortOrder: 4,
+  },
+  {
+    id: "streak-10",
+    name: "10× streak",
+    tone: "orange",
+    icon: "Flame",
+    howTo: "Log an activity 10 days in a row.",
+    target: 10,
+    unit: "days",
+    sortOrder: 5,
+  },
+  {
+    id: "peak-week",
+    name: "Peak week",
+    tone: "green",
+    icon: "Mountain",
+    howTo: "Climb 5,000 m of elevation in a single week.",
+    target: 5000,
+    unit: "m",
+    sortOrder: 6,
+  },
+  {
+    id: "early-bird",
+    name: "Early bird",
+    tone: "amber",
+    icon: "Sunrise",
+    howTo: "Finish 5 activities before 7am.",
+    target: 5,
+    unit: "runs",
+    sortOrder: 7,
+  },
+  {
+    id: "dedicated",
+    name: "Dedicated",
+    tone: "green",
+    icon: "Star",
+    howTo: "Log 10 activities.",
+    target: 10,
+    unit: "logs",
+    sortOrder: 8,
+  },
+  {
+    id: "polar-bear",
+    name: "Polar bear",
+    tone: "green",
+    icon: "Waves",
+    howTo: "Complete a swim workout.",
+    sortOrder: 9,
+  },
+  {
+    id: "marathoner",
+    name: "Marathoner",
+    tone: "orange",
+    icon: "Route",
+    howTo: "Finish a single 42.2 km effort.",
+    target: 42,
+    unit: "km",
+    sortOrder: 10,
+  },
+  {
+    id: "trailblazer",
+    name: "Trailblazer",
+    tone: "orange",
+    icon: "Milestone",
+    howTo: "Cover 1,000 km all-time.",
+    target: 1000,
+    unit: "km",
+    sortOrder: 11,
+  },
+  {
+    id: "sky-high",
+    name: "Sky high",
+    tone: "green",
+    icon: "Award",
+    howTo: "Climb 25,000 m of elevation all-time.",
+    target: 25000,
+    unit: "m",
+    sortOrder: 12,
+  },
+  {
+    id: "speed-demon",
+    name: "Speed demon",
+    tone: "amber",
+    icon: "Gauge",
+    howTo: "Run a sub-4:00 / km effort.",
+    target: 1,
+    unit: "runs",
+    sortOrder: 13,
+  },
+  {
+    id: "power-hour",
+    name: "Power hour",
+    tone: "orange",
+    icon: "Zap",
+    howTo: "Ride 40 km in under an hour.",
+    target: 40,
+    unit: "km",
+    sortOrder: 14,
+  },
+];
+
 const ATHLETE_PHOTOS = [
   "https://images.unsplash.com/photo-1502685104226-ee32379fefbe?w=160&h=160&fit=crop",
   "https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?w=160&h=160&fit=crop",

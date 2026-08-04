@@ -3,6 +3,7 @@ import { drizzle } from "drizzle-orm/node-postgres";
 import * as schema from "./db/schema.js";
 import {
   SEEDED_ATHLETES,
+  SEEDED_BADGES,
   SEEDED_CHALLENGES,
   SEEDED_CLUBS,
   SEEDED_SEGMENTS,
@@ -108,6 +109,35 @@ async function seedDatabase() {
           metricType: challenge.metricType,
         })
         .onConflictDoNothing();
+    }
+
+    // Upsert the badge catalog so tweaks to copy/icons/targets re-seed on boot.
+    // User unlocks (user_badges) are never seeded.
+    for (const badge of SEEDED_BADGES) {
+      await tx
+        .insert(schema.badges)
+        .values({
+          id: badge.id,
+          name: badge.name,
+          tone: badge.tone,
+          icon: badge.icon,
+          howTo: badge.howTo,
+          target: badge.target === undefined ? null : String(badge.target),
+          unit: badge.unit ?? null,
+          sortOrder: badge.sortOrder,
+        })
+        .onConflictDoUpdate({
+          target: schema.badges.id,
+          set: {
+            name: badge.name,
+            tone: badge.tone,
+            icon: badge.icon,
+            howTo: badge.howTo,
+            target: badge.target === undefined ? null : String(badge.target),
+            unit: badge.unit ?? null,
+            sortOrder: badge.sortOrder,
+          },
+        });
     }
 
     const activities = generateSeedActivities();

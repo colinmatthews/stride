@@ -1,5 +1,5 @@
 import { randomUUID } from "node:crypto";
-import { and, asc, desc, eq, gt, inArray, lt, min, sum, type SQL } from "drizzle-orm";
+import { and, asc, desc, eq, gt, inArray, isNull, lt, min, sum, type SQL } from "drizzle-orm";
 import { db } from "./db.js";
 import {
   activities as activitiesTable,
@@ -7,14 +7,23 @@ import {
   activityKudos,
   activitySegments,
   activitySplits,
+  badges as badgesTable,
   challengeEntries,
   challenges as challengesTable,
   clubMemberships,
   clubs as clubsTable,
   follows,
   segments as segmentsTable,
+  userBadges,
   users,
 } from "./db/schema.js";
+import {
+  BADGE_RULES,
+  deriveBadgeMetrics,
+  earnedBadgeIds,
+  type BadgeActivity,
+  type BadgeMetrics,
+} from "./badge-rules.js";
 import { USER_AVATARS } from "./seed.js";
 
 const BOOTSTRAP_ACTIVITY_LIMIT = 40;
@@ -317,6 +326,109 @@ export async function getActivityById(userId: string, activityId: string) {
   return activities[0] ?? null;
 }
 
+// ===== Achievement badges =====
+//
+// The earn/progress rules live in ./badge-rules (pure, unit-tested); the
+// `badges` table holds only display metadata + the numeric target for the
+// progress UI. Earned badges are persisted to `user_badges` (idempotent), so
+// unlock dates and the "new" flag survive reloads.
+
+type BadgeDto = {
+  id: string;
+  name: string;
+  tone: string;
+  icon: string;
+  howTo: string;
+  earned: boolean;
+  earnedDate?: string;
+  isNew?: boolean;
+  progress?: { current: number; target: number; unit: string };
+};
+
+async function computeUserBadgeMetrics(userId: string): Promise<BadgeMetrics> {
+  const [rows, joined] = await Promise.all([
+    db.select().from(activitiesTable).where(eq(activitiesTable.athleteId, userId)),
+    db
+      .select({ challengeId: challengeEntries.challengeId })
+      .from(challengeEntries)
+      .where(eq(challengeEntries.userId, userId)),
+  ]);
+
+  const activities: BadgeActivity[] = rows.map((row) => ({
+    sport: row.sport,
+    distanceKm: Number(row.distanceKm),
+    elevationM: row.elevationM,
+    movingSeconds: row.movingSeconds,
+    avgPaceSecPerKm: row.avgPaceSecPerKm,
+    kudos: row.kudos,
+    date: row.date,
+  }));
+
+  return deriveBadgeMetrics(activities, joined.length);
+}
+
+async function persistEarnedBadges(userId: string, metrics: BadgeMetrics) {
+  for (const badgeId of earnedBadgeIds(metrics)) {
+    // onConflictDoNothing preserves the original unlockedAt/seenAt for badges
+    // already earned, so re-running evaluation never resets the "new" flag.
+    await db.insert(userBadges).values({ userId, badgeId }).onConflictDoNothing();
+  }
+}
+
+/** Recompute and persist any newly-earned badges for a user. Idempotent. */
+export async function evaluateBadges(userId: string) {
+  const metrics = await computeUserBadgeMetrics(userId);
+  await persistEarnedBadges(userId, metrics);
+}
+
+/**
+ * Full badge list for the Training Log: every catalog badge with the user's
+ * earned/new state and, for locked badges, live progress. Persists newly-earned
+ * badges as a side effect (backfills seed/pre-existing data).
+ */
+export async function getBadgesForUser(userId: string): Promise<BadgeDto[]> {
+  const metrics = await computeUserBadgeMetrics(userId);
+  await persistEarnedBadges(userId, metrics);
+
+  const [catalog, unlocks] = await Promise.all([
+    db.select().from(badgesTable).orderBy(asc(badgesTable.sortOrder)),
+    db.select().from(userBadges).where(eq(userBadges.userId, userId)),
+  ]);
+  const unlockById = new Map(unlocks.map((row) => [row.badgeId, row]));
+  const ruleById = new Map(BADGE_RULES.map((rule) => [rule.id, rule]));
+
+  return catalog.map((badge) => {
+    const unlock = unlockById.get(badge.id);
+    const earned = Boolean(unlock);
+    const rule = ruleById.get(badge.id);
+    const target = badge.target === null ? undefined : Number(badge.target);
+    const progress =
+      !earned && rule?.current && target !== undefined
+        ? { current: rule.current(metrics), target, unit: badge.unit ?? "" }
+        : undefined;
+
+    return {
+      id: badge.id,
+      name: badge.name,
+      tone: badge.tone,
+      icon: badge.icon,
+      howTo: badge.howTo,
+      earned,
+      earnedDate: unlock?.unlockedAt.toISOString(),
+      isNew: earned ? unlock?.seenAt === null : undefined,
+      progress,
+    };
+  });
+}
+
+/** Stamp all of a user's unseen badges as seen so celebrations don't replay. */
+export async function markBadgesSeen(userId: string) {
+  await db
+    .update(userBadges)
+    .set({ seenAt: new Date() })
+    .where(and(eq(userBadges.userId, userId), isNull(userBadges.seenAt)));
+}
+
 export async function buildBootstrap(userId: string) {
   const [
     usersResult,
@@ -329,6 +441,7 @@ export async function buildBootstrap(userId: string) {
     challengesResult,
     challengeEntriesResult,
     challengeProgressResult,
+    badgesResult,
   ] = await Promise.all([
     db.select().from(users).orderBy(asc(users.createdAt)),
     db
@@ -365,6 +478,7 @@ export async function buildBootstrap(userId: string) {
       .from(activitiesTable)
       .where(eq(activitiesTable.athleteId, userId))
       .groupBy(activitiesTable.sport),
+    getBadgesForUser(userId),
   ]);
 
   const followedIds = new Set(followsResult.map((row) => row.followedId));
@@ -439,6 +553,7 @@ export async function buildBootstrap(userId: string) {
     segments,
     clubs,
     challenges,
+    badges: badgesResult,
   };
 }
 
@@ -475,6 +590,9 @@ export async function createActivity(input: {
     photo: null,
     routeSeed: input.routeSeed,
   });
+
+  // Logging an activity is the primary badge-unlock moment.
+  await evaluateBadges(input.userId);
 
   return id;
 }
@@ -652,6 +770,9 @@ export async function toggleChallengeEntry(userId: string, challengeId: string) 
   const participants =
     existing.length > 0 ? Math.max(challenge.participants - 1, 0) : challenge.participants + 1;
   await db.update(challengesTable).set({ participants }).where(eq(challengesTable.id, challengeId));
+
+  // Joining a challenge can unlock the "first-challenge" badge.
+  await evaluateBadges(userId);
 
   return {
     joined: existing.length === 0,
