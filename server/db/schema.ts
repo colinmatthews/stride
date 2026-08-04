@@ -192,3 +192,19 @@ export const activityKudos = pgTable(
     pk: primaryKey({ columns: [table.userId, table.activityId] }),
   }),
 );
+
+export const subscriptions = pgTable("subscriptions", {
+  id: text("id").primaryKey(),
+  userId: text("user_id")
+    .notNull()
+    .unique()
+    .references(() => users.id, { onDelete: "cascade" }),
+  plan: text("plan").notNull(),
+  priceUsd: numeric("price_usd", { precision: 10, scale: 2 }).notNull(),
+  status: text("status").notNull(),
+  paymentBrand: text("payment_brand").notNull(),
+  paymentLast4: text("payment_last4").notNull(),
+  currentPeriodEnd: timestamp("current_period_end", { withTimezone: true }).notNull(),
+  cancelledAt: timestamp("cancelled_at", { withTimezone: true }),
+  billingSyncedAt: timestamp("billing_synced_at", { withTimezone: true }),
+});

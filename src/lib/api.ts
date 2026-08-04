@@ -5,8 +5,10 @@ import {
   CLUBS,
   ME,
   mergeActivities,
+  SUBSCRIPTION,
   type Activity,
   type AppData,
+  type Subscription,
 } from "./mock-data";
 
 class ApiError extends Error {
@@ -197,6 +199,24 @@ export async function toggleChallengeJoin(challengeId: string) {
     challenge.participants = payload.participants;
   }
 
+  return payload;
+}
+
+export async function cancelSubscription() {
+  const payload = await apiFetch<Subscription>("/api/subscription/cancel", {
+    method: "POST",
+  });
+
+  Object.assign(SUBSCRIPTION, payload);
+  return payload;
+}
+
+export async function reactivateSubscription() {
+  const payload = await apiFetch<Subscription>("/api/subscription/reactivate", {
+    method: "POST",
+  });
+
+  Object.assign(SUBSCRIPTION, payload);
   return payload;
 }
 

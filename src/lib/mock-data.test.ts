@@ -33,6 +33,14 @@ function minimalAppData(overrides: Partial<AppData> = {}): AppData {
     segments: [],
     clubs: [],
     challenges: [],
+    subscription: {
+      plan: "Summit",
+      priceUsd: 11,
+      status: "active",
+      paymentBrand: "Visa",
+      paymentLast4: "4242",
+      currentPeriodEnd: "2025-07-01T00:00:00.000Z",
+    },
     ...overrides,
   };
 }
