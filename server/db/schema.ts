@@ -192,3 +192,13 @@ export const activityKudos = pgTable(
     pk: primaryKey({ columns: [table.userId, table.activityId] }),
   }),
 );
+
+export const notificationPreferences = pgTable("notification_preferences", {
+  userId: text("user_id")
+    .primaryKey()
+    .references(() => users.id, { onDelete: "cascade" }),
+  kudos: text("kudos").notNull().default("instant"),
+  follow: text("follow").notNull().default("instant"),
+  challenge: text("challenge").notNull().default("daily"),
+  updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow(),
+});
