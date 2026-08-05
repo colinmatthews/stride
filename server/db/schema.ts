@@ -177,6 +177,31 @@ export const challengeEntries = pgTable(
   }),
 );
 
+export const pendingUploads = pgTable("pending_uploads", {
+  id: text("id").primaryKey(),
+  userId: text("user_id")
+    .notNull()
+    .references(() => users.id, { onDelete: "cascade" }),
+  device: text("device").notNull(),
+  reason: text("reason").notNull(),
+  failedAt: timestamp("failed_at", { withTimezone: true }).notNull(),
+  status: text("status").notNull().default("pending"),
+  recoveredActivityId: text("recovered_activity_id").references(() => activities.id, {
+    onDelete: "set null",
+  }),
+  sport: text("sport").notNull(),
+  title: text("title").notNull(),
+  description: text("description"),
+  distanceKm: numeric("distance_km", { precision: 10, scale: 2 }).notNull(),
+  movingSeconds: integer("moving_seconds").notNull(),
+  elevationM: integer("elevation_m").notNull(),
+  avgHr: integer("avg_hr"),
+  avgPaceSecPerKm: integer("avg_pace_sec_per_km"),
+  avgSpeedKmh: numeric("avg_speed_kmh", { precision: 10, scale: 1 }),
+  routeSeed: integer("route_seed").notNull(),
+  createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+});
+
 export const activityKudos = pgTable(
   "activity_kudos",
   {

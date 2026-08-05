@@ -75,6 +75,32 @@ export interface Challenge {
   joined?: boolean;
 }
 
+export interface PendingUpload {
+  id: string;
+  device: string;
+  reason: string;
+  failedAt: string;
+  status: "pending" | "recovered" | "dismissed";
+  recoveredActivityId?: string;
+  payload: {
+    sport: Sport;
+    title: string;
+    description?: string;
+    distanceKm: number;
+    movingSeconds: number;
+    elevationM: number;
+    avgHr?: number;
+    avgPaceSecPerKm?: number;
+    avgSpeedKmh?: number;
+    routeSeed: number;
+  };
+}
+
+export interface SyncRescue {
+  pendingUpload: PendingUpload | null;
+  daysIntoFirst90: number | null;
+}
+
 export interface AppData {
   me: Athlete;
   athletes: Athlete[];
@@ -82,6 +108,7 @@ export interface AppData {
   segments: Segment[];
   clubs: Club[];
   challenges: Challenge[];
+  syncRescue?: SyncRescue;
 }
 
 const EMPTY_ATHLETE: Athlete = {
@@ -96,12 +123,18 @@ const EMPTY_ATHLETE: Athlete = {
   bio: "",
 };
 
+const EMPTY_SYNC_RESCUE: SyncRescue = {
+  pendingUpload: null,
+  daysIntoFirst90: null,
+};
+
 export let ME: Athlete = EMPTY_ATHLETE;
 export let ATHLETES: Athlete[] = [];
 export let ACTIVITIES: Activity[] = [];
 export let SEGMENTS: Segment[] = [];
 export let CLUBS: Club[] = [];
 export let CHALLENGES: Challenge[] = [];
+export let SYNC_RESCUE: SyncRescue = EMPTY_SYNC_RESCUE;
 
 export function initializeAppData(data: AppData) {
   ME = data.me;
@@ -110,6 +143,11 @@ export function initializeAppData(data: AppData) {
   SEGMENTS = data.segments;
   CLUBS = data.clubs;
   CHALLENGES = data.challenges;
+  SYNC_RESCUE = data.syncRescue ?? EMPTY_SYNC_RESCUE;
+}
+
+export function setPendingUpload(pendingUpload: PendingUpload | null) {
+  SYNC_RESCUE = { ...SYNC_RESCUE, pendingUpload };
 }
 
 export function mergeActivities(activities: Activity[]) {
@@ -131,6 +169,7 @@ export function clearAppData() {
   SEGMENTS = [];
   CLUBS = [];
   CHALLENGES = [];
+  SYNC_RESCUE = EMPTY_SYNC_RESCUE;
 }
 
 function pad(value: number) {

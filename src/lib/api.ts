@@ -5,8 +5,10 @@ import {
   CLUBS,
   ME,
   mergeActivities,
+  setPendingUpload,
   type Activity,
   type AppData,
+  type PendingUpload,
 } from "./mock-data";
 
 class ApiError extends Error {
@@ -112,6 +114,31 @@ export async function saveActivity(payload: {
 
   mergeActivities([activity]);
   return activity;
+}
+
+export async function recoverSyncFailure(pendingUploadId: string) {
+  const result = await apiFetch<{ pendingUpload: PendingUpload; activity: Activity }>(
+    `/api/sync/failures/${pendingUploadId}/recover`,
+    {
+      method: "POST",
+    },
+  );
+
+  mergeActivities([result.activity]);
+  setPendingUpload(result.pendingUpload);
+  return result;
+}
+
+export async function dismissSyncFailure(pendingUploadId: string) {
+  const pendingUpload = await apiFetch<PendingUpload>(
+    `/api/sync/failures/${pendingUploadId}/dismiss`,
+    {
+      method: "POST",
+    },
+  );
+
+  setPendingUpload(pendingUpload);
+  return pendingUpload;
 }
 
 export async function toggleActivityKudo(activityId: string) {

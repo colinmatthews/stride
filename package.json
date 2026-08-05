@@ -18,6 +18,7 @@
     "synth:intercom": "tsx scripts/synth/seed-intercom.ts",
     "synth:linear": "tsx scripts/synth/seed-linear.ts",
     "synth:weekly": "tsx scripts/synth/weekly.ts",
+    "synth:sync-failure": "tsx scripts/synth/simulate-sync-failure.ts",
     "check:keys": "tsx scripts/synth/check-keys.ts",
     "preview": "vite preview",
     "start": "node dist-server/index.js",
