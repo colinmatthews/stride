@@ -40,7 +40,7 @@ type Status = "failed" | "uploading" | "recovered";
 // activity pipeline.
 export function SyncRescueSection({ onRecovered }: { onRecovered?: () => void }) {
   const posthog = usePostHog();
-  const [pendingUpload, setLocalPendingUpload] = useState<PendingUpload | null>(
+  const [pendingUpload] = useState<PendingUpload | null>(
     SYNC_RESCUE.pendingUpload?.status === "pending" ? SYNC_RESCUE.pendingUpload : null,
   );
   const [status, setStatus] = useState<Status>("failed");
@@ -127,15 +127,11 @@ export function SyncRescueSection({ onRecovered }: { onRecovered?: () => void })
     });
     setVisible(false);
 
-    if (status !== "recovered") {
-      // Persist so the card doesn't come back on the next bootstrap. Recovered
-      // uploads already stop being surfaced server-side.
-      void dismissSyncFailure(pendingUpload.id).catch(() => {
-        // Dismissal is best-effort; worst case the card reappears next visit.
-      });
-    } else {
-      setLocalPendingUpload(null);
-    }
+    // Persist so the card doesn't come back on the next bootstrap. Safe to
+    // call even after a recovery — the server no-ops for a non-pending upload.
+    void dismissSyncFailure(pendingUpload.id).catch(() => {
+      // Dismissal is best-effort; worst case the card reappears next visit.
+    });
   }
 
   return (
