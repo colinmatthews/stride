@@ -12,10 +12,12 @@ import {
   clubMemberships,
   clubs as clubsTable,
   follows,
+  pendingUploads,
   segments as segmentsTable,
   users,
 } from "./db/schema.js";
 import { USER_AVATARS } from "./seed.js";
+import { daysIntoFirst90, type SyncFailureInput } from "./sync-rescue.js";
 
 const BOOTSTRAP_ACTIVITY_LIMIT = 40;
 const MAX_ACTIVITY_PAGE_LIMIT = 100;
@@ -46,6 +48,29 @@ type ActivityDto = {
   splits?: { km: number; paceSec: number; hr: number; elev: number }[];
   segments?: { id: string; rank: number }[];
   kudoed?: boolean;
+};
+
+type PendingUploadRow = typeof pendingUploads.$inferSelect;
+
+type PendingUploadDto = {
+  id: string;
+  device: string;
+  reason: string;
+  failedAt: string;
+  status: "pending" | "recovered" | "dismissed";
+  recoveredActivityId?: string;
+  payload: {
+    sport: Sport;
+    title: string;
+    description?: string;
+    distanceKm: number;
+    movingSeconds: number;
+    elevationM: number;
+    avgHr?: number;
+    avgPaceSecPerKm?: number;
+    avgSpeedKmh?: number;
+    routeSeed: number;
+  };
 };
 
 function aliasUserId(id: string, currentUserId: string) {
@@ -213,6 +238,144 @@ async function hydrateActivities(rows: ActivityRow[], userId: string): Promise<A
   }));
 }
 
+function mapPendingUpload(row: PendingUploadRow): PendingUploadDto {
+  return {
+    id: row.id,
+    device: row.device,
+    reason: row.reason,
+    failedAt: row.failedAt.toISOString(),
+    status: row.status as PendingUploadDto["status"],
+    recoveredActivityId: row.recoveredActivityId ?? undefined,
+    payload: {
+      sport: row.sport as Sport,
+      title: row.title,
+      description: row.description ?? undefined,
+      distanceKm: Number(row.distanceKm),
+      movingSeconds: row.movingSeconds,
+      elevationM: row.elevationM,
+      avgHr: row.avgHr ?? undefined,
+      avgPaceSecPerKm: row.avgPaceSecPerKm ?? undefined,
+      avgSpeedKmh: numberOrUndefined(row.avgSpeedKmh),
+      routeSeed: row.routeSeed,
+    },
+  };
+}
+
+export async function createPendingUpload(userId: string, input: SyncFailureInput) {
+  const id = `pu-${randomUUID()}`;
+
+  await db.insert(pendingUploads).values({
+    id,
+    userId,
+    device: input.device,
+    reason: input.reason,
+    failedAt: input.failedAt,
+    status: "pending",
+    sport: input.sport,
+    title: input.title,
+    description: input.description ?? null,
+    distanceKm: String(input.distanceKm),
+    movingSeconds: input.movingSeconds,
+    elevationM: input.elevationM,
+    avgHr: input.avgHr ?? null,
+    avgPaceSecPerKm: input.avgPaceSecPerKm ?? null,
+    avgSpeedKmh: input.avgSpeedKmh === undefined ? null : String(input.avgSpeedKmh),
+    routeSeed: input.routeSeed,
+  });
+
+  return getPendingUploadById(userId, id);
+}
+
+async function findPendingUploadRow(userId: string, pendingUploadId: string) {
+  const rows = await db
+    .select()
+    .from(pendingUploads)
+    .where(and(eq(pendingUploads.id, pendingUploadId), eq(pendingUploads.userId, userId)))
+    .limit(1);
+
+  return rows[0] ?? null;
+}
+
+export async function getPendingUploadById(userId: string, pendingUploadId: string) {
+  const row = await findPendingUploadRow(userId, pendingUploadId);
+  return row ? mapPendingUpload(row) : null;
+}
+
+export async function getLatestPendingUpload(userId: string) {
+  const rows = await db
+    .select()
+    .from(pendingUploads)
+    .where(and(eq(pendingUploads.userId, userId), eq(pendingUploads.status, "pending")))
+    .orderBy(desc(pendingUploads.failedAt))
+    .limit(1);
+
+  return rows[0] ? mapPendingUpload(rows[0]) : null;
+}
+
+// Recovery creates the activity from the payload stored when the failure was
+// reported — the client only names the pending upload, so it can't tamper with
+// distance or pace. Idempotent: recovering an already-recovered upload returns
+// the same activity instead of duplicating it.
+export async function recoverPendingUpload(userId: string, pendingUploadId: string) {
+  const row = await findPendingUploadRow(userId, pendingUploadId);
+
+  if (!row) {
+    return null;
+  }
+
+  if (row.status === "recovered" && row.recoveredActivityId) {
+    return {
+      pendingUpload: mapPendingUpload(row),
+      activity: await getActivityById(userId, row.recoveredActivityId),
+      alreadyRecovered: true,
+    };
+  }
+
+  const activityId = await createActivity({
+    userId,
+    sport: row.sport as Sport,
+    title: row.title,
+    description: row.description ?? undefined,
+    distanceKm: Number(row.distanceKm),
+    movingSeconds: row.movingSeconds,
+    elevationM: row.elevationM,
+    avgHr: row.avgHr ?? undefined,
+    avgPaceSecPerKm: row.avgPaceSecPerKm ?? undefined,
+    avgSpeedKmh: numberOrUndefined(row.avgSpeedKmh),
+    routeSeed: row.routeSeed,
+  });
+
+  await db
+    .update(pendingUploads)
+    .set({ status: "recovered", recoveredActivityId: activityId })
+    .where(eq(pendingUploads.id, row.id));
+
+  const updated = await getPendingUploadById(userId, row.id);
+
+  return {
+    pendingUpload: updated!,
+    activity: await getActivityById(userId, activityId),
+    alreadyRecovered: false,
+  };
+}
+
+export async function dismissPendingUpload(userId: string, pendingUploadId: string) {
+  const row = await findPendingUploadRow(userId, pendingUploadId);
+
+  if (!row) {
+    return null;
+  }
+
+  if (row.status === "pending") {
+    await db
+      .update(pendingUploads)
+      .set({ status: "dismissed" })
+      .where(eq(pendingUploads.id, row.id));
+  }
+
+  return getPendingUploadById(userId, row.id);
+}
+
 export async function findUserForAuth(email: string) {
   const rows = await db
     .select({
@@ -329,6 +492,7 @@ export async function buildBootstrap(userId: string) {
     challengesResult,
     challengeEntriesResult,
     challengeProgressResult,
+    pendingUpload,
   ] = await Promise.all([
     db.select().from(users).orderBy(asc(users.createdAt)),
     db
@@ -365,6 +529,7 @@ export async function buildBootstrap(userId: string) {
       .from(activitiesTable)
       .where(eq(activitiesTable.athleteId, userId))
       .groupBy(activitiesTable.sport),
+    getLatestPendingUpload(userId),
   ]);
 
   const followedIds = new Set(followsResult.map((row) => row.followedId));
@@ -376,8 +541,9 @@ export async function buildBootstrap(userId: string) {
 
   const athletes = usersResult.map((row) => mapAthlete(row, userId, followedIds));
   const me = athletes.find((athlete) => athlete.id === "me");
+  const meRow = usersResult.find((row) => row.id === userId);
 
-  if (!me) {
+  if (!me || !meRow) {
     throw new Error("Authenticated user not found");
   }
 
@@ -439,6 +605,10 @@ export async function buildBootstrap(userId: string) {
     segments,
     clubs,
     challenges,
+    syncRescue: {
+      pendingUpload,
+      daysIntoFirst90: daysIntoFirst90(meRow.createdAt),
+    },
   };
 }
 

@@ -14,6 +14,7 @@ import { ACTIVITIES, ATHLETES, CHALLENGES, ME, fmtDuration, getAthlete } from "@
 import { AppShell } from "@/components/AppShell";
 import { ActivityCard } from "@/components/ActivityCard";
 import { FollowButton } from "@/components/FollowButton";
+import { SyncRescueSection } from "@/components/SyncRescueCard";
 
 export const Route = createFileRoute("/")({
   head: () => ({
@@ -95,6 +96,8 @@ function FeedPage() {
               ))}
             </div>
           </div>
+
+          <SyncRescueSection onRecovered={() => setFeedRevision((revision) => revision + 1)} />
 
           <div className="space-y-5">
             {visible.length > 0 ? (

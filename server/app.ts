@@ -5,15 +5,19 @@ import {
   addComment,
   buildBootstrap,
   createActivity,
+  createPendingUpload,
   createUser,
+  dismissPendingUpload,
   findUserForAuth,
   getActivityById,
   listActivities,
+  recoverPendingUpload,
   toggleChallengeEntry,
   toggleClubMembership,
   toggleFollow,
   toggleKudo,
 } from "./data.js";
+import { parseSyncFailureInput } from "./sync-rescue.js";
 import {
   createSession,
   destroySession,
@@ -188,6 +192,58 @@ export function createApp() {
       }
 
       response.status(201).json(await addComment(request.userId!, activityId, text));
+    } catch (error) {
+      next(error);
+    }
+  });
+
+  // Reported by the device-sync pipeline when an upload dies mid-flight. The
+  // full payload is captured here so recovery never trusts the browser.
+  app.post("/api/sync/failures", requireAuth, async (request, response, next) => {
+    try {
+      const parsed = parseSyncFailureInput(request.body);
+
+      if (!parsed.ok) {
+        response.status(400).json({ error: parsed.error });
+        return;
+      }
+
+      const pendingUpload = await createPendingUpload(request.userId!, parsed.value);
+
+      response.status(201).json(pendingUpload);
+    } catch (error) {
+      next(error);
+    }
+  });
+
+  app.post("/api/sync/failures/:id/recover", requireAuth, async (request, response, next) => {
+    try {
+      const result = await recoverPendingUpload(request.userId!, String(request.params.id));
+
+      if (!result) {
+        response.status(404).json({ error: "Pending upload not found" });
+        return;
+      }
+
+      response.status(result.alreadyRecovered ? 200 : 201).json({
+        pendingUpload: result.pendingUpload,
+        activity: result.activity,
+      });
+    } catch (error) {
+      next(error);
+    }
+  });
+
+  app.post("/api/sync/failures/:id/dismiss", requireAuth, async (request, response, next) => {
+    try {
+      const pendingUpload = await dismissPendingUpload(request.userId!, String(request.params.id));
+
+      if (!pendingUpload) {
+        response.status(404).json({ error: "Pending upload not found" });
+        return;
+      }
+
+      response.json(pendingUpload);
     } catch (error) {
       next(error);
     }
