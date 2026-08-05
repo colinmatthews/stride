@@ -1,6 +1,7 @@
 import { createFileRoute, useRouter } from "@tanstack/react-router";
 import { useEffect, useRef, useState } from "react";
-import { fmtDuration, fmtPace, type Sport } from "@/lib/mock-data";
+import { toast } from "sonner";
+import { fmtDuration, fmtPace, type ChallengeCompletion, type Sport } from "@/lib/mock-data";
 import { AppShell } from "@/components/AppShell";
 import { usePostHog } from "@posthog/react";
 import {
@@ -13,8 +14,29 @@ import {
   Timer as TimerIcon,
   ArrowRight,
   LoaderCircle,
+  Trophy,
 } from "lucide-react";
 import { saveActivity } from "@/lib/api";
+
+function unitFor(metricType: string) {
+  return metricType === "elevation_m" ? "m" : "km";
+}
+
+function announceCompletions(posthog: ReturnType<typeof usePostHog>, completions: ChallengeCompletion[]) {
+  for (const completion of completions) {
+    toast(`Challenge complete: ${completion.name}`, {
+      description: `You hit ${completion.goalKm} ${unitFor(completion.metricType)} — nice work.`,
+      icon: <Trophy className="h-4 w-4 text-primary" />,
+    });
+    posthog.capture("challenge_completed", {
+      challenge_id: completion.id,
+      challenge_name: completion.name,
+      sport: completion.sport,
+      goal_km: completion.goalKm,
+      metric_type: completion.metricType,
+    });
+  }
+}
 
 export const Route = createFileRoute("/record")({
   head: () => ({
@@ -182,7 +204,7 @@ function ManualForm({ sport }: { sport: Sport }) {
       const paceSecPerKm = sport === "Ride" ? undefined : Math.round(totalSeconds / distanceKm);
       const speedKmh =
         sport === "Ride" ? Math.round((distanceKm / (totalSeconds / 3600)) * 10) / 10 : undefined;
-      const activity = await saveActivity({
+      const { activity, completions } = await saveActivity({
         sport,
         title: title.trim() || defaultTitle(sport, new Date()),
         description: description.trim() || undefined,
@@ -201,6 +223,7 @@ function ManualForm({ sport }: { sport: Sport }) {
         elevation_m: Number(elevation) || 0,
         entry_mode: "manual",
       });
+      announceCompletions(posthog, completions);
       router.navigate({ to: "/activity/$id", params: { id: activity.id } });
     } catch (err) {
       posthog.captureException(err);
@@ -525,7 +548,7 @@ function TimerMode({ sport }: { sport: Sport }) {
         sport === "Ride" ? undefined : Math.max(180, Math.floor(elapsed / Math.max(0.1, distance)));
       const speed =
         sport === "Ride" ? Math.round((distance / (elapsed / 3600)) * 10) / 10 : undefined;
-      const activity = await saveActivity({
+      const { activity, completions } = await saveActivity({
         sport,
         title: title || defaultTitle(sport, new Date()),
         description: description || undefined,
@@ -544,6 +567,7 @@ function TimerMode({ sport }: { sport: Sport }) {
         elevation_m: Math.floor(distance * 12),
         entry_mode: "timer",
       });
+      announceCompletions(posthog, completions);
       router.navigate({ to: "/activity/$id", params: { id: activity.id } });
     } catch (err) {
       posthog.captureException(err);

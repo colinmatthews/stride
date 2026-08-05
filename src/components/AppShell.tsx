@@ -9,11 +9,15 @@ import {
   Plus,
   Search,
   Bell,
+  BellRing,
   Settings,
 } from "lucide-react";
+import { toast } from "sonner";
+import { usePostHog } from "@posthog/react";
 import { ME, clearAppData } from "@/lib/mock-data";
 import { FormEvent, ReactNode, useState } from "react";
 import { logout } from "@/lib/api";
+import { subscribeToPush } from "@/lib/push";
 
 const NAV = [
   { to: "/", label: "Feed", icon: Home },
@@ -28,6 +32,38 @@ export function AppShell({ children }: { children: ReactNode }) {
   const { location } = useRouterState();
   const path = location.pathname;
   const [searchQuery, setSearchQuery] = useState("");
+  const posthog = usePostHog();
+  const [pushEnabled, setPushEnabled] = useState(
+    () => typeof Notification !== "undefined" && Notification.permission === "granted",
+  );
+
+  async function handleNotificationsClick() {
+    if (pushEnabled) {
+      toast("Notifications are already on", {
+        description: "You'll get a push when you complete a challenge.",
+      });
+      return;
+    }
+
+    const result = await subscribeToPush();
+
+    if (result === "subscribed") {
+      setPushEnabled(true);
+      toast("Notifications enabled", {
+        description: "We'll ping you the moment you complete a challenge.",
+      });
+    } else if (result === "denied") {
+      toast("Notifications blocked", {
+        description: "Enable notifications for this site in your browser settings to turn this on.",
+      });
+    } else {
+      toast("Not supported in this browser", {
+        description: "Try a recent version of Chrome, Edge, or Firefox.",
+      });
+    }
+
+    posthog.capture("push_notifications_opt_in_attempted", { result });
+  }
 
   function handleSearch(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
@@ -132,11 +168,19 @@ export function AppShell({ children }: { children: ReactNode }) {
             </form>
             <div className="ml-auto flex items-center gap-2">
               <button
+                onClick={handleNotificationsClick}
                 className="h-10 w-10 grid place-items-center rounded-md hover:bg-muted relative"
-                aria-label="Notifications"
+                aria-label={pushEnabled ? "Notifications enabled" : "Enable notifications"}
+                title={pushEnabled ? "Notifications enabled" : "Get notified when you complete a challenge"}
               >
-                <Bell className="h-4 w-4" />
-                <span className="absolute top-2 right-2 h-2 w-2 rounded-full bg-primary" />
+                {pushEnabled ? (
+                  <BellRing className="h-4 w-4 text-primary" />
+                ) : (
+                  <>
+                    <Bell className="h-4 w-4" />
+                    <span className="absolute top-2 right-2 h-2 w-2 rounded-full bg-primary" />
+                  </>
+                )}
               </button>
               <Link
                 to="/record"

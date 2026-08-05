@@ -5,8 +5,12 @@ import {
   CLUBS,
   ME,
   mergeActivities,
+  mergeChallenges,
+  setLastSaveCompletions,
   type Activity,
   type AppData,
+  type Challenge,
+  type ChallengeCompletion,
 } from "./mock-data";
 
 class ApiError extends Error {
@@ -105,13 +109,30 @@ export async function saveActivity(payload: {
   avgSpeedKmh?: number;
   routeSeed: number;
 }) {
-  const activity = await apiFetch<Activity>("/api/activities", {
+  const result = await apiFetch<{
+    activity: Activity;
+    challenges: Challenge[];
+    completions: ChallengeCompletion[];
+  }>("/api/activities", {
     method: "POST",
     body: JSON.stringify(payload),
   });
 
-  mergeActivities([activity]);
-  return activity;
+  mergeActivities([result.activity]);
+  mergeChallenges(result.challenges);
+  setLastSaveCompletions(result.activity.id, result.completions);
+
+  return { activity: result.activity, completions: result.completions };
+}
+
+export async function apiSubscribeToPush(subscription: {
+  endpoint: string;
+  keys: { p256dh: string; auth: string };
+}) {
+  await apiFetch<void>("/api/push/subscribe", {
+    method: "POST",
+    body: JSON.stringify(subscription),
+  });
 }
 
 export async function toggleActivityKudo(activityId: string) {

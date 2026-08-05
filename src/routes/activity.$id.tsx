@@ -1,5 +1,6 @@
 import { createFileRoute, Link, useRouter, notFound } from "@tanstack/react-router";
 import { useState } from "react";
+import { motion } from "framer-motion";
 import { usePostHog } from "@posthog/react";
 import {
   ResponsiveContainer,
@@ -35,6 +36,7 @@ import {
   getAthlete,
   getSegment,
   elevationProfile,
+  takeSaveCompletions,
 } from "@/lib/mock-data";
 import { AppShell } from "@/components/AppShell";
 import { RouteMap } from "@/components/RouteMap";
@@ -51,7 +53,7 @@ export const Route = createFileRoute("/activity/$id")({
       }));
 
     if (!activity) throw notFound();
-    return { activity };
+    return { activity, completions: takeSaveCompletions(activity.id) };
   },
   head: ({ loaderData }) => ({
     meta: loaderData
@@ -78,7 +80,10 @@ export const Route = createFileRoute("/activity/$id")({
 });
 
 function ActivityDetail() {
-  const { activity } = Route.useLoaderData() as { activity: import("@/lib/mock-data").Activity };
+  const { activity, completions } = Route.useLoaderData() as {
+    activity: import("@/lib/mock-data").Activity;
+    completions: import("@/lib/mock-data").ChallengeCompletion[];
+  };
   const posthog = usePostHog();
   const router = useRouter();
   const ath = getAthlete(activity.athleteId);
@@ -157,6 +162,62 @@ function ActivityDetail() {
           </h1>
           {activity.description && (
             <p className="text-muted-foreground mt-3 max-w-2xl">{activity.description}</p>
+          )}
+
+          {completions.length > 0 && (
+            <div className="mt-6 space-y-3">
+              {completions.map((completion) => {
+                const unit = completion.metricType === "elevation_m" ? "m" : "km";
+                const effort =
+                  completion.metricType === "elevation_m"
+                    ? activity.elevationM
+                    : activity.distanceKm;
+
+                return (
+                  <motion.article
+                    key={completion.id}
+                    initial={{ opacity: 0, y: -8 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    transition={{ duration: 0.3 }}
+                    className="overflow-hidden rounded-xl border border-primary/40 bg-primary/5 p-5"
+                  >
+                    <div className="flex items-start justify-between gap-4">
+                      <div className="min-w-0">
+                        <div className="inline-flex items-center gap-1.5 font-mono text-[10px] uppercase tracking-[0.22em] text-primary">
+                          <Trophy className="h-3 w-3" /> Challenge complete
+                        </div>
+                        <div className="mt-1 truncate font-display text-lg font-semibold tracking-tight">
+                          {completion.badge} {completion.name}
+                        </div>
+                      </div>
+                      <div className="shrink-0 text-right">
+                        <div className="stat-num text-sm font-semibold text-primary">
+                          +{effort.toFixed(1)} {unit}
+                        </div>
+                        <div className="text-xs text-muted-foreground">this effort</div>
+                      </div>
+                    </div>
+                    <div className="mt-4">
+                      <div className="flex items-baseline justify-between">
+                        <span className="font-mono text-[10px] uppercase tracking-[0.22em] text-muted-foreground">
+                          Goal reached
+                        </span>
+                        <span className="stat-num text-sm font-semibold">
+                          {completion.goalKm}
+                          <span className="text-muted-foreground">
+                            {" "}
+                            / {completion.goalKm} {unit}
+                          </span>
+                        </span>
+                      </div>
+                      <div className="mt-2 h-1.5 overflow-hidden rounded-full bg-muted">
+                        <div className="h-full bg-primary" style={{ width: "100%" }} />
+                      </div>
+                    </div>
+                  </motion.article>
+                );
+              })}
+            </div>
           )}
 
           {/* Hero stats */}

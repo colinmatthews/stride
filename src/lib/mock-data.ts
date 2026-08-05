@@ -75,6 +75,15 @@ export interface Challenge {
   joined?: boolean;
 }
 
+export interface ChallengeCompletion {
+  id: string;
+  name: string;
+  sport: string;
+  badge: string;
+  goalKm: number;
+  metricType: string;
+}
+
 export interface AppData {
   me: Athlete;
   athletes: Athlete[];
@@ -124,6 +133,36 @@ export function mergeActivities(activities: Activity[]) {
   );
 }
 
+export function mergeChallenges(challenges: Challenge[]) {
+  const byId = new Map(CHALLENGES.map((challenge) => [challenge.id, challenge]));
+
+  for (const challenge of challenges) {
+    byId.set(challenge.id, challenge);
+  }
+
+  CHALLENGES = Array.from(byId.values());
+}
+
+// Transient hand-off from an activity save to whichever screen renders the
+// completion moment next (the record flow, then the activity detail page).
+// Not part of AppData — cleared as soon as it's read so it can't reappear
+// on a later visit to the same activity.
+let lastSaveCompletions: { activityId: string; completions: ChallengeCompletion[] } | null = null;
+
+export function setLastSaveCompletions(activityId: string, completions: ChallengeCompletion[]) {
+  lastSaveCompletions = completions.length > 0 ? { activityId, completions } : null;
+}
+
+export function takeSaveCompletions(activityId: string): ChallengeCompletion[] {
+  if (lastSaveCompletions && lastSaveCompletions.activityId === activityId) {
+    const completions = lastSaveCompletions.completions;
+    lastSaveCompletions = null;
+    return completions;
+  }
+
+  return [];
+}
+
 export function clearAppData() {
   ME = EMPTY_ATHLETE;
   ATHLETES = [];
@@ -131,6 +170,7 @@ export function clearAppData() {
   SEGMENTS = [];
   CLUBS = [];
   CHALLENGES = [];
+  lastSaveCompletions = null;
 }
 
 function pad(value: number) {

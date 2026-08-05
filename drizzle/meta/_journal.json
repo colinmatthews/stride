@@ -8,6 +8,13 @@
       "when": 1776733831868,
       "tag": "0000_furry_iron_man",
       "breakpoints": true
+    },
+    {
+      "idx": 1,
+      "version": "7",
+      "when": 1785916671162,
+      "tag": "0001_lazy_paibok",
+      "breakpoints": true
     }
   ]
 }
