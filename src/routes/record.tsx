@@ -1,7 +1,18 @@
-import { createFileRoute, useRouter } from "@tanstack/react-router";
+import { createFileRoute, Link, useRouter } from "@tanstack/react-router";
 import { useEffect, useRef, useState } from "react";
-import { fmtDuration, fmtPace, type Sport } from "@/lib/mock-data";
+import {
+  ME,
+  fmtDuration,
+  fmtPace,
+  initializeAppData,
+  pickRelevantChallenges,
+  type Activity,
+  type Challenge,
+  type Sport,
+} from "@/lib/mock-data";
 import { AppShell } from "@/components/AppShell";
+import { ChallengeCard } from "@/components/ChallengeCard";
+import { Stat } from "@/components/Stat";
 import { usePostHog } from "@posthog/react";
 import {
   Play,
@@ -13,8 +24,9 @@ import {
   Timer as TimerIcon,
   ArrowRight,
   LoaderCircle,
+  PartyPopper,
 } from "lucide-react";
-import { saveActivity } from "@/lib/api";
+import { fetchBootstrap, saveActivity, toggleChallengeJoin } from "@/lib/api";
 
 export const Route = createFileRoute("/record")({
   head: () => ({
@@ -30,8 +42,22 @@ const SPORTS: Sport[] = ["Run", "Ride", "Swim", "Hike", "Walk"];
 type Mode = "manual" | "timer";
 
 function Record() {
+  const router = useRouter();
   const [mode, setMode] = useState<Mode>("manual");
   const [sport, setSport] = useState<Sport>("Run");
+  const [justLogged, setJustLogged] = useState<Activity | null>(null);
+
+  function goToActivity(activity: Activity) {
+    router.navigate({ to: "/activity/$id", params: { id: activity.id } });
+  }
+
+  if (justLogged) {
+    return (
+      <AppShell>
+        <ChallengePromptScreen activity={justLogged} onContinue={() => goToActivity(justLogged)} />
+      </AppShell>
+    );
+  }
 
   return (
     <AppShell>
@@ -69,9 +95,131 @@ function Record() {
 
         <SportPicker sport={sport} setSport={setSport} />
 
-        {mode === "manual" ? <ManualForm sport={sport} /> : <TimerMode sport={sport} />}
+        {mode === "manual" ? (
+          <ManualForm sport={sport} onSaved={setJustLogged} />
+        ) : (
+          <TimerMode sport={sport} onSaved={setJustLogged} />
+        )}
       </div>
     </AppShell>
+  );
+}
+
+function ChallengePromptScreen({
+  activity,
+  onContinue,
+}: {
+  activity: Activity;
+  onContinue: () => void;
+}) {
+  const posthog = usePostHog();
+  const [loading, setLoading] = useState(true);
+  const [challenges, setChallenges] = useState<Challenge[]>([]);
+  const [joined, setJoined] = useState<Record<string, boolean>>({});
+  const [participants, setParticipants] = useState<Record<string, number>>({});
+
+  useEffect(() => {
+    let cancelled = false;
+
+    (async () => {
+      try {
+        // Progress is derived server-side from lifetime activity totals, so
+        // refresh bootstrap data to pick up the activity that was just saved
+        // before recommending challenges based on it.
+        initializeAppData(await fetchBootstrap());
+      } catch (err) {
+        posthog.captureException(err);
+      }
+
+      if (cancelled) return;
+
+      const picks = pickRelevantChallenges(activity, 2);
+      setChallenges(picks);
+      setJoined(Object.fromEntries(picks.map((c) => [c.id, Boolean(c.joined)])));
+      setParticipants(Object.fromEntries(picks.map((c) => [c.id, c.participants])));
+      setLoading(false);
+    })();
+
+    return () => {
+      cancelled = true;
+    };
+  }, [activity, posthog]);
+
+  async function handleToggle(challenge: Challenge) {
+    const result = await toggleChallengeJoin(challenge.id);
+    setJoined((state) => ({ ...state, [challenge.id]: result.joined }));
+    setParticipants((state) => ({ ...state, [challenge.id]: result.participants }));
+    posthog.capture(result.joined ? "challenge_joined" : "challenge_left", {
+      challenge_id: challenge.id,
+      challenge_name: challenge.name,
+      sport: challenge.sport,
+      goal_km: challenge.goalKm,
+      source: "record_activity_prompt",
+    });
+  }
+
+  return (
+    <div className="mx-auto max-w-2xl">
+      <div className="flex items-center gap-2 font-mono text-[10px] uppercase tracking-[0.22em] text-pr">
+        <PartyPopper className="h-3.5 w-3.5" /> Activity logged
+      </div>
+      <h1 className="mt-3 font-display text-4xl font-bold leading-tight tracking-[-0.02em]">
+        Nice work, {ME.name.split(" ")[0]}.
+      </h1>
+      <p className="mt-3 max-w-lg text-muted-foreground">
+        Your {activity.sport.toLowerCase()} is in the books
+        {activity.title ? ` — "${activity.title}"` : ""}.{" "}
+        {!loading && challenges.length > 1
+          ? "Here are a couple of challenges worth chasing next."
+          : !loading && challenges.length === 1
+            ? "Here's a challenge worth chasing next."
+            : ""}
+      </p>
+
+      <div className="mt-6 grid grid-cols-3 gap-6 border border-border bg-surface p-5">
+        <Stat label="Distance" value={activity.distanceKm.toFixed(2)} unit="km" />
+        <Stat label="Time" value={fmtDuration(activity.movingSeconds)} />
+        <Stat label="Elevation" value={activity.elevationM} unit="m" />
+      </div>
+
+      {loading ? (
+        <div className="mt-8 border border-border bg-surface p-6 text-center text-sm text-muted-foreground">
+          Checking for challenges worth chasing next…
+        </div>
+      ) : challenges.length > 0 ? (
+        <div className="mt-8 space-y-6">
+          <div className="font-mono text-[10px] uppercase tracking-[0.22em] text-muted-foreground">
+            Recommended for you
+          </div>
+          {challenges.map((challenge) => (
+            <ChallengeCard
+              key={challenge.id}
+              challenge={challenge}
+              joined={joined[challenge.id]}
+              participants={participants[challenge.id]}
+              onToggleJoin={() => handleToggle(challenge)}
+            />
+          ))}
+        </div>
+      ) : (
+        <div className="mt-8 border border-border bg-surface p-6 text-center text-sm text-muted-foreground">
+          No active challenges right now.{" "}
+          <Link to="/challenges" className="text-primary hover:underline">
+            Browse challenges
+          </Link>
+        </div>
+      )}
+
+      <div className="mt-8 flex justify-end">
+        <button
+          onClick={onContinue}
+          className="group inline-flex h-11 items-center gap-2 bg-primary px-6 text-sm font-medium text-primary-foreground transition-all hover:gap-3"
+        >
+          View activity{" "}
+          <ArrowRight className="h-4 w-4 transition-transform group-hover:translate-x-0.5" />
+        </button>
+      </div>
+    </div>
   );
 }
 
@@ -143,9 +291,8 @@ function SportPicker({ sport, setSport }: { sport: Sport; setSport: (s: Sport) =
   );
 }
 
-function ManualForm({ sport }: { sport: Sport }) {
+function ManualForm({ sport, onSaved }: { sport: Sport; onSaved: (activity: Activity) => void }) {
   const posthog = usePostHog();
-  const router = useRouter();
   const [title, setTitle] = useState("");
   const [description, setDescription] = useState("");
   const [distance, setDistance] = useState("");
@@ -201,7 +348,7 @@ function ManualForm({ sport }: { sport: Sport }) {
         elevation_m: Number(elevation) || 0,
         entry_mode: "manual",
       });
-      router.navigate({ to: "/activity/$id", params: { id: activity.id } });
+      onSaved(activity);
     } catch (err) {
       posthog.captureException(err);
       setError("Couldn't save activity. Try again.");
@@ -478,9 +625,8 @@ function defaultTitle(sport: Sport, date: Date) {
 /* -----------------------------------------------------------------------
  *   Timer mode — existing live-tracking flow, restyled to match aesthetic
  * ---------------------------------------------------------------------*/
-function TimerMode({ sport }: { sport: Sport }) {
+function TimerMode({ sport, onSaved }: { sport: Sport; onSaved: (activity: Activity) => void }) {
   const posthog = usePostHog();
-  const router = useRouter();
   const [running, setRunning] = useState(false);
   const [paused, setPaused] = useState(false);
   const [elapsed, setElapsed] = useState(0);
@@ -544,7 +690,7 @@ function TimerMode({ sport }: { sport: Sport }) {
         elevation_m: Math.floor(distance * 12),
         entry_mode: "timer",
       });
-      router.navigate({ to: "/activity/$id", params: { id: activity.id } });
+      onSaved(activity);
     } catch (err) {
       posthog.captureException(err);
       setSaving(false);
