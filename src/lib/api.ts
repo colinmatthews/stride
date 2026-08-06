@@ -8,6 +8,7 @@ import {
   type Activity,
   type AppData,
 } from "./mock-data";
+import type { HabitDayId, HabitPlanState } from "./habits";
 
 class ApiError extends Error {
   status: number;
@@ -105,13 +106,47 @@ export async function saveActivity(payload: {
   avgSpeedKmh?: number;
   routeSeed: number;
 }) {
-  const activity = await apiFetch<Activity>("/api/activities", {
+  const result = await apiFetch<{
+    activity: Activity;
+    shouldOfferConsistencyPlan: boolean;
+  }>("/api/activities", {
     method: "POST",
     body: JSON.stringify(payload),
   });
 
-  mergeActivities([activity]);
-  return activity;
+  mergeActivities([result.activity]);
+  return result;
+}
+
+export async function fetchHabitPlan(activityId?: string) {
+  const params = new URLSearchParams();
+  if (activityId) params.set("activityId", activityId);
+  params.set("timeZone", Intl.DateTimeFormat().resolvedOptions().timeZone || "UTC");
+  const suffix = params.toString() ? `?${params.toString()}` : "";
+  return apiFetch<HabitPlanState>(`/api/habit-plan${suffix}`);
+}
+
+export async function saveHabitPlan(payload: {
+  sourceActivityId: string;
+  weeklyTarget: number;
+  plannedDays: HabitDayId[];
+  encouragementFriendId?: string | null;
+  timeZone?: string;
+}) {
+  return apiFetch<HabitPlanState>("/api/habit-plan", {
+    method: "PUT",
+    body: JSON.stringify({
+      ...payload,
+      timeZone: payload.timeZone ?? Intl.DateTimeFormat().resolvedOptions().timeZone ?? "UTC",
+    }),
+  });
+}
+
+export async function scheduleHabitRecovery(recoveryDay: HabitDayId) {
+  return apiFetch<HabitPlanState>("/api/habit-plan/recovery", {
+    method: "POST",
+    body: JSON.stringify({ recoveryDay }),
+  });
 }
 
 export async function toggleActivityKudo(activityId: string) {

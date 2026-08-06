@@ -8,7 +8,10 @@ import {
   createUser,
   findUserForAuth,
   getActivityById,
+  getHabitPlanState,
   listActivities,
+  saveHabitPlan,
+  scheduleHabitRecovery,
   toggleChallengeEntry,
   toggleClubMembership,
   toggleFollow,
@@ -21,6 +24,7 @@ import {
   requireAuth,
   verifyPassword,
 } from "./auth.js";
+import { HabitInputError } from "./habit-logic.js";
 
 export function createApp() {
   const app = express();
@@ -145,7 +149,7 @@ export function createApp() {
 
   app.post("/api/activities", requireAuth, async (request, response, next) => {
     try {
-      const activityId = await createActivity({
+      const created = await createActivity({
         userId: request.userId!,
         sport: request.body.sport,
         title: String(request.body.title ?? ""),
@@ -161,9 +165,59 @@ export function createApp() {
         routeSeed: Number(request.body.routeSeed ?? 1),
       });
 
-      const activity = await getActivityById(request.userId!, activityId);
+      const activity = await getActivityById(request.userId!, created.id);
 
-      response.status(201).json(activity);
+      response.status(201).json({
+        activity,
+        shouldOfferConsistencyPlan: created.shouldOfferConsistencyPlan,
+      });
+    } catch (error) {
+      next(error);
+    }
+  });
+
+  app.get("/api/habit-plan", requireAuth, async (request, response, next) => {
+    try {
+      response.json(
+        await getHabitPlanState(
+          request.userId!,
+          request.query.activityId ? String(request.query.activityId) : undefined,
+          new Date(),
+          request.query.timeZone,
+        ),
+      );
+    } catch (error) {
+      next(error);
+    }
+  });
+
+  app.put("/api/habit-plan", requireAuth, async (request, response, next) => {
+    try {
+      response.json(
+        await saveHabitPlan({
+          userId: request.userId!,
+          sourceActivityId: String(request.body.sourceActivityId ?? ""),
+          weeklyTarget: request.body.weeklyTarget,
+          plannedDays: request.body.plannedDays,
+          encouragementFriendId: request.body.encouragementFriendId
+            ? String(request.body.encouragementFriendId)
+            : null,
+          timeZone: request.body.timeZone,
+        }),
+      );
+    } catch (error) {
+      next(error);
+    }
+  });
+
+  app.post("/api/habit-plan/recovery", requireAuth, async (request, response, next) => {
+    try {
+      response.json(
+        await scheduleHabitRecovery({
+          userId: request.userId!,
+          recoveryDay: request.body.recoveryDay,
+        }),
+      );
     } catch (error) {
       next(error);
     }
@@ -236,6 +290,10 @@ export function createApp() {
       response: express.Response,
       _next: express.NextFunction,
     ) => {
+      if (error instanceof HabitInputError) {
+        response.status(400).json({ error: error.message });
+        return;
+      }
       console.error(error);
       response.status(500).json({ error: "Internal server error" });
     },

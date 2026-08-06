@@ -1,5 +1,5 @@
 import { randomUUID } from "node:crypto";
-import { and, asc, desc, eq, gt, inArray, lt, min, sum, type SQL } from "drizzle-orm";
+import { and, asc, desc, eq, gt, gte, inArray, lt, min, sum, type SQL } from "drizzle-orm";
 import { db } from "./db.js";
 import {
   activities as activitiesTable,
@@ -12,9 +12,28 @@ import {
   clubMemberships,
   clubs as clubsTable,
   follows,
+  habitPlans,
   segments as segmentsTable,
   users,
 } from "./db/schema.js";
+import {
+  HABIT_DAY_IDS,
+  HabitInputError,
+  buildFourWeekProgress,
+  buildHabitRecommendation,
+  buildPlanWeekTargets,
+  addLocalDays,
+  fromDateKey,
+  getRecoveryOpportunity,
+  normalizeTimeZone,
+  shouldOfferConsistencyPlan,
+  startOfIsoWeek,
+  toDateKey,
+  validateHabitPlanInput,
+  weekIndexFor,
+  type HabitActivity,
+  type HabitDayId,
+} from "./habit-logic.js";
 import { USER_AVATARS } from "./seed.js";
 
 const BOOTSTRAP_ACTIVITY_LIMIT = 40;
@@ -442,6 +461,328 @@ export async function buildBootstrap(userId: string) {
   };
 }
 
+function toHabitActivity(row: { id: string; date: Date; distanceKm: string }): HabitActivity {
+  return {
+    id: row.id,
+    date: row.date,
+    distanceKm: Number(row.distanceKm),
+  };
+}
+
+async function listEncouragementFriends(userId: string) {
+  const followed = await db
+    .select({
+      id: users.id,
+      name: users.name,
+      handle: users.handle,
+      avatar: users.avatarUrl,
+    })
+    .from(follows)
+    .innerJoin(users, eq(users.id, follows.followedId))
+    .where(eq(follows.followerId, userId))
+    .orderBy(asc(users.name));
+
+  return followed;
+}
+
+export async function getHabitPlanState(
+  userId: string,
+  sourceActivityId?: string,
+  now = new Date(),
+  requestedTimeZone: unknown = "UTC",
+) {
+  const [planRows, friends] = await Promise.all([
+    db.select().from(habitPlans).where(eq(habitPlans.userId, userId)).limit(1),
+    listEncouragementFriends(userId),
+  ]);
+  const plan = planRows[0] ?? null;
+  const sourceRows = await db
+    .select({ id: activitiesTable.id, date: activitiesTable.date })
+    .from(activitiesTable)
+    .where(
+      sourceActivityId || plan?.sourceActivityId
+        ? and(
+            eq(activitiesTable.athleteId, userId),
+            eq(activitiesTable.id, sourceActivityId ?? plan!.sourceActivityId),
+          )
+        : eq(activitiesTable.athleteId, userId),
+    )
+    .orderBy(desc(activitiesTable.date))
+    .limit(1);
+  const sourceActivity = sourceRows[0] ?? null;
+
+  if (sourceActivityId && !sourceActivity) {
+    throw new HabitInputError("Choose one of your own activities to start a plan");
+  }
+
+  const timeZone = normalizeTimeZone(plan?.timeZone ?? requestedTimeZone);
+  const currentWeekStart = startOfIsoWeek(now, timeZone);
+  const sourceWeekStart = sourceActivity
+    ? startOfIsoWeek(sourceActivity.date, timeZone)
+    : currentWeekStart;
+  const planWeekStart = plan ? fromDateKey(plan.planStartsOn, timeZone) : currentWeekStart;
+  const rangeStart = new Date(
+    Math.min(
+      addLocalDays(sourceWeekStart, -28, timeZone).getTime(),
+      planWeekStart.getTime(),
+      currentWeekStart.getTime(),
+    ),
+  );
+  const rangeEnd = new Date(
+    Math.max(
+      addLocalDays(sourceWeekStart, 7, timeZone).getTime(),
+      addLocalDays(planWeekStart, 28, timeZone).getTime(),
+      addLocalDays(currentWeekStart, 7, timeZone).getTime(),
+    ),
+  );
+  const activityRows = await db
+    .select({
+      id: activitiesTable.id,
+      date: activitiesTable.date,
+      distanceKm: activitiesTable.distanceKm,
+      title: activitiesTable.title,
+      sport: activitiesTable.sport,
+    })
+    .from(activitiesTable)
+    .where(
+      and(
+        eq(activitiesTable.athleteId, userId),
+        gte(activitiesTable.date, rangeStart),
+        lt(activitiesTable.date, rangeEnd),
+      ),
+    )
+    .orderBy(desc(activitiesTable.date));
+  const habitActivities = activityRows.map(toHabitActivity);
+  const recommendation = sourceActivity
+    ? buildHabitRecommendation(habitActivities, sourceActivity.id, sourceActivity.date, timeZone)
+    : null;
+  const progress = plan
+    ? buildFourWeekProgress(plan.planStartsOn, plan.weekTargets, habitActivities, now, timeZone)
+    : [];
+  const currentWeekIndex = plan ? weekIndexFor(plan.planStartsOn, now, timeZone) : -1;
+  const currentWeekTarget =
+    currentWeekIndex >= 0 && currentWeekIndex < 4
+      ? (plan?.weekTargets[currentWeekIndex] ?? plan?.weeklyTarget ?? 0)
+      : (plan?.weeklyTarget ?? 0);
+  const recovery = plan
+    ? getRecoveryOpportunity({
+        planStartsOn: plan.planStartsOn,
+        plannedDays: plan.plannedDays as HabitDayId[],
+        weeklyTarget: currentWeekTarget,
+        activities: habitActivities,
+        now,
+        timeZone,
+        recovery:
+          plan.recoveryWeekStartsOn && plan.recoveryMissedDay && plan.recoveryDay
+            ? {
+                weekStartsOn: plan.recoveryWeekStartsOn,
+                missedDay: plan.recoveryMissedDay as HabitDayId,
+                recoveryDay: plan.recoveryDay as HabitDayId,
+              }
+            : null,
+      })
+    : null;
+  const friend = plan?.encouragementFriendId
+    ? (friends.find((candidate) => candidate.id === plan.encouragementFriendId) ?? null)
+    : null;
+  const sourceDto = sourceActivity ? await getActivityById(userId, sourceActivity.id) : null;
+  const currentWeekEnd = addLocalDays(currentWeekStart, 7, timeZone);
+  const currentWeekActivities = activityRows
+    .filter((activity) => activity.date >= currentWeekStart && activity.date < currentWeekEnd)
+    .map((activity) => ({
+      id: activity.id,
+      title: activity.title,
+      sport: activity.sport,
+      date: activity.date.toISOString(),
+      distanceKm: Number(activity.distanceKm),
+    }));
+
+  return {
+    plan: plan
+      ? {
+          sourceActivityId: plan.sourceActivityId,
+          weeklyTarget: plan.weeklyTarget,
+          plannedDays: plan.plannedDays,
+          planStartsOn: plan.planStartsOn,
+          encouragementFriendId: plan.encouragementFriendId,
+          createdAt: plan.createdAt.toISOString(),
+          updatedAt: plan.updatedAt.toISOString(),
+          timeZone,
+          cycleStatus:
+            currentWeekStart >= addLocalDays(planWeekStart, 28, timeZone) ? "complete" : "active",
+          progress,
+          recovery,
+          friend,
+        }
+      : null,
+    sourceActivity: sourceDto,
+    recommendation,
+    friendCandidates: friends,
+    currentWeekActivities,
+  };
+}
+
+export async function saveHabitPlan(input: {
+  userId: string;
+  sourceActivityId: string;
+  weeklyTarget: unknown;
+  plannedDays: unknown;
+  encouragementFriendId?: string | null;
+  timeZone?: unknown;
+  now?: Date;
+}) {
+  const validated = validateHabitPlanInput(input);
+  const sourceRows = await db
+    .select({ id: activitiesTable.id, date: activitiesTable.date })
+    .from(activitiesTable)
+    .where(
+      and(
+        eq(activitiesTable.id, input.sourceActivityId),
+        eq(activitiesTable.athleteId, input.userId),
+      ),
+    )
+    .limit(1);
+  const source = sourceRows[0];
+
+  if (!source) {
+    throw new HabitInputError("Choose one of your own activities to start a plan");
+  }
+
+  const friendId = input.encouragementFriendId || null;
+
+  if (friendId) {
+    if (friendId === input.userId) {
+      throw new HabitInputError("Choose another athlete as your encouragement partner");
+    }
+
+    const followed = await db
+      .select({ id: follows.followedId })
+      .from(follows)
+      .where(and(eq(follows.followerId, input.userId), eq(follows.followedId, friendId)))
+      .limit(1);
+
+    if (!followed[0]) {
+      throw new HabitInputError("Choose an athlete you follow as your encouragement partner");
+    }
+  }
+
+  const now = input.now ?? new Date();
+  const existingRows = await db
+    .select()
+    .from(habitPlans)
+    .where(eq(habitPlans.userId, input.userId))
+    .limit(1);
+  const existing = existingRows[0];
+  const requestedZone = normalizeTimeZone(input.timeZone);
+  const existingZone = existing?.timeZone ?? requestedZone;
+  const existingWeekIndex = existing ? weekIndexFor(existing.planStartsOn, now, existingZone) : -1;
+  const expired = existingWeekIndex >= 4;
+  const timeZone = existing && !expired ? existingZone : requestedZone;
+  const { planStartsOn, weekTargets } = buildPlanWeekTargets({
+    weeklyTarget: validated.weeklyTarget,
+    now,
+    timeZone,
+    existingPlanStartsOn: existing && !expired ? existing.planStartsOn : undefined,
+    existingWeekTargets: existing?.weekTargets,
+    existingWeeklyTarget: existing?.weeklyTarget,
+  });
+  await db
+    .insert(habitPlans)
+    .values({
+      userId: input.userId,
+      sourceActivityId: source.id,
+      weeklyTarget: validated.weeklyTarget,
+      weekTargets,
+      plannedDays: validated.plannedDays,
+      planStartsOn,
+      timeZone,
+      encouragementFriendId: friendId,
+      updatedAt: now,
+    })
+    .onConflictDoUpdate({
+      target: habitPlans.userId,
+      set: {
+        sourceActivityId: source.id,
+        weeklyTarget: validated.weeklyTarget,
+        weekTargets,
+        plannedDays: validated.plannedDays,
+        planStartsOn,
+        timeZone,
+        encouragementFriendId: friendId,
+        recoveryWeekStartsOn: null,
+        recoveryMissedDay: null,
+        recoveryDay: null,
+        updatedAt: now,
+      },
+    });
+
+  return getHabitPlanState(input.userId, source.id, now, timeZone);
+}
+
+export async function scheduleHabitRecovery(input: {
+  userId: string;
+  recoveryDay: unknown;
+  now?: Date;
+}) {
+  const now = input.now ?? new Date();
+  const planRows = await db
+    .select()
+    .from(habitPlans)
+    .where(eq(habitPlans.userId, input.userId))
+    .limit(1);
+  const plan = planRows[0];
+
+  if (!plan) throw new HabitInputError("Create a consistency plan first");
+
+  const weekStart = startOfIsoWeek(now, plan.timeZone);
+  const weekEnd = addLocalDays(weekStart, 7, plan.timeZone);
+  const activityRows = await db
+    .select({
+      id: activitiesTable.id,
+      date: activitiesTable.date,
+      distanceKm: activitiesTable.distanceKm,
+    })
+    .from(activitiesTable)
+    .where(
+      and(
+        eq(activitiesTable.athleteId, input.userId),
+        gte(activitiesTable.date, weekStart),
+        lt(activitiesTable.date, weekEnd),
+      ),
+    );
+  const currentWeekIndex = weekIndexFor(plan.planStartsOn, now, plan.timeZone);
+  const opportunity = getRecoveryOpportunity({
+    planStartsOn: plan.planStartsOn,
+    plannedDays: plan.plannedDays as HabitDayId[],
+    weeklyTarget: plan.weekTargets[currentWeekIndex] ?? plan.weeklyTarget,
+    activities: activityRows.map(toHabitActivity),
+    now,
+    timeZone: plan.timeZone,
+    recovery: null,
+  });
+  const recoveryDay = String(input.recoveryDay ?? "").toLowerCase() as HabitDayId;
+
+  if (!opportunity || !HABIT_DAY_IDS.includes(recoveryDay)) {
+    throw new HabitInputError("There is no missed activity to reschedule this week");
+  }
+
+  if (!opportunity.options.includes(recoveryDay)) {
+    throw new HabitInputError("Choose an available day later this week");
+  }
+
+  await db
+    .update(habitPlans)
+    .set({
+      recoveryWeekStartsOn: opportunity.weekStartsOn,
+      recoveryMissedDay: opportunity.missedDay,
+      recoveryDay,
+      updatedAt: new Date(),
+    })
+    .where(eq(habitPlans.userId, input.userId));
+
+  return getHabitPlanState(input.userId, undefined, now, plan.timeZone);
+}
+
 export async function createActivity(input: {
   userId: string;
   sport: Sport;
@@ -455,6 +796,18 @@ export async function createActivity(input: {
   avgSpeedKmh?: number;
   routeSeed: number;
 }) {
+  const [existingActivity, existingPlan] = await Promise.all([
+    db
+      .select({ id: activitiesTable.id })
+      .from(activitiesTable)
+      .where(eq(activitiesTable.athleteId, input.userId))
+      .limit(1),
+    db
+      .select({ userId: habitPlans.userId })
+      .from(habitPlans)
+      .where(eq(habitPlans.userId, input.userId))
+      .limit(1),
+  ]);
   const id = `act-${randomUUID()}`;
 
   await db.insert(activitiesTable).values({
@@ -476,7 +829,13 @@ export async function createActivity(input: {
     routeSeed: input.routeSeed,
   });
 
-  return id;
+  return {
+    id,
+    shouldOfferConsistencyPlan: shouldOfferConsistencyPlan(
+      existingActivity.length,
+      existingPlan.length > 0,
+    ),
+  };
 }
 
 export async function toggleKudo(userId: string, activityId: string) {

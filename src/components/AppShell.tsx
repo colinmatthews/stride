@@ -10,6 +10,7 @@ import {
   Search,
   Bell,
   Settings,
+  Target,
 } from "lucide-react";
 import { ME, clearAppData } from "@/lib/mock-data";
 import { FormEvent, ReactNode, useState } from "react";
@@ -19,6 +20,7 @@ const NAV = [
   { to: "/", label: "Feed", icon: Home },
   { to: "/athletes", label: "Athletes", icon: Users },
   { to: "/training", label: "Training Log", icon: BarChart3 },
+  { to: "/habits", label: "Habits", icon: Target },
   { to: "/segments", label: "Segments", icon: Compass },
   { to: "/challenges", label: "Challenges", icon: Trophy },
   { to: "/clubs", label: "Clubs", icon: Users },
