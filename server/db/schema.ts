@@ -62,6 +62,26 @@ export const activities = pgTable("activities", {
   routeSeed: integer("route_seed").notNull(),
 });
 
+export const habitPlans = pgTable("habit_plans", {
+  userId: text("user_id")
+    .primaryKey()
+    .references(() => users.id, { onDelete: "cascade" }),
+  sourceActivityId: text("source_activity_id")
+    .notNull()
+    .references(() => activities.id, { onDelete: "restrict" }),
+  weeklyTarget: integer("weekly_target").notNull(),
+  plannedDays: text("planned_days").array().notNull(),
+  planStartsOn: date("plan_starts_on").notNull(),
+  encouragementFriendId: text("encouragement_friend_id").references(() => users.id, {
+    onDelete: "set null",
+  }),
+  recoveryWeekStartsOn: date("recovery_week_starts_on"),
+  recoveryMissedDay: text("recovery_missed_day"),
+  recoveryDay: text("recovery_day"),
+  createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+  updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow(),
+});
+
 export const activityComments = pgTable("activity_comments", {
   id: text("id").primaryKey(),
   activityId: text("activity_id")

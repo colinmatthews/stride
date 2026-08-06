@@ -182,7 +182,7 @@ function ManualForm({ sport }: { sport: Sport }) {
       const paceSecPerKm = sport === "Ride" ? undefined : Math.round(totalSeconds / distanceKm);
       const speedKmh =
         sport === "Ride" ? Math.round((distanceKm / (totalSeconds / 3600)) * 10) / 10 : undefined;
-      const activity = await saveActivity({
+      const result = await saveActivity({
         sport,
         title: title.trim() || defaultTitle(sport, new Date()),
         description: description.trim() || undefined,
@@ -201,7 +201,10 @@ function ManualForm({ sport }: { sport: Sport }) {
         elevation_m: Number(elevation) || 0,
         entry_mode: "manual",
       });
-      router.navigate({ to: "/activity/$id", params: { id: activity.id } });
+      router.navigate({
+        to: result.shouldOfferConsistencyPlan ? "/first-activity/$id" : "/activity/$id",
+        params: { id: result.activity.id },
+      });
     } catch (err) {
       posthog.captureException(err);
       setError("Couldn't save activity. Try again.");
@@ -525,7 +528,7 @@ function TimerMode({ sport }: { sport: Sport }) {
         sport === "Ride" ? undefined : Math.max(180, Math.floor(elapsed / Math.max(0.1, distance)));
       const speed =
         sport === "Ride" ? Math.round((distance / (elapsed / 3600)) * 10) / 10 : undefined;
-      const activity = await saveActivity({
+      const result = await saveActivity({
         sport,
         title: title || defaultTitle(sport, new Date()),
         description: description || undefined,
@@ -544,7 +547,10 @@ function TimerMode({ sport }: { sport: Sport }) {
         elevation_m: Math.floor(distance * 12),
         entry_mode: "timer",
       });
-      router.navigate({ to: "/activity/$id", params: { id: activity.id } });
+      router.navigate({
+        to: result.shouldOfferConsistencyPlan ? "/first-activity/$id" : "/activity/$id",
+        params: { id: result.activity.id },
+      });
     } catch (err) {
       posthog.captureException(err);
       setSaving(false);
