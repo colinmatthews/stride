@@ -8,6 +8,7 @@ import {
   type Activity,
   type AppData,
 } from "./mock-data";
+import type { InviteSummary, PublicInvite } from "./invites";
 
 class ApiError extends Error {
   status: number;
@@ -198,6 +199,42 @@ export async function toggleChallengeJoin(challengeId: string) {
   }
 
   return payload;
+}
+
+export async function createActivityInvite(activityId: string) {
+  return apiFetch<{ code: string; url: string; message: string }>("/api/invites", {
+    method: "POST",
+    body: JSON.stringify({ activityId }),
+  });
+}
+
+export async function fetchActivityInvites(activityId: string) {
+  return apiFetch<{ invites: InviteSummary[] }>(
+    `/api/invites?activityId=${encodeURIComponent(activityId)}`,
+  );
+}
+
+export async function fetchInvite(code: string) {
+  return apiFetch<PublicInvite>(`/api/invites/${encodeURIComponent(code)}`);
+}
+
+export async function claimInvite(
+  code: string,
+  payload: {
+    distanceKm: number;
+    movingSeconds: number;
+    elevationM: number;
+    title: string;
+    description?: string;
+  },
+) {
+  return apiFetch<{ activityId: string; wasEdited: boolean }>(
+    `/api/invites/${encodeURIComponent(code)}/claim`,
+    {
+      method: "POST",
+      body: JSON.stringify(payload),
+    },
+  );
 }
 
 export { ApiError };

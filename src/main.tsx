@@ -10,8 +10,10 @@ async function bootstrap() {
   const pathname = window.location.pathname;
   const isAuthRoute = pathname === "/auth";
   // Public routes render with empty app data (e.g. the landing page at "/"
-  // shows marketing content when the user isn't authed).
-  const isPublicRoute = isAuthRoute || pathname === "/";
+  // shows marketing content when the user isn't authed). Invite links at /j/:code
+  // are the case that matters most here — a recipient arrives from a text message
+  // with no session at all, and bouncing them to /auth would break the whole loop.
+  const isPublicRoute = isAuthRoute || pathname === "/" || pathname.startsWith("/j/");
 
   try {
     if (!isAuthRoute) {

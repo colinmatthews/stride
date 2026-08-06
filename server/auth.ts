@@ -125,3 +125,18 @@ export async function requireAuth(request: Request, response: Response, next: Ne
     next(error);
   }
 }
+
+/**
+ * Resolves a session when one is present but never rejects. Used by routes that a
+ * logged-out visitor must be able to reach — an invite link lands on the page before
+ * the recipient has an account — while still tailoring the response for the minority
+ * of viewers who are already signed in.
+ */
+export async function optionalAuth(request: Request, _response: Response, next: NextFunction) {
+  try {
+    await getSessionUserId(request);
+    next();
+  } catch (error) {
+    next(error);
+  }
+}
