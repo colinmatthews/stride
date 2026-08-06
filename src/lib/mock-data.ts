@@ -75,6 +75,17 @@ export interface Challenge {
   joined?: boolean;
 }
 
+export interface Subscription {
+  plan: string;
+  priceUsd: number;
+  status: "active" | "cancelled";
+  paymentBrand: string;
+  paymentLast4: string;
+  currentPeriodEnd: string;
+  cancelledAt?: string;
+  billingSyncedAt?: string;
+}
+
 export interface AppData {
   me: Athlete;
   athletes: Athlete[];
@@ -82,6 +93,7 @@ export interface AppData {
   segments: Segment[];
   clubs: Club[];
   challenges: Challenge[];
+  subscription: Subscription;
 }
 
 const EMPTY_ATHLETE: Athlete = {
@@ -96,12 +108,22 @@ const EMPTY_ATHLETE: Athlete = {
   bio: "",
 };
 
+const EMPTY_SUBSCRIPTION: Subscription = {
+  plan: "",
+  priceUsd: 0,
+  status: "active",
+  paymentBrand: "",
+  paymentLast4: "",
+  currentPeriodEnd: "",
+};
+
 export let ME: Athlete = EMPTY_ATHLETE;
 export let ATHLETES: Athlete[] = [];
 export let ACTIVITIES: Activity[] = [];
 export let SEGMENTS: Segment[] = [];
 export let CLUBS: Club[] = [];
 export let CHALLENGES: Challenge[] = [];
+export let SUBSCRIPTION: Subscription = EMPTY_SUBSCRIPTION;
 
 export function initializeAppData(data: AppData) {
   ME = data.me;
@@ -110,6 +132,7 @@ export function initializeAppData(data: AppData) {
   SEGMENTS = data.segments;
   CLUBS = data.clubs;
   CHALLENGES = data.challenges;
+  SUBSCRIPTION = data.subscription;
 }
 
 export function mergeActivities(activities: Activity[]) {
@@ -131,6 +154,7 @@ export function clearAppData() {
   SEGMENTS = [];
   CLUBS = [];
   CHALLENGES = [];
+  SUBSCRIPTION = EMPTY_SUBSCRIPTION;
 }
 
 function pad(value: number) {

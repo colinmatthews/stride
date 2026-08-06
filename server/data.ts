@@ -13,6 +13,7 @@ import {
   clubs as clubsTable,
   follows,
   segments as segmentsTable,
+  subscriptions,
   users,
 } from "./db/schema.js";
 import { USER_AVATARS } from "./seed.js";
@@ -329,6 +330,7 @@ export async function buildBootstrap(userId: string) {
     challengesResult,
     challengeEntriesResult,
     challengeProgressResult,
+    subscription,
   ] = await Promise.all([
     db.select().from(users).orderBy(asc(users.createdAt)),
     db
@@ -365,6 +367,7 @@ export async function buildBootstrap(userId: string) {
       .from(activitiesTable)
       .where(eq(activitiesTable.athleteId, userId))
       .groupBy(activitiesTable.sport),
+    getOrCreateSubscription(userId),
   ]);
 
   const followedIds = new Set(followsResult.map((row) => row.followedId));
@@ -439,6 +442,7 @@ export async function buildBootstrap(userId: string) {
     segments,
     clubs,
     challenges,
+    subscription,
   };
 }
 
@@ -657,4 +661,124 @@ export async function toggleChallengeEntry(userId: string, challengeId: string) 
     joined: existing.length === 0,
     participants,
   };
+}
+
+type SubscriptionDto = {
+  plan: string;
+  priceUsd: number;
+  status: "active" | "cancelled";
+  paymentBrand: string;
+  paymentLast4: string;
+  currentPeriodEnd: string;
+  cancelledAt?: string;
+  billingSyncedAt?: string;
+};
+
+function mapSubscription(row: typeof subscriptions.$inferSelect): SubscriptionDto {
+  return {
+    plan: row.plan,
+    priceUsd: Number(row.priceUsd),
+    status: row.status as "active" | "cancelled",
+    paymentBrand: row.paymentBrand,
+    paymentLast4: row.paymentLast4,
+    currentPeriodEnd: row.currentPeriodEnd.toISOString(),
+    cancelledAt: row.cancelledAt?.toISOString(),
+    billingSyncedAt: row.billingSyncedAt?.toISOString(),
+  };
+}
+
+export async function getOrCreateSubscription(userId: string): Promise<SubscriptionDto> {
+  const existing = await db
+    .select()
+    .from(subscriptions)
+    .where(eq(subscriptions.userId, userId))
+    .limit(1);
+
+  if (existing[0]) {
+    return mapSubscription(existing[0]);
+  }
+
+  const currentPeriodEnd = new Date();
+  currentPeriodEnd.setDate(currentPeriodEnd.getDate() + 30);
+
+  const inserted = await db
+    .insert(subscriptions)
+    .values({
+      id: randomUUID(),
+      userId,
+      plan: "Summit",
+      priceUsd: "11.00",
+      status: "active",
+      paymentBrand: "Visa",
+      paymentLast4: "4242",
+      currentPeriodEnd,
+    })
+    .onConflictDoNothing({ target: subscriptions.userId })
+    .returning();
+
+  if (inserted[0]) {
+    return mapSubscription(inserted[0]);
+  }
+
+  const [row] = await db
+    .select()
+    .from(subscriptions)
+    .where(eq(subscriptions.userId, userId))
+    .limit(1);
+
+  if (!row) {
+    throw new Error("Failed to create subscription");
+  }
+
+  return mapSubscription(row);
+}
+
+export async function cancelSubscription(userId: string): Promise<SubscriptionDto> {
+  const existing = await db
+    .select({ status: subscriptions.status })
+    .from(subscriptions)
+    .where(eq(subscriptions.userId, userId))
+    .limit(1);
+
+  if (!existing[0]) {
+    throw new Error("Subscription not found");
+  }
+
+  if (existing[0].status === "cancelled") {
+    throw new Error("Subscription already cancelled");
+  }
+
+  const now = new Date();
+  const [row] = await db
+    .update(subscriptions)
+    .set({ status: "cancelled", cancelledAt: now, billingSyncedAt: now })
+    .where(eq(subscriptions.userId, userId))
+    .returning();
+
+  return mapSubscription(row);
+}
+
+export async function reactivateSubscription(userId: string): Promise<SubscriptionDto> {
+  const existing = await db
+    .select({ status: subscriptions.status })
+    .from(subscriptions)
+    .where(eq(subscriptions.userId, userId))
+    .limit(1);
+
+  if (!existing[0]) {
+    throw new Error("Subscription not found");
+  }
+
+  if (existing[0].status === "active") {
+    throw new Error("Subscription already active");
+  }
+
+  const now = new Date();
+  const [row] = await db
+    .update(subscriptions)
+    .set({ status: "active", cancelledAt: null, billingSyncedAt: now })
+    .where(eq(subscriptions.userId, userId))
+    .returning();
+
+  return mapSubscription(row);
 }

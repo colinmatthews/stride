@@ -4,11 +4,13 @@ import express from "express";
 import {
   addComment,
   buildBootstrap,
+  cancelSubscription,
   createActivity,
   createUser,
   findUserForAuth,
   getActivityById,
   listActivities,
+  reactivateSubscription,
   toggleChallengeEntry,
   toggleClubMembership,
   toggleFollow,
@@ -212,6 +214,22 @@ export function createApp() {
   app.post("/api/challenges/:id/join", requireAuth, async (request, response, next) => {
     try {
       response.json(await toggleChallengeEntry(request.userId!, String(request.params.id)));
+    } catch (error) {
+      next(error);
+    }
+  });
+
+  app.post("/api/subscription/cancel", requireAuth, async (request, response, next) => {
+    try {
+      response.json(await cancelSubscription(request.userId!));
+    } catch (error) {
+      next(error);
+    }
+  });
+
+  app.post("/api/subscription/reactivate", requireAuth, async (request, response, next) => {
+    try {
+      response.json(await reactivateSubscription(request.userId!));
     } catch (error) {
       next(error);
     }
