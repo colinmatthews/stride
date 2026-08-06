@@ -121,6 +121,7 @@ export async function saveActivity(payload: {
 export async function fetchHabitPlan(activityId?: string) {
   const params = new URLSearchParams();
   if (activityId) params.set("activityId", activityId);
+  params.set("timeZone", Intl.DateTimeFormat().resolvedOptions().timeZone || "UTC");
   const suffix = params.toString() ? `?${params.toString()}` : "";
   return apiFetch<HabitPlanState>(`/api/habit-plan${suffix}`);
 }
@@ -130,10 +131,14 @@ export async function saveHabitPlan(payload: {
   weeklyTarget: number;
   plannedDays: HabitDayId[];
   encouragementFriendId?: string | null;
+  timeZone?: string;
 }) {
   return apiFetch<HabitPlanState>("/api/habit-plan", {
     method: "PUT",
-    body: JSON.stringify(payload),
+    body: JSON.stringify({
+      ...payload,
+      timeZone: payload.timeZone ?? Intl.DateTimeFormat().resolvedOptions().timeZone ?? "UTC",
+    }),
   });
 }
 

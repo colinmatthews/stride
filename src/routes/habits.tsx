@@ -5,14 +5,14 @@ import {
   ArrowRight,
   CalendarDays,
   Check,
-  CircleCheck,
   RefreshCcw,
   Share2,
   Target,
   UserRound,
 } from "lucide-react";
 import { AppShell } from "@/components/AppShell";
-import { Progress } from "@/components/ui/progress";
+import { ConsistencyWeekGrid } from "@/components/ConsistencyWeekGrid";
+import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { fetchHabitPlan, scheduleHabitRecovery } from "@/lib/api";
 import { habitDayLabel, type HabitDayId, type HabitPlanState } from "@/lib/habits";
 import { fmtDate } from "@/lib/mock-data";
@@ -76,12 +76,11 @@ function HabitsPage() {
     );
   }
 
-  const activeWeek =
-    plan.progress.find((week) => week.status === "in_progress") ??
-    plan.progress.find((week) => week.status === "complete") ??
-    plan.progress[0];
+  const activeWeek = plan.progress.find((week) => week.isCurrent);
   const completed = activeWeek?.count ?? 0;
-  const remaining = Math.max(0, plan.weeklyTarget - completed);
+  const activeTarget = activeWeek?.target ?? plan.weeklyTarget;
+  const remaining = Math.max(0, activeTarget - completed);
+  const cycleComplete = plan.cycleStatus === "complete";
 
   async function recoverOn(day: HabitDayId) {
     setBusyDay(day);
@@ -152,29 +151,42 @@ function HabitsPage() {
             <div className="mt-5 flex flex-col gap-5 sm:flex-row sm:items-end sm:justify-between">
               <div>
                 <h2 className="font-display text-3xl font-bold">
-                  {plan.weeklyTarget} activities each week
+                  {cycleComplete
+                    ? "Your four-week plan is complete"
+                    : `${activeTarget} activities this week`}
                 </h2>
                 <p className="mt-2 text-sm text-muted-foreground">
-                  Planned for {plan.plannedDays.map(habitDayLabel).join(", ")}
+                  {cycleComplete
+                    ? "Review what you built, then start a fresh cycle when you’re ready."
+                    : `Planned for ${plan.plannedDays.map(habitDayLabel).join(", ")}`}
                 </p>
               </div>
-              <div className="sm:text-right">
-                <div className="stat-num text-4xl font-bold">
-                  {completed}
-                  <span className="text-lg text-muted-foreground">/{plan.weeklyTarget}</span>
+              {cycleComplete ? (
+                <Link
+                  to="/first-activity/$id"
+                  params={{ id: plan.sourceActivityId }}
+                  search={{ mode: "review" }}
+                  className="inline-flex h-10 items-center gap-2 bg-primary px-4 text-sm font-medium text-primary-foreground"
+                >
+                  Start a new four-week plan <ArrowRight className="h-4 w-4" />
+                </Link>
+              ) : (
+                <div className="sm:text-right">
+                  <div className="stat-num text-4xl font-bold">
+                    {completed}
+                    <span className="text-lg text-muted-foreground">/{activeTarget}</span>
+                  </div>
+                  <div className="text-xs text-muted-foreground">activities this week</div>
                 </div>
-                <div className="text-xs text-muted-foreground">activities this week</div>
-              </div>
+              )}
             </div>
-            <Progress
-              value={Math.min(100, (completed / plan.weeklyTarget) * 100)}
-              className="mt-6 h-2 rounded-none"
-            />
-            <p className="mt-3 text-sm font-medium">
-              {remaining === 0
-                ? "Weekly plan complete — nice work."
-                : `${remaining} more ${remaining === 1 ? "activity" : "activities"} to complete this week.`}
-            </p>
+            {!cycleComplete && (
+              <p className="mt-6 text-sm font-medium">
+                {remaining === 0
+                  ? "Weekly plan complete — nice work."
+                  : `${remaining} more ${remaining === 1 ? "activity" : "activities"} to complete this week.`}
+              </p>
+            )}
           </div>
           <div className="border-t border-border bg-primary/5 p-7 lg:border-l lg:border-t-0">
             <p className="font-mono text-[10px] uppercase tracking-[0.18em] text-muted-foreground">
@@ -257,31 +269,8 @@ function HabitsPage() {
               Record activity
             </Link>
           </div>
-          <div className="mt-5 grid gap-3 sm:grid-cols-4">
-            {plan.progress.map((week) => (
-              <div
-                key={week.start}
-                className={`border p-4 ${week.status === "in_progress" ? "border-primary bg-primary/5" : "border-border"}`}
-              >
-                <div className="font-mono text-[9px] uppercase tracking-[0.16em] text-muted-foreground">
-                  {week.label}
-                </div>
-                <div className="stat-num mt-4 text-2xl font-bold">
-                  {week.count}
-                  <span className="text-sm text-muted-foreground">/{plan.weeklyTarget}</span>
-                </div>
-                <Progress
-                  value={Math.min(100, (week.count / plan.weeklyTarget) * 100)}
-                  className="mt-3 h-1.5 rounded-none"
-                />
-                <div className="mt-3 flex items-center gap-1.5 text-[11px] capitalize text-muted-foreground">
-                  {week.status === "complete" && (
-                    <CircleCheck className="h-3.5 w-3.5 text-[var(--pr)]" />
-                  )}
-                  {week.status.replace("_", " ")}
-                </div>
-              </div>
-            ))}
+          <div className="mt-5">
+            <ConsistencyWeekGrid weeks={plan.progress} />
           </div>
 
           <div className="mt-7 border-t border-border pt-5">
@@ -327,11 +316,10 @@ function HabitsPage() {
           {plan.friend ? (
             <>
               <div className="mt-5 flex items-center gap-3">
-                <img
-                  src={plan.friend.avatar}
-                  alt=""
-                  className="h-11 w-11 rounded-full object-cover"
-                />
+                <Avatar className="h-11 w-11">
+                  <AvatarImage src={plan.friend.avatar} alt={plan.friend.name} />
+                  <AvatarFallback>{plan.friend.name.slice(0, 1)}</AvatarFallback>
+                </Avatar>
                 <div>
                   <div className="font-display font-semibold">{plan.friend.name}</div>
                   <div className="text-xs text-muted-foreground">@{plan.friend.handle}</div>

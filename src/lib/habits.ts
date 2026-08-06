@@ -17,11 +17,13 @@ export type HabitWeek = {
   start: string;
   count: number;
   distanceKm: number;
+  target: number;
+  isCurrent: boolean;
   status: "complete" | "missed" | "in_progress" | "upcoming";
 };
 
 export type HabitRecommendation = {
-  baselineWeeks: Array<Omit<HabitWeek, "status">>;
+  baselineWeeks: Array<Omit<HabitWeek, "status" | "target" | "isCurrent">>;
   weeklyTarget: number;
   plannedDays: HabitDayId[];
   totalActivities: number;
@@ -51,6 +53,8 @@ export type HabitPlan = {
   encouragementFriendId: string | null;
   createdAt: string;
   updatedAt: string;
+  timeZone: string;
+  cycleStatus: "active" | "complete";
   progress: HabitWeek[];
   recovery: HabitRecovery | null;
   friend: EncouragementFriend | null;

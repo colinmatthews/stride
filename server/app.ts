@@ -182,6 +182,8 @@ export function createApp() {
         await getHabitPlanState(
           request.userId!,
           request.query.activityId ? String(request.query.activityId) : undefined,
+          new Date(),
+          request.query.timeZone,
         ),
       );
     } catch (error) {
@@ -200,6 +202,7 @@ export function createApp() {
           encouragementFriendId: request.body.encouragementFriendId
             ? String(request.body.encouragementFriendId)
             : null,
+          timeZone: request.body.timeZone,
         }),
       );
     } catch (error) {

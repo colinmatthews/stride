@@ -70,8 +70,10 @@ export const habitPlans = pgTable("habit_plans", {
     .notNull()
     .references(() => activities.id, { onDelete: "restrict" }),
   weeklyTarget: integer("weekly_target").notNull(),
+  weekTargets: integer("week_targets").array().notNull(),
   plannedDays: text("planned_days").array().notNull(),
   planStartsOn: date("plan_starts_on").notNull(),
+  timeZone: text("time_zone").notNull().default("UTC"),
   encouragementFriendId: text("encouragement_friend_id").references(() => users.id, {
     onDelete: "set null",
   }),

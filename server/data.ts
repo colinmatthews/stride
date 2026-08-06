@@ -1,5 +1,5 @@
 import { randomUUID } from "node:crypto";
-import { and, asc, desc, eq, gt, inArray, lt, min, sum, type SQL } from "drizzle-orm";
+import { and, asc, desc, eq, gt, gte, inArray, lt, min, sum, type SQL } from "drizzle-orm";
 import { db } from "./db.js";
 import {
   activities as activitiesTable,
@@ -21,11 +21,16 @@ import {
   HabitInputError,
   buildFourWeekProgress,
   buildHabitRecommendation,
+  buildPlanWeekTargets,
+  addLocalDays,
+  fromDateKey,
   getRecoveryOpportunity,
+  normalizeTimeZone,
   shouldOfferConsistencyPlan,
   startOfIsoWeek,
   toDateKey,
   validateHabitPlanInput,
+  weekIndexFor,
   type HabitActivity,
   type HabitDayId,
 } from "./habit-logic.js";
@@ -456,7 +461,7 @@ export async function buildBootstrap(userId: string) {
   };
 }
 
-function toHabitActivity(row: ActivityRow): HabitActivity {
+function toHabitActivity(row: { id: string; date: Date; distanceKm: string }): HabitActivity {
   return {
     id: row.id,
     date: row.date,
@@ -484,44 +489,89 @@ export async function getHabitPlanState(
   userId: string,
   sourceActivityId?: string,
   now = new Date(),
+  requestedTimeZone: unknown = "UTC",
 ) {
-  const [planRows, activityRows, friends] = await Promise.all([
+  const [planRows, friends] = await Promise.all([
     db.select().from(habitPlans).where(eq(habitPlans.userId, userId)).limit(1),
-    db
-      .select()
-      .from(activitiesTable)
-      .where(eq(activitiesTable.athleteId, userId))
-      .orderBy(desc(activitiesTable.date)),
     listEncouragementFriends(userId),
   ]);
   const plan = planRows[0] ?? null;
-  const requestedSource = sourceActivityId
-    ? activityRows.find((activity) => activity.id === sourceActivityId)
-    : undefined;
+  const sourceRows = await db
+    .select({ id: activitiesTable.id, date: activitiesTable.date })
+    .from(activitiesTable)
+    .where(
+      sourceActivityId || plan?.sourceActivityId
+        ? and(
+            eq(activitiesTable.athleteId, userId),
+            eq(activitiesTable.id, sourceActivityId ?? plan!.sourceActivityId),
+          )
+        : eq(activitiesTable.athleteId, userId),
+    )
+    .orderBy(desc(activitiesTable.date))
+    .limit(1);
+  const sourceActivity = sourceRows[0] ?? null;
 
-  if (sourceActivityId && !requestedSource) {
+  if (sourceActivityId && !sourceActivity) {
     throw new HabitInputError("Choose one of your own activities to start a plan");
   }
 
-  const sourceActivity =
-    requestedSource ??
-    activityRows.find((activity) => activity.id === plan?.sourceActivityId) ??
-    activityRows[0] ??
-    null;
+  const timeZone = normalizeTimeZone(plan?.timeZone ?? requestedTimeZone);
+  const currentWeekStart = startOfIsoWeek(now, timeZone);
+  const sourceWeekStart = sourceActivity
+    ? startOfIsoWeek(sourceActivity.date, timeZone)
+    : currentWeekStart;
+  const planWeekStart = plan ? fromDateKey(plan.planStartsOn, timeZone) : currentWeekStart;
+  const rangeStart = new Date(
+    Math.min(
+      addLocalDays(sourceWeekStart, -28, timeZone).getTime(),
+      planWeekStart.getTime(),
+      currentWeekStart.getTime(),
+    ),
+  );
+  const rangeEnd = new Date(
+    Math.max(
+      addLocalDays(sourceWeekStart, 7, timeZone).getTime(),
+      addLocalDays(planWeekStart, 28, timeZone).getTime(),
+      addLocalDays(currentWeekStart, 7, timeZone).getTime(),
+    ),
+  );
+  const activityRows = await db
+    .select({
+      id: activitiesTable.id,
+      date: activitiesTable.date,
+      distanceKm: activitiesTable.distanceKm,
+      title: activitiesTable.title,
+      sport: activitiesTable.sport,
+    })
+    .from(activitiesTable)
+    .where(
+      and(
+        eq(activitiesTable.athleteId, userId),
+        gte(activitiesTable.date, rangeStart),
+        lt(activitiesTable.date, rangeEnd),
+      ),
+    )
+    .orderBy(desc(activitiesTable.date));
   const habitActivities = activityRows.map(toHabitActivity);
   const recommendation = sourceActivity
-    ? buildHabitRecommendation(habitActivities, sourceActivity.id, sourceActivity.date)
+    ? buildHabitRecommendation(habitActivities, sourceActivity.id, sourceActivity.date, timeZone)
     : null;
   const progress = plan
-    ? buildFourWeekProgress(plan.planStartsOn, plan.weeklyTarget, habitActivities, now)
+    ? buildFourWeekProgress(plan.planStartsOn, plan.weekTargets, habitActivities, now, timeZone)
     : [];
+  const currentWeekIndex = plan ? weekIndexFor(plan.planStartsOn, now, timeZone) : -1;
+  const currentWeekTarget =
+    currentWeekIndex >= 0 && currentWeekIndex < 4
+      ? (plan?.weekTargets[currentWeekIndex] ?? plan?.weeklyTarget ?? 0)
+      : (plan?.weeklyTarget ?? 0);
   const recovery = plan
     ? getRecoveryOpportunity({
         planStartsOn: plan.planStartsOn,
         plannedDays: plan.plannedDays as HabitDayId[],
-        weeklyTarget: plan.weeklyTarget,
+        weeklyTarget: currentWeekTarget,
         activities: habitActivities,
         now,
+        timeZone,
         recovery:
           plan.recoveryWeekStartsOn && plan.recoveryMissedDay && plan.recoveryDay
             ? {
@@ -536,9 +586,7 @@ export async function getHabitPlanState(
     ? (friends.find((candidate) => candidate.id === plan.encouragementFriendId) ?? null)
     : null;
   const sourceDto = sourceActivity ? await getActivityById(userId, sourceActivity.id) : null;
-  const currentWeekStart = startOfIsoWeek(now);
-  const currentWeekEnd = new Date(currentWeekStart);
-  currentWeekEnd.setUTCDate(currentWeekEnd.getUTCDate() + 7);
+  const currentWeekEnd = addLocalDays(currentWeekStart, 7, timeZone);
   const currentWeekActivities = activityRows
     .filter((activity) => activity.date >= currentWeekStart && activity.date < currentWeekEnd)
     .map((activity) => ({
@@ -559,6 +607,9 @@ export async function getHabitPlanState(
           encouragementFriendId: plan.encouragementFriendId,
           createdAt: plan.createdAt.toISOString(),
           updatedAt: plan.updatedAt.toISOString(),
+          timeZone,
+          cycleStatus:
+            currentWeekStart >= addLocalDays(planWeekStart, 28, timeZone) ? "complete" : "active",
           progress,
           recovery,
           friend,
@@ -577,6 +628,8 @@ export async function saveHabitPlan(input: {
   weeklyTarget: unknown;
   plannedDays: unknown;
   encouragementFriendId?: string | null;
+  timeZone?: unknown;
+  now?: Date;
 }) {
   const validated = validateHabitPlanInput(input);
   const sourceRows = await db
@@ -613,15 +666,36 @@ export async function saveHabitPlan(input: {
     }
   }
 
-  const now = new Date();
+  const now = input.now ?? new Date();
+  const existingRows = await db
+    .select()
+    .from(habitPlans)
+    .where(eq(habitPlans.userId, input.userId))
+    .limit(1);
+  const existing = existingRows[0];
+  const requestedZone = normalizeTimeZone(input.timeZone);
+  const existingZone = existing?.timeZone ?? requestedZone;
+  const existingWeekIndex = existing ? weekIndexFor(existing.planStartsOn, now, existingZone) : -1;
+  const expired = existingWeekIndex >= 4;
+  const timeZone = existing && !expired ? existingZone : requestedZone;
+  const { planStartsOn, weekTargets } = buildPlanWeekTargets({
+    weeklyTarget: validated.weeklyTarget,
+    now,
+    timeZone,
+    existingPlanStartsOn: existing && !expired ? existing.planStartsOn : undefined,
+    existingWeekTargets: existing?.weekTargets,
+    existingWeeklyTarget: existing?.weeklyTarget,
+  });
   await db
     .insert(habitPlans)
     .values({
       userId: input.userId,
       sourceActivityId: source.id,
       weeklyTarget: validated.weeklyTarget,
+      weekTargets,
       plannedDays: validated.plannedDays,
-      planStartsOn: toDateKey(startOfIsoWeek(source.date)),
+      planStartsOn,
+      timeZone,
       encouragementFriendId: friendId,
       updatedAt: now,
     })
@@ -630,7 +704,10 @@ export async function saveHabitPlan(input: {
       set: {
         sourceActivityId: source.id,
         weeklyTarget: validated.weeklyTarget,
+        weekTargets,
         plannedDays: validated.plannedDays,
+        planStartsOn,
+        timeZone,
         encouragementFriendId: friendId,
         recoveryWeekStartsOn: null,
         recoveryMissedDay: null,
@@ -639,7 +716,7 @@ export async function saveHabitPlan(input: {
       },
     });
 
-  return getHabitPlanState(input.userId, source.id);
+  return getHabitPlanState(input.userId, source.id, now, timeZone);
 }
 
 export async function scheduleHabitRecovery(input: {
@@ -657,16 +734,30 @@ export async function scheduleHabitRecovery(input: {
 
   if (!plan) throw new HabitInputError("Create a consistency plan first");
 
+  const weekStart = startOfIsoWeek(now, plan.timeZone);
+  const weekEnd = addLocalDays(weekStart, 7, plan.timeZone);
   const activityRows = await db
-    .select()
+    .select({
+      id: activitiesTable.id,
+      date: activitiesTable.date,
+      distanceKm: activitiesTable.distanceKm,
+    })
     .from(activitiesTable)
-    .where(eq(activitiesTable.athleteId, input.userId));
+    .where(
+      and(
+        eq(activitiesTable.athleteId, input.userId),
+        gte(activitiesTable.date, weekStart),
+        lt(activitiesTable.date, weekEnd),
+      ),
+    );
+  const currentWeekIndex = weekIndexFor(plan.planStartsOn, now, plan.timeZone);
   const opportunity = getRecoveryOpportunity({
     planStartsOn: plan.planStartsOn,
     plannedDays: plan.plannedDays as HabitDayId[],
-    weeklyTarget: plan.weeklyTarget,
+    weeklyTarget: plan.weekTargets[currentWeekIndex] ?? plan.weeklyTarget,
     activities: activityRows.map(toHabitActivity),
     now,
+    timeZone: plan.timeZone,
     recovery: null,
   });
   const recoveryDay = String(input.recoveryDay ?? "").toLowerCase() as HabitDayId;
@@ -689,7 +780,7 @@ export async function scheduleHabitRecovery(input: {
     })
     .where(eq(habitPlans.userId, input.userId));
 
-  return getHabitPlanState(input.userId, undefined, now);
+  return getHabitPlanState(input.userId, undefined, now, plan.timeZone);
 }
 
 export async function createActivity(input: {

@@ -1,5 +1,5 @@
-import { createFileRoute, Link, notFound, useRouter } from "@tanstack/react-router";
-import { useMemo, useState } from "react";
+import { createFileRoute, Link, notFound, redirect, useRouter } from "@tanstack/react-router";
+import { useEffect, useMemo, useState } from "react";
 import { usePostHog } from "@posthog/react";
 import {
   ArrowLeft,
@@ -17,12 +17,13 @@ import {
   UserRoundPlus,
 } from "lucide-react";
 import { AppShell } from "@/components/AppShell";
+import { ConsistencyWeekGrid } from "@/components/ConsistencyWeekGrid";
 import { SportBadge } from "@/components/SportBadge";
 import { Badge } from "@/components/ui/badge";
+import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
-import { Progress } from "@/components/ui/progress";
-import { fetchHabitPlan, saveHabitPlan } from "@/lib/api";
+import { ApiError, fetchHabitPlan, saveHabitPlan } from "@/lib/api";
 import {
   HABIT_DAYS,
   goalFallbackDays,
@@ -44,9 +45,18 @@ export const Route = createFileRoute("/first-activity/$id")({
         : ("first" as FlowMode),
   }),
   loader: async ({ params }) => {
-    const state = await fetchHabitPlan(params.id).catch(() => {
-      throw notFound();
-    });
+    let state;
+    try {
+      state = await fetchHabitPlan(params.id);
+    } catch (error) {
+      if (error instanceof ApiError && error.status === 401) {
+        throw redirect({ to: "/auth", search: { next: `/first-activity/${params.id}` } });
+      }
+      if (error instanceof ApiError && (error.status === 400 || error.status === 404)) {
+        throw notFound();
+      }
+      throw error;
+    }
     if (!state.sourceActivity || !state.recommendation) throw notFound();
     return state;
   },
@@ -91,13 +101,34 @@ function FirstActivityPlan() {
   const [friendId, setFriendId] = useState<string | null>(savedPlan?.encouragementFriendId ?? null);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState("");
-  const stepLabels = [
-    "Activity complete",
-    recommendation.hasHistory ? "Recent rhythm" : "Weekly goal",
-    "Plan days",
-    "Four weeks",
-  ];
+  const stepLabels = useMemo(
+    () => [
+      "Activity complete",
+      recommendation.hasHistory ? "Recent rhythm" : "Weekly goal",
+      "Plan days",
+      "Four weeks",
+    ],
+    [recommendation.hasHistory],
+  );
   const plannedDayLabels = useMemo(() => plannedDays.map(habitDayLabel), [plannedDays]);
+
+  useEffect(() => {
+    posthog.capture("consistency_plan_offer_viewed", {
+      source_activity_id: activity.id,
+      entry_mode: mode,
+      recommended_target: recommendation.weeklyTarget,
+      has_history: recommendation.hasHistory,
+    });
+  }, [activity.id, mode, posthog, recommendation.hasHistory, recommendation.weeklyTarget]);
+
+  useEffect(() => {
+    posthog.capture("consistency_plan_step_viewed", {
+      source_activity_id: activity.id,
+      entry_mode: mode,
+      step,
+      step_name: stepLabels[step],
+    });
+  }, [activity.id, mode, posthog, step, stepLabels]);
 
   function chooseGoal(value: number) {
     setWeeklyTarget(value);
@@ -510,7 +541,7 @@ function ProgressStep({
   activity: Activity;
   weeklyTarget: number;
   plannedDayLabels: string[];
-  baselineWeeks: Array<Omit<HabitWeek, "status">>;
+  baselineWeeks: Array<Omit<HabitWeek, "status" | "target" | "isCurrent">>;
   progress?: HabitWeek[];
   friendCandidates: EncouragementFriend[];
   friendId: string | null;
@@ -523,6 +554,8 @@ function ProgressStep({
       start: "",
       count: index === 0 ? 1 : 0,
       distanceKm: index === 0 ? activity.distanceKm : 0,
+      target: weeklyTarget,
+      isCurrent: index === 0,
       status: index === 0 ? ("in_progress" as const) : ("upcoming" as const),
     }));
 
@@ -551,29 +584,7 @@ function ProgressStep({
             </span>
             <span className="text-xs text-muted-foreground">Every activity counts</span>
           </div>
-          <div className="grid gap-3 sm:grid-cols-4">
-            {weeks.map((week, index) => (
-              <div
-                key={`${week.label}-${index}`}
-                className={`border p-4 ${index === 0 ? "border-primary bg-primary/5" : "border-border"}`}
-              >
-                <span className="font-mono text-[10px] uppercase tracking-[0.18em] text-muted-foreground">
-                  {week.label}
-                </span>
-                <div className="stat-num mt-5 text-3xl font-bold">
-                  {week.count}
-                  <span className="text-base text-muted-foreground">/{weeklyTarget}</span>
-                </div>
-                <Progress
-                  value={Math.min(100, (week.count / weeklyTarget) * 100)}
-                  className="mt-4 h-1.5 rounded-none"
-                />
-                <div className="mt-3 text-xs capitalize text-muted-foreground">
-                  {week.status.replace("_", " ")}
-                </div>
-              </div>
-            ))}
-          </div>
+          <ConsistencyWeekGrid weeks={weeks} highlightFirst />
         </div>
         <div className="mt-7 border-t border-border pt-6">
           <div className="flex items-center gap-2 text-primary">
@@ -602,7 +613,10 @@ function ProgressStep({
                 onClick={() => setFriendId(friend.id)}
                 className={`flex h-11 items-center gap-2 border px-3 text-sm ${friendId === friend.id ? "border-secondary bg-secondary text-secondary-foreground" : "border-border"}`}
               >
-                <img src={friend.avatar} alt="" className="h-7 w-7 rounded-full object-cover" />
+                <Avatar className="h-7 w-7">
+                  <AvatarImage src={friend.avatar} alt={friend.name} />
+                  <AvatarFallback>{friend.name.slice(0, 1)}</AvatarFallback>
+                </Avatar>
                 {friend.name}
               </button>
             ))}
@@ -623,7 +637,7 @@ function HistoryGrid({
   title,
   compact = false,
 }: {
-  weeks: Array<Omit<HabitWeek, "status">>;
+  weeks: Array<Omit<HabitWeek, "status" | "target" | "isCurrent">>;
   title: string;
   compact?: boolean;
 }) {

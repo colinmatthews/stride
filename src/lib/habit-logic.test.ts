@@ -3,8 +3,12 @@ import {
   HabitInputError,
   buildFourWeekProgress,
   buildHabitRecommendation,
+  buildPlanWeekTargets,
   getRecoveryOpportunity,
+  normalizeTimeZone,
   shouldOfferConsistencyPlan,
+  startOfIsoWeek,
+  toDateKey,
   validateHabitPlanInput,
   type HabitActivity,
 } from "../../server/habit-logic";
@@ -65,7 +69,7 @@ describe("four-week tracking and recovery", () => {
   it("marks completed and missed weeks without resetting later progress", () => {
     const result = buildFourWeekProgress(
       "2026-07-06",
-      2,
+      [2, 2, 2, 2],
       [
         activity("one", "2026-07-06T09:00:00Z"),
         activity("two", "2026-07-09T09:00:00Z"),
@@ -82,6 +86,41 @@ describe("four-week tracking and recovery", () => {
       "upcoming",
     ]);
     expect(result.map((week) => week.count)).toEqual([2, 1, 1, 0]);
+    expect(result.map((week) => week.isCurrent)).toEqual([false, false, true, false]);
+  });
+
+  it("preserves completed-week targets when the active plan is edited", () => {
+    expect(
+      buildPlanWeekTargets({
+        weeklyTarget: 2,
+        now: new Date("2026-07-22T12:00:00Z"),
+        timeZone: "UTC",
+        existingPlanStartsOn: "2026-07-06",
+        existingWeekTargets: [4, 3, 3, 3],
+        existingWeeklyTarget: 3,
+      }),
+    ).toEqual({
+      planStartsOn: "2026-07-06",
+      weekTargets: [4, 3, 2, 2],
+      restarted: false,
+    });
+  });
+
+  it("starts a fresh four-week cycle after the previous cycle expires", () => {
+    expect(
+      buildPlanWeekTargets({
+        weeklyTarget: 3,
+        now: new Date("2026-08-10T12:00:00Z"),
+        timeZone: "UTC",
+        existingPlanStartsOn: "2026-07-06",
+        existingWeekTargets: [2, 2, 2, 2],
+        existingWeeklyTarget: 2,
+      }),
+    ).toEqual({
+      planStartsOn: "2026-08-10",
+      weekTargets: [3, 3, 3, 3],
+      restarted: true,
+    });
   });
 
   it("offers future recovery days after a missed planned day", () => {
@@ -111,5 +150,25 @@ describe("four-week tracking and recovery", () => {
 
     expect(result?.recoveryDay).toBe("fri");
     expect(result?.missedDay).toBe("mon");
+  });
+});
+
+describe("athlete-local calendar boundaries", () => {
+  it("keeps a Sunday-night Toronto activity in the Sunday week", () => {
+    const sundayNight = new Date("2026-07-06T02:00:00Z");
+    const weekStart = startOfIsoWeek(sundayNight, "America/Toronto");
+
+    expect(toDateKey(weekStart, "America/Toronto")).toBe("2026-06-29");
+  });
+
+  it("handles daylight-saving changes without shifting the local week", () => {
+    const weekStart = startOfIsoWeek(new Date("2026-03-10T12:00:00Z"), "America/Toronto");
+
+    expect(toDateKey(weekStart, "America/Toronto")).toBe("2026-03-09");
+    expect(weekStart.toISOString()).toBe("2026-03-09T04:00:00.000Z");
+  });
+
+  it("rejects invalid IANA timezones", () => {
+    expect(() => normalizeTimeZone("Mars/Olympus_Mons")).toThrow(HabitInputError);
   });
 });

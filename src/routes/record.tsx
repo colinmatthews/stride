@@ -200,6 +200,7 @@ function ManualForm({ sport }: { sport: Sport }) {
         moving_seconds: totalSeconds,
         elevation_m: Number(elevation) || 0,
         entry_mode: "manual",
+        consistency_plan_offered: result.shouldOfferConsistencyPlan,
       });
       router.navigate({
         to: result.shouldOfferConsistencyPlan ? "/first-activity/$id" : "/activity/$id",
@@ -546,6 +547,7 @@ function TimerMode({ sport }: { sport: Sport }) {
         moving_seconds: elapsed,
         elevation_m: Math.floor(distance * 12),
         entry_mode: "timer",
+        consistency_plan_offered: result.shouldOfferConsistencyPlan,
       });
       router.navigate({
         to: result.shouldOfferConsistencyPlan ? "/first-activity/$id" : "/activity/$id",
