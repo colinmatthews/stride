@@ -1,5 +1,5 @@
 import { randomUUID } from "node:crypto";
-import { and, asc, desc, eq, gt, inArray, lt, min, sum, type SQL } from "drizzle-orm";
+import { and, asc, desc, eq, gt, gte, inArray, lt, min, sum, type SQL } from "drizzle-orm";
 import { db } from "./db.js";
 import {
   activities as activitiesTable,
@@ -7,6 +7,7 @@ import {
   activityKudos,
   activitySegments,
   activitySplits,
+  challengeActivities,
   challengeEntries,
   challenges as challengesTable,
   clubMemberships,
@@ -16,6 +17,19 @@ import {
   users,
 } from "./db/schema.js";
 import { USER_AVATARS } from "./seed.js";
+import {
+  buildLeaderboard,
+  checkContributionEligibility,
+  computeProgress,
+  daysRemaining,
+  projectPace,
+  splitByStatus,
+  type CandidateActivity,
+  type ChallengeMetric,
+  type ChallengeWindow,
+  type ContributionRejection,
+  type ContributionStatus,
+} from "./challenge-progress.js";
 
 const BOOTSTRAP_ACTIVITY_LIMIT = 40;
 const MAX_ACTIVITY_PAGE_LIMIT = 100;
@@ -620,6 +634,234 @@ export async function toggleClubMembership(userId: string, clubId: string) {
     joined: existing.length === 0,
     members,
   };
+}
+
+const CONTRIBUTION_STATUSES: ContributionStatus[] = ["counted", "dismissed"];
+
+export function isContributionStatus(value: string): value is ContributionStatus {
+  return (CONTRIBUTION_STATUSES as string[]).includes(value);
+}
+
+async function loadChallengeWindow(challengeId: string) {
+  const rows = await db
+    .select()
+    .from(challengesTable)
+    .where(eq(challengesTable.id, challengeId))
+    .limit(1);
+  const row = rows[0];
+
+  if (!row) {
+    return undefined;
+  }
+
+  const window: ChallengeWindow = {
+    sport: row.sport,
+    metricType: row.metricType as ChallengeMetric,
+    goal: Number(row.goalKm),
+    startsAt: row.startsAt,
+    endsAt: row.endsAt,
+  };
+
+  return { row, window };
+}
+
+function toCandidate(row: ActivityRow): CandidateActivity {
+  return {
+    id: row.id,
+    athleteId: row.athleteId,
+    sport: row.sport,
+    title: row.title,
+    date: row.date.toISOString(),
+    distanceKm: Number(row.distanceKm),
+    elevationM: row.elevationM,
+  };
+}
+
+/**
+ * Everything the challenge tracker page needs in one round trip: the athlete's
+ * own qualifying activity split by confirmation state, their progress against
+ * the goal, pace projection, and the leaderboard.
+ */
+export async function getChallengeTracker(userId: string, challengeId: string, now = new Date()) {
+  const loaded = await loadChallengeWindow(challengeId);
+
+  if (!loaded) {
+    return undefined;
+  }
+
+  const { row, window } = loaded;
+
+  const [fieldRows, contributionRows, entryRows] = await Promise.all([
+    // Sport and window are filtered in SQL; `qualifies` re-checks in the pure
+    // layer so the rule has exactly one definition for tests to target.
+    db
+      .select()
+      .from(activitiesTable)
+      .where(
+        and(
+          eq(activitiesTable.sport, window.sport),
+          gte(activitiesTable.date, new Date(`${window.startsAt}T00:00:00.000Z`)),
+          lt(activitiesTable.date, new Date(`${window.endsAt}T23:59:59.999Z`)),
+        ),
+      ),
+    db
+      .select({
+        activityId: challengeActivities.activityId,
+        status: challengeActivities.status,
+      })
+      .from(challengeActivities)
+      .where(
+        and(
+          eq(challengeActivities.userId, userId),
+          eq(challengeActivities.challengeId, challengeId),
+        ),
+      ),
+    db
+      .select({ challengeId: challengeEntries.challengeId })
+      .from(challengeEntries)
+      .where(
+        and(eq(challengeEntries.userId, userId), eq(challengeEntries.challengeId, challengeId)),
+      )
+      .limit(1),
+  ]);
+
+  const field = fieldRows.map(toCandidate);
+  const mine = field.filter((activity) => activity.athleteId === userId);
+  const contributions = contributionRows.map((contribution) => ({
+    activityId: contribution.activityId,
+    status: contribution.status as ContributionStatus,
+  }));
+
+  const split = splitByStatus(mine, contributions, window);
+  const progress = computeProgress(split, window);
+  const pace = projectPace(progress, window, now);
+  const leaderboard = buildLeaderboard(field, window, {
+    selfId: userId,
+    selfCounted: split.counted,
+    now,
+  });
+
+  const unit = window.metricType === "elevation_m" ? "m" : "km";
+
+  return {
+    challenge: {
+      id: row.id,
+      name: row.name,
+      sport: row.sport,
+      goal: window.goal,
+      unit,
+      metricType: window.metricType,
+      badge: row.badge,
+      participants: row.participants,
+      startsAt: window.startsAt,
+      endsAt: window.endsAt,
+      joined: entryRows.length > 0,
+      daysLeft: daysRemaining(window, now),
+      closed: daysRemaining(window, now) === 0,
+    },
+    progress,
+    pace,
+    pending: split.pending.map(toContributionDto),
+    counted: split.counted.map(toContributionDto),
+    leaderboard: leaderboard.map((entry) => ({
+      ...entry,
+      athleteId: aliasUserId(entry.athleteId, userId),
+    })),
+  };
+}
+
+function toContributionDto(activity: CandidateActivity) {
+  return {
+    id: activity.id,
+    title: activity.title,
+    sport: activity.sport,
+    date: activity.date,
+    distanceKm: activity.distanceKm,
+    elevationM: activity.elevationM,
+  };
+}
+
+const CONTRIBUTION_REJECTIONS: Record<ContributionRejection, { message: string; status: number }> =
+  {
+    not_owner: { message: "You can only confirm your own activities", status: 403 },
+    sport_mismatch: { message: "Activity sport does not match this challenge", status: 409 },
+    outside_window: { message: "Activity falls outside the challenge window", status: 409 },
+  };
+
+/**
+ * Record (or clear) the athlete's decision about one activity. Passing
+ * `undefined` removes the row, returning the activity to the pending list so a
+ * mis-tap is recoverable.
+ */
+export async function setChallengeActivityStatus(
+  userId: string,
+  challengeId: string,
+  activityId: string,
+  status: ContributionStatus | undefined,
+  now = new Date(),
+) {
+  const loaded = await loadChallengeWindow(challengeId);
+
+  if (!loaded) {
+    throw new ChallengeTrackerError("Challenge not found", 404);
+  }
+
+  const activityRows = await db
+    .select()
+    .from(activitiesTable)
+    .where(eq(activitiesTable.id, activityId))
+    .limit(1);
+  const activityRow = activityRows[0];
+
+  if (!activityRow) {
+    throw new ChallengeTrackerError("Activity not found", 404);
+  }
+
+  // Ownership, sport, and window are all enforced here — notably ownership,
+  // without which an athlete could count a rival's activity from the public
+  // feed toward their own total.
+  const candidate = toCandidate(activityRow);
+  const rejection = checkContributionEligibility(candidate, loaded.window, userId);
+
+  if (rejection) {
+    const { message, status } = CONTRIBUTION_REJECTIONS[rejection];
+    throw new ChallengeTrackerError(message, status);
+  }
+
+  if (status === undefined) {
+    await db
+      .delete(challengeActivities)
+      .where(
+        and(
+          eq(challengeActivities.userId, userId),
+          eq(challengeActivities.challengeId, challengeId),
+          eq(challengeActivities.activityId, activityId),
+        ),
+      );
+  } else {
+    await db
+      .insert(challengeActivities)
+      .values({ userId, challengeId, activityId, status })
+      .onConflictDoUpdate({
+        target: [
+          challengeActivities.userId,
+          challengeActivities.challengeId,
+          challengeActivities.activityId,
+        ],
+        set: { status },
+      });
+  }
+
+  return getChallengeTracker(userId, challengeId, now);
+}
+
+export class ChallengeTrackerError extends Error {
+  status: number;
+
+  constructor(message: string, status: number) {
+    super(message);
+    this.status = status;
+  }
 }
 
 export async function toggleChallengeEntry(userId: string, challengeId: string) {

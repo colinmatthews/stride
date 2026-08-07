@@ -8,6 +8,20 @@
       "when": 1776733831868,
       "tag": "0000_furry_iron_man",
       "breakpoints": true
+    },
+    {
+      "idx": 1,
+      "version": "7",
+      "when": 1786095802755,
+      "tag": "0001_sticky_the_fallen",
+      "breakpoints": true
+    },
+    {
+      "idx": 2,
+      "version": "7",
+      "when": 1786103625489,
+      "tag": "0002_orange_sandman",
+      "breakpoints": true
     }
   ]
 }

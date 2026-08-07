@@ -75,6 +75,64 @@ export interface Challenge {
   joined?: boolean;
 }
 
+export type ContributionStatus = "counted" | "dismissed";
+
+/** One of the athlete's activities that qualifies for a challenge window. */
+export interface ChallengeContribution {
+  id: string;
+  title: string;
+  sport: Sport;
+  date: string;
+  distanceKm: number;
+  elevationM: number;
+}
+
+export interface ChallengeLeaderboardEntry {
+  athleteId: string;
+  total: number;
+  rank: number;
+  weeklyRank: number;
+  weeklyTotal: number;
+  rankDelta: number;
+}
+
+export interface ChallengeTracker {
+  challenge: {
+    id: string;
+    name: string;
+    sport: Sport | "Multisport";
+    goal: number;
+    unit: "km" | "m";
+    metricType: "distance_km" | "elevation_m";
+    badge: string;
+    participants: number;
+    startsAt: string;
+    endsAt: string;
+    joined: boolean;
+    daysLeft: number;
+    closed: boolean;
+  };
+  progress: {
+    countedTotal: number;
+    pendingTotal: number;
+    goal: number;
+    percentComplete: number;
+    remaining: number;
+    countedActivityCount: number;
+    pendingActivityCount: number;
+  };
+  pace: {
+    dailyTarget: number;
+    averagePerDay: number;
+    onPace: boolean;
+    daysLeft: number;
+    daysElapsed: number;
+  };
+  pending: ChallengeContribution[];
+  counted: ChallengeContribution[];
+  leaderboard: ChallengeLeaderboardEntry[];
+}
+
 export interface AppData {
   me: Athlete;
   athletes: Athlete[];

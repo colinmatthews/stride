@@ -66,6 +66,7 @@ export interface SeedChallenge {
   sport: Sport | "Multisport";
   goalKm: number;
   participants: number;
+  startsAt: string;
   endsAt: string;
   badge: string;
   metricType: MetricType;
@@ -333,58 +334,75 @@ export const SEEDED_CLUBS: SeedClub[] = [
   },
 ];
 
-export const SEEDED_CHALLENGES: SeedChallenge[] = [
-  {
-    id: "ch1",
-    name: "April Distance Run",
-    sport: "Run",
-    goalKm: 100,
-    participants: 184230,
-    endsAt: "2026-04-30",
-    badge: "RUN",
-    metricType: "distance_km",
-  },
-  {
-    id: "ch2",
-    name: "Climb 5,000m",
-    sport: "Ride",
-    goalKm: 5000,
-    participants: 92450,
-    endsAt: "2026-04-30",
-    badge: "CLIMB",
-    metricType: "elevation_m",
-  },
-  {
-    id: "ch3",
-    name: "Gran Fondo 100K",
-    sport: "Ride",
-    goalKm: 100,
-    participants: 64200,
-    endsAt: "2026-05-15",
-    badge: "GF",
-    metricType: "distance_km",
-  },
-  {
-    id: "ch4",
-    name: "10K Race Ready",
-    sport: "Run",
-    goalKm: 10,
-    participants: 38120,
-    endsAt: "2026-05-31",
-    badge: "10K",
-    metricType: "distance_km",
-  },
-  {
-    id: "ch5",
-    name: "Swim 20K",
-    sport: "Swim",
-    goalKm: 20,
-    participants: 22100,
-    endsAt: "2026-04-30",
-    badge: "SWIM",
-    metricType: "distance_km",
-  },
-];
+/** Day offset from today as YYYY-MM-DD, so seeded windows stay live over time. */
+function seedDay(offsetDays: number) {
+  return new Date(Date.now() + offsetDays * 86400000).toISOString().slice(0, 10);
+}
+
+/**
+ * Challenge windows are generated relative to today for the same reason
+ * `generateSeedActivities` is: seeded activity covers the last 30 days, so
+ * fixed calendar dates would leave every challenge closed and empty.
+ */
+export function generateSeedChallenges(): SeedChallenge[] {
+  return [
+    {
+      id: "ch1",
+      name: "Monthly Distance Run",
+      sport: "Run",
+      goalKm: 100,
+      participants: 184230,
+      startsAt: seedDay(-24),
+      endsAt: seedDay(6),
+      badge: "RUN",
+      metricType: "distance_km",
+    },
+    {
+      id: "ch2",
+      name: "Climb 5,000m",
+      sport: "Ride",
+      goalKm: 5000,
+      participants: 92450,
+      startsAt: seedDay(-24),
+      endsAt: seedDay(6),
+      badge: "CLIMB",
+      metricType: "elevation_m",
+    },
+    {
+      id: "ch3",
+      name: "Gran Fondo 100K",
+      sport: "Ride",
+      goalKm: 100,
+      participants: 64200,
+      startsAt: seedDay(-10),
+      endsAt: seedDay(21),
+      badge: "GF",
+      metricType: "distance_km",
+    },
+    {
+      id: "ch4",
+      name: "10K Race Ready",
+      sport: "Run",
+      goalKm: 10,
+      participants: 38120,
+      startsAt: seedDay(-3),
+      endsAt: seedDay(37),
+      badge: "10K",
+      metricType: "distance_km",
+    },
+    {
+      id: "ch5",
+      name: "Swim 20K",
+      sport: "Swim",
+      goalKm: 20,
+      participants: 22100,
+      startsAt: seedDay(-24),
+      endsAt: seedDay(6),
+      badge: "SWIM",
+      metricType: "distance_km",
+    },
+  ];
+}
 
 const ACTIVITY_TITLES: Record<Sport, string[]> = {
   Run: [

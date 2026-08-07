@@ -7,6 +7,8 @@ import {
   mergeActivities,
   type Activity,
   type AppData,
+  type ChallengeTracker,
+  type ContributionStatus,
 } from "./mock-data";
 
 class ApiError extends Error {
@@ -198,6 +200,38 @@ export async function toggleChallengeJoin(challengeId: string) {
   }
 
   return payload;
+}
+
+export async function fetchChallengeTracker(challengeId: string) {
+  return apiFetch<ChallengeTracker>(`/api/challenges/${challengeId}/tracker`);
+}
+
+/**
+ * Confirm or dismiss one activity against a challenge. Pass `null` to undo a
+ * previous decision. The server returns the recomputed tracker so progress,
+ * pace, and leaderboard stay consistent without a second round trip.
+ */
+export async function setChallengeActivityStatus(
+  challengeId: string,
+  activityId: string,
+  status: ContributionStatus | null,
+) {
+  const tracker = await apiFetch<ChallengeTracker>(
+    `/api/challenges/${challengeId}/activities/${activityId}`,
+    {
+      method: "POST",
+      body: JSON.stringify({ status }),
+    },
+  );
+
+  // Keep the challenges list in sync so returning to it shows the new total.
+  const challenge = CHALLENGES.find((entry) => entry.id === challengeId);
+
+  if (challenge) {
+    challenge.myProgressKm = tracker.progress.countedTotal;
+  }
+
+  return tracker;
 }
 
 export { ApiError };

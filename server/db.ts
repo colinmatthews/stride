@@ -3,10 +3,10 @@ import { drizzle } from "drizzle-orm/node-postgres";
 import * as schema from "./db/schema.js";
 import {
   SEEDED_ATHLETES,
-  SEEDED_CHALLENGES,
   SEEDED_CLUBS,
   SEEDED_SEGMENTS,
   generateSeedActivities,
+  generateSeedChallenges,
 } from "./seed.js";
 
 const dbUrl = process.env.DB_URL;
@@ -94,7 +94,7 @@ async function seedDatabase() {
         .onConflictDoNothing();
     }
 
-    for (const challenge of SEEDED_CHALLENGES) {
+    for (const challenge of generateSeedChallenges()) {
       await tx
         .insert(schema.challenges)
         .values({
@@ -103,11 +103,21 @@ async function seedDatabase() {
           sport: challenge.sport,
           goalKm: String(challenge.goalKm),
           participants: challenge.participants,
+          startsAt: challenge.startsAt,
           endsAt: challenge.endsAt,
           badge: challenge.badge,
           metricType: challenge.metricType,
         })
-        .onConflictDoNothing();
+        // Windows are relative to today, so refresh them on every boot rather
+        // than leaving the first-ever seed frozen in the past.
+        .onConflictDoUpdate({
+          target: schema.challenges.id,
+          set: {
+            name: challenge.name,
+            startsAt: challenge.startsAt,
+            endsAt: challenge.endsAt,
+          },
+        });
     }
 
     const activities = generateSeedActivities();

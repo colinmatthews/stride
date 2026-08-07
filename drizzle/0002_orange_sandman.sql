@@ -1,0 +1,2 @@
+CREATE INDEX "activities_sport_date_idx" ON "activities" USING btree ("sport","date");--> statement-breakpoint
+ALTER TABLE "challenge_activities" ADD CONSTRAINT "challenge_activities_status_check" CHECK ("challenge_activities"."status" in ('counted', 'dismissed'));

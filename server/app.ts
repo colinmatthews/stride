@@ -4,11 +4,15 @@ import express from "express";
 import {
   addComment,
   buildBootstrap,
+  ChallengeTrackerError,
   createActivity,
   createUser,
   findUserForAuth,
   getActivityById,
+  getChallengeTracker,
+  isContributionStatus,
   listActivities,
+  setChallengeActivityStatus,
   toggleChallengeEntry,
   toggleClubMembership,
   toggleFollow,
@@ -216,6 +220,56 @@ export function createApp() {
       next(error);
     }
   });
+
+  app.get("/api/challenges/:id/tracker", requireAuth, async (request, response, next) => {
+    try {
+      const tracker = await getChallengeTracker(request.userId!, String(request.params.id));
+
+      if (!tracker) {
+        response.status(404).json({ error: "Challenge not found" });
+        return;
+      }
+
+      response.json(tracker);
+    } catch (error) {
+      next(error);
+    }
+  });
+
+  app.post(
+    "/api/challenges/:id/activities/:activityId",
+    requireAuth,
+    async (request, response, next) => {
+      try {
+        const rawStatus = request.body?.status;
+        // `null` is the explicit "undo my decision" signal; anything else must
+        // be a known status so a typo cannot silently write a junk row.
+        const status =
+          rawStatus === null || rawStatus === undefined ? undefined : String(rawStatus);
+
+        if (status !== undefined && !isContributionStatus(status)) {
+          response.status(400).json({ error: "status must be 'counted', 'dismissed', or null" });
+          return;
+        }
+
+        const tracker = await setChallengeActivityStatus(
+          request.userId!,
+          String(request.params.id),
+          String(request.params.activityId),
+          status,
+        );
+
+        response.json(tracker);
+      } catch (error) {
+        if (error instanceof ChallengeTrackerError) {
+          response.status(error.status).json({ error: error.message });
+          return;
+        }
+
+        next(error);
+      }
+    },
+  );
 
   if (existsSync(clientIndexPath)) {
     app.use("/api", (_request, response) => {
