@@ -24,6 +24,7 @@ function ChallengesPage() {
   const [participants, setParticipants] = useState<Record<string, number>>(
     Object.fromEntries(CHALLENGES.map((c) => [c.id, c.participants])),
   );
+  const [pending, setPending] = useState<Record<string, boolean>>({});
 
   const joinedCount = Object.values(joined).filter(Boolean).length;
 
@@ -37,6 +38,9 @@ function ChallengesPage() {
           <h1 className="mt-3 font-display text-4xl font-bold leading-tight tracking-[-0.02em]">
             Challenges
           </h1>
+          <p className="mt-2 text-sm text-muted-foreground">
+            Join challenges to reach your exercise and health goals.
+          </p>
         </div>
         <div className="text-right">
           <div className="font-mono text-[10px] uppercase tracking-[0.22em] text-muted-foreground">
@@ -52,6 +56,7 @@ function ChallengesPage() {
         {CHALLENGES.map((c) => {
           const isJoined = joined[c.id];
           const pct = Math.min(100, (c.myProgressKm / c.goalKm) * 100);
+          const isCompleted = isJoined && c.myProgressKm >= c.goalKm;
           const unit = c.sport === "Ride" && c.goalKm > 1000 ? "m" : "km";
           return (
             <article
@@ -72,7 +77,11 @@ function ChallengesPage() {
                   <div className="font-mono text-[10px] uppercase tracking-[0.22em] text-secondary-foreground/60">
                     {c.sport} · monthly
                   </div>
-                  {isJoined ? (
+                  {isCompleted ? (
+                    <div className="flex items-center gap-1.5 bg-primary px-2.5 py-1 font-mono text-[10px] uppercase tracking-[0.22em] text-primary-foreground">
+                      <Trophy className="h-3 w-3" /> Completed
+                    </div>
+                  ) : isJoined ? (
                     <div className="flex items-center gap-1.5 bg-primary px-2.5 py-1 font-mono text-[10px] uppercase tracking-[0.22em] text-primary-foreground">
                       <Check className="h-3 w-3" /> Joined
                     </div>
@@ -138,7 +147,7 @@ function ChallengesPage() {
                   </div>
                   {isJoined && (
                     <div className="mt-2 flex justify-between font-mono text-[10px] uppercase tracking-[0.22em] text-muted-foreground">
-                      <span>{Math.round(pct)}% complete</span>
+                      <span>{isCompleted ? "Goal reached" : `${Math.round(pct)}% complete`}</span>
                       <span>
                         {Math.max(0, c.goalKm - c.myProgressKm).toFixed(0)} {unit} to go
                       </span>
@@ -147,18 +156,25 @@ function ChallengesPage() {
                 </div>
 
                 <button
+                  disabled={pending[c.id]}
                   onClick={async () => {
-                    const result = await toggleChallengeJoin(c.id);
-                    setJoined((state) => ({ ...state, [c.id]: result.joined }));
-                    setParticipants((state) => ({ ...state, [c.id]: result.participants }));
-                    posthog.capture(result.joined ? "challenge_joined" : "challenge_left", {
-                      challenge_id: c.id,
-                      challenge_name: c.name,
-                      sport: c.sport,
-                      goal_km: c.goalKm,
-                    });
+                    if (pending[c.id]) return;
+                    setPending((state) => ({ ...state, [c.id]: true }));
+                    try {
+                      const result = await toggleChallengeJoin(c.id);
+                      setJoined((state) => ({ ...state, [c.id]: result.joined }));
+                      setParticipants((state) => ({ ...state, [c.id]: result.participants }));
+                      posthog.capture(result.joined ? "challenge_joined" : "challenge_left", {
+                        challenge_id: c.id,
+                        challenge_name: c.name,
+                        sport: c.sport,
+                        goal_km: c.goalKm,
+                      });
+                    } finally {
+                      setPending((state) => ({ ...state, [c.id]: false }));
+                    }
                   }}
-                  className={`mt-6 inline-flex h-11 w-full items-center justify-center gap-2 text-sm font-medium transition-opacity hover:opacity-95 ${
+                  className={`mt-6 inline-flex h-11 w-full items-center justify-center gap-2 text-sm font-medium transition-opacity hover:opacity-95 disabled:cursor-not-allowed disabled:opacity-50 ${
                     isJoined
                       ? "border border-border bg-surface text-foreground"
                       : "bg-primary text-primary-foreground"

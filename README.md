@@ -39,6 +39,8 @@ Client: <http://localhost:5173> — Server: <http://localhost:3002>
 | `INTERCOM_ACCESS_TOKEN` / `INTERCOM_REGION` / `INTERCOM_TICKET_TYPE_ID` | For Intercom seeding |
 | `ANTHROPIC_API_KEY`                | Used by content generators        |
 | `SYNTH_USER_COUNT` / `SYNTH_RNG_SEED` / `SYNTH_COHORT_ID` | Synth config |
+| `VAPID_PUBLIC_KEY` / `VAPID_PRIVATE_KEY` / `VAPID_SUBJECT` | Web Push keys for challenge-completion notifications — generate with `npx web-push generate-vapid-keys` |
+| `VITE_PUBLIC_VAPID_KEY`            | Client-side copy of `VAPID_PUBLIC_KEY` (must match) |
 
 Read-only keys (`*_READ_*`) are used by discovery scripts that shouldn't mutate
 third-party state.

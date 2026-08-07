@@ -1,5 +1,5 @@
 import { randomUUID } from "node:crypto";
-import { and, asc, desc, eq, gt, inArray, lt, min, sum, type SQL } from "drizzle-orm";
+import { and, asc, desc, eq, gt, inArray, lt, min, sql, type SQL } from "drizzle-orm";
 import { db } from "./db.js";
 import {
   activities as activitiesTable,
@@ -16,6 +16,11 @@ import {
   users,
 } from "./db/schema.js";
 import { USER_AVATARS } from "./seed.js";
+import {
+  computeChallengeProgress,
+  endOfChallengeDay,
+  type ProgressActivityRow,
+} from "./challenge-progress.js";
 
 const BOOTSTRAP_ACTIVITY_LIMIT = 40;
 const MAX_ACTIVITY_PAGE_LIMIT = 100;
@@ -97,6 +102,75 @@ async function createUniqueHandle(baseHandle: string) {
     suffix += 1;
     candidate = `${normalized}${suffix}`;
   }
+}
+
+// Accepts either the module-level `db` or a `db.transaction()` callback's
+// `tx` handle — both share the same query-builder API, but `tx` doesn't
+// structurally satisfy `typeof db` (it lacks the pool-level `$client`).
+type Tx = Parameters<Parameters<typeof db.transaction>[0]>[0];
+type DbClient = typeof db | Tx;
+
+export async function getUserActivityRows(
+  userId: string,
+  dbClient: DbClient = db,
+): Promise<ProgressActivityRow[]> {
+  const rows = await dbClient
+    .select({
+      sport: activitiesTable.sport,
+      distanceKm: activitiesTable.distanceKm,
+      elevationM: activitiesTable.elevationM,
+      date: activitiesTable.date,
+    })
+    .from(activitiesTable)
+    .where(eq(activitiesTable.athleteId, userId));
+
+  return rows.map((row) => ({
+    sport: row.sport,
+    distanceKm: Number(row.distanceKm),
+    elevationM: row.elevationM,
+    date: row.date,
+  }));
+}
+
+async function buildChallengesDto(
+  userId: string,
+  activityRows?: ProgressActivityRow[],
+  dbClient: DbClient = db,
+) {
+  const [challengesResult, challengeEntriesResult, rows] = await Promise.all([
+    dbClient.select().from(challengesTable).orderBy(asc(challengesTable.endsAt)),
+    dbClient
+      .select({ challengeId: challengeEntries.challengeId, createdAt: challengeEntries.createdAt })
+      .from(challengeEntries)
+      .where(eq(challengeEntries.userId, userId)),
+    activityRows ? Promise.resolve(activityRows) : getUserActivityRows(userId, dbClient),
+  ]);
+
+  const joinedAtByChallengeId = new Map(
+    challengeEntriesResult.map((row) => [row.challengeId, row.createdAt]),
+  );
+
+  return challengesResult.map((row) => {
+    const joinedAt = joinedAtByChallengeId.get(row.id);
+
+    return {
+      id: row.id,
+      name: row.name,
+      sport: row.sport,
+      goalKm: Number(row.goalKm),
+      myProgressKm: joinedAt
+        ? computeChallengeProgress(
+            rows,
+            { sport: row.sport, metricType: row.metricType, endsAt: endOfChallengeDay(row.endsAt) },
+            joinedAt,
+          )
+        : 0,
+      participants: row.participants,
+      endsAt: row.endsAt,
+      badge: row.badge,
+      joined: joinedAtByChallengeId.has(row.id),
+    };
+  });
 }
 
 function pickAvatar(seed: string) {
@@ -326,9 +400,7 @@ export async function buildBootstrap(userId: string) {
     mySegmentBests,
     clubsResult,
     clubMembershipsResult,
-    challengesResult,
-    challengeEntriesResult,
-    challengeProgressResult,
+    challenges,
   ] = await Promise.all([
     db.select().from(users).orderBy(asc(users.createdAt)),
     db
@@ -351,25 +423,11 @@ export async function buildBootstrap(userId: string) {
       .select({ clubId: clubMemberships.clubId })
       .from(clubMemberships)
       .where(eq(clubMemberships.userId, userId)),
-    db.select().from(challengesTable).orderBy(asc(challengesTable.endsAt)),
-    db
-      .select({ challengeId: challengeEntries.challengeId })
-      .from(challengeEntries)
-      .where(eq(challengeEntries.userId, userId)),
-    db
-      .select({
-        sport: activitiesTable.sport,
-        distanceKm: sum(activitiesTable.distanceKm),
-        elevationM: sum(activitiesTable.elevationM),
-      })
-      .from(activitiesTable)
-      .where(eq(activitiesTable.athleteId, userId))
-      .groupBy(activitiesTable.sport),
+    buildChallengesDto(userId),
   ]);
 
   const followedIds = new Set(followsResult.map((row) => row.followedId));
   const joinedClubIds = new Set(clubMembershipsResult.map((row) => row.clubId));
-  const joinedChallengeIds = new Set(challengeEntriesResult.map((row) => row.challengeId));
   const myBestBySegment = new Map(
     mySegmentBests.map((row) => [row.segmentId, row.effortSeconds ?? undefined]),
   );
@@ -379,14 +437,6 @@ export async function buildBootstrap(userId: string) {
 
   if (!me) {
     throw new Error("Authenticated user not found");
-  }
-
-  const distanceBySport = new Map<string, number>();
-  let totalElevation = 0;
-
-  for (const row of challengeProgressResult) {
-    distanceBySport.set(row.sport, (distanceBySport.get(row.sport) ?? 0) + Number(row.distanceKm));
-    totalElevation += Number(row.elevationM);
   }
 
   const segments = segmentsResult.map((row) => ({
@@ -416,21 +466,6 @@ export async function buildBootstrap(userId: string) {
     joined: joinedClubIds.has(row.id),
   }));
 
-  const challenges = challengesResult.map((row) => ({
-    id: row.id,
-    name: row.name,
-    sport: row.sport,
-    goalKm: Number(row.goalKm),
-    myProgressKm:
-      row.metricType === "elevation_m"
-        ? totalElevation
-        : Number((distanceBySport.get(row.sport) ?? 0).toFixed(1)),
-    participants: row.participants,
-    endsAt: row.endsAt,
-    badge: row.badge,
-    joined: joinedChallengeIds.has(row.id),
-  }));
-
   return {
     me,
     athletes: [me, ...athletes.filter((athlete) => athlete.id !== "me")],
@@ -442,7 +477,7 @@ export async function buildBootstrap(userId: string) {
   };
 }
 
-export async function createActivity(input: {
+type CreateActivityInput = {
   userId: string;
   sport: Sport;
   title: string;
@@ -454,16 +489,21 @@ export async function createActivity(input: {
   avgPaceSecPerKm?: number;
   avgSpeedKmh?: number;
   routeSeed: number;
-}) {
+};
+
+export async function createActivity(
+  input: CreateActivityInput & { date?: Date },
+  dbClient: DbClient = db,
+) {
   const id = `act-${randomUUID()}`;
 
-  await db.insert(activitiesTable).values({
+  await dbClient.insert(activitiesTable).values({
     id,
     athleteId: input.userId,
     sport: input.sport,
     title: input.title,
     description: input.description ?? null,
-    date: new Date(),
+    date: input.date ?? new Date(),
     distanceKm: String(input.distanceKm),
     movingSeconds: input.movingSeconds,
     elevationM: input.elevationM,
@@ -477,6 +517,104 @@ export async function createActivity(input: {
   });
 
   return id;
+}
+
+export type ChallengeProgressUpdate = {
+  id: string;
+  name: string;
+  sport: string;
+  badge: string;
+  goalKm: number;
+  metricType: string;
+  contribution: number;
+  progressAfter: number;
+  completed: boolean;
+};
+
+// Inserts the activity, then reports how it affected every joined,
+// matching-sport challenge this activity actually counted toward —
+// including ones it merely advanced, not just ones it completed.
+// `completed` is derived by comparing progress before vs. after this
+// activity (using the same computeChallengeProgress used everywhere else),
+// rather than a stored "completed" flag — so a challenge that was already
+// complete before this activity is never re-flagged, with no extra state
+// to keep in sync.
+//
+// Runs inside a transaction with the user's matching challengeEntries rows
+// locked (SELECT ... FOR UPDATE) before reading their activity history. Two
+// concurrent saves for the same user (e.g. a retried request) would
+// otherwise both read the pre-insert activity total and could both
+// independently conclude they "crossed the goal", firing two completions
+// for one real event. The lock forces the second transaction to wait for
+// the first to commit its insert before it reads, so its own before/after
+// comparison sees the first activity already counted.
+export async function createActivityWithChallengeUpdates(input: CreateActivityInput) {
+  return db.transaction(async (tx) => {
+    const now = new Date();
+
+    const joinedMatchingChallenges = await tx
+      .select({
+        id: challengesTable.id,
+        name: challengesTable.name,
+        sport: challengesTable.sport,
+        goalKm: challengesTable.goalKm,
+        badge: challengesTable.badge,
+        metricType: challengesTable.metricType,
+        endsAt: challengesTable.endsAt,
+        joinedAt: challengeEntries.createdAt,
+      })
+      .from(challengeEntries)
+      .innerJoin(challengesTable, eq(challengesTable.id, challengeEntries.challengeId))
+      .where(
+        and(eq(challengeEntries.userId, input.userId), eq(challengesTable.sport, input.sport)),
+      )
+      .for("update", { of: challengeEntries });
+
+    const existingRows = await getUserActivityRows(input.userId, tx);
+
+    const newRow: ProgressActivityRow = {
+      sport: input.sport,
+      distanceKm: input.distanceKm,
+      elevationM: input.elevationM,
+      date: now,
+    };
+    const rowsAfter = [...existingRows, newRow];
+
+    const challengeUpdates: ChallengeProgressUpdate[] = [];
+
+    for (const challenge of joinedMatchingChallenges) {
+      const goalKm = Number(challenge.goalKm);
+      const window = {
+        sport: challenge.sport,
+        metricType: challenge.metricType,
+        endsAt: endOfChallengeDay(challenge.endsAt),
+      };
+      const progressBefore = computeChallengeProgress(existingRows, window, challenge.joinedAt);
+      const progressAfter = computeChallengeProgress(rowsAfter, window, challenge.joinedAt);
+
+      // progressAfter === progressBefore means this activity fell outside
+      // the challenge's window (e.g. joined but the challenge has since
+      // ended) — nothing to report for it.
+      if (progressAfter > progressBefore) {
+        challengeUpdates.push({
+          id: challenge.id,
+          name: challenge.name,
+          sport: challenge.sport,
+          badge: challenge.badge,
+          goalKm,
+          metricType: challenge.metricType,
+          contribution: challenge.metricType === "elevation_m" ? input.elevationM : input.distanceKm,
+          progressAfter,
+          completed: progressBefore < goalKm && progressAfter >= goalKm,
+        });
+      }
+    }
+
+    const activityId = await createActivity({ ...input, date: now }, tx);
+    const challenges = await buildChallengesDto(input.userId, rowsAfter, tx);
+
+    return { activityId, challenges, challengeUpdates };
+  });
 }
 
 export async function toggleKudo(userId: string, activityId: string) {
@@ -623,38 +761,52 @@ export async function toggleClubMembership(userId: string, clubId: string) {
 }
 
 export async function toggleChallengeEntry(userId: string, challengeId: string) {
-  const existing = await db
-    .select({ challengeId: challengeEntries.challengeId })
-    .from(challengeEntries)
-    .where(and(eq(challengeEntries.userId, userId), eq(challengeEntries.challengeId, challengeId)))
-    .limit(1);
-  const challengeRows = await db
-    .select({ participants: challengesTable.participants })
-    .from(challengesTable)
-    .where(eq(challengesTable.id, challengeId))
-    .limit(1);
-  const challenge = challengeRows[0];
-
-  if (!challenge) {
-    throw new Error("Challenge not found");
-  }
-
-  if (existing.length > 0) {
-    await db
-      .delete(challengeEntries)
+  return db.transaction(async (tx) => {
+    const existing = await tx
+      .select({ challengeId: challengeEntries.challengeId })
+      .from(challengeEntries)
       .where(
         and(eq(challengeEntries.userId, userId), eq(challengeEntries.challengeId, challengeId)),
-      );
-  } else {
-    await db.insert(challengeEntries).values({ userId, challengeId });
-  }
+      )
+      .limit(1);
+    const challengeRows = await tx
+      .select({ id: challengesTable.id })
+      .from(challengesTable)
+      .where(eq(challengesTable.id, challengeId))
+      .limit(1);
 
-  const participants =
-    existing.length > 0 ? Math.max(challenge.participants - 1, 0) : challenge.participants + 1;
-  await db.update(challengesTable).set({ participants }).where(eq(challengesTable.id, challengeId));
+    if (!challengeRows[0]) {
+      throw new Error("Challenge not found");
+    }
 
-  return {
-    joined: existing.length === 0,
-    participants,
-  };
+    const isLeaving = existing.length > 0;
+
+    if (isLeaving) {
+      await tx
+        .delete(challengeEntries)
+        .where(
+          and(eq(challengeEntries.userId, userId), eq(challengeEntries.challengeId, challengeId)),
+        );
+    } else {
+      await tx.insert(challengeEntries).values({ userId, challengeId });
+    }
+
+    // Atomic SQL-level increment/decrement (not read-then-write in JS) so
+    // concurrent join/leave requests from different users can't race and
+    // corrupt the counter.
+    const [updated] = await tx
+      .update(challengesTable)
+      .set({
+        participants: isLeaving
+          ? sql`greatest(${challengesTable.participants} - 1, 0)`
+          : sql`${challengesTable.participants} + 1`,
+      })
+      .where(eq(challengesTable.id, challengeId))
+      .returning({ participants: challengesTable.participants });
+
+    return {
+      joined: !isLeaving,
+      participants: updated.participants,
+    };
+  });
 }

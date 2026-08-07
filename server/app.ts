@@ -4,7 +4,7 @@ import express from "express";
 import {
   addComment,
   buildBootstrap,
-  createActivity,
+  createActivityWithChallengeUpdates,
   createUser,
   findUserForAuth,
   getActivityById,
@@ -21,6 +21,8 @@ import {
   requireAuth,
   verifyPassword,
 } from "./auth.js";
+import { saveSubscription, sendChallengeCompletionPush } from "./push.js";
+import { buildChallengeNotifications } from "./challenge-notifications.js";
 
 export function createApp() {
   const app = express();
@@ -145,8 +147,9 @@ export function createApp() {
 
   app.post("/api/activities", requireAuth, async (request, response, next) => {
     try {
-      const activityId = await createActivity({
-        userId: request.userId!,
+      const userId = request.userId!;
+      const { activityId, challenges, challengeUpdates } = await createActivityWithChallengeUpdates({
+        userId,
         sport: request.body.sport,
         title: String(request.body.title ?? ""),
         description: request.body.description ? String(request.body.description) : undefined,
@@ -161,9 +164,17 @@ export function createApp() {
         routeSeed: Number(request.body.routeSeed ?? 1),
       });
 
-      const activity = await getActivityById(request.userId!, activityId);
+      const activity = await getActivityById(userId, activityId);
 
-      response.status(201).json(activity);
+      // Fire-and-forget: never blocks or fails the activity save. Push is
+      // reserved for actual completions, not every incremental update.
+      for (const update of challengeUpdates) {
+        if (update.completed) {
+          void sendChallengeCompletionPush(userId, update);
+        }
+      }
+
+      response.status(201).json({ activity, challenges, challengeUpdates });
     } catch (error) {
       next(error);
     }
@@ -212,6 +223,32 @@ export function createApp() {
   app.post("/api/challenges/:id/join", requireAuth, async (request, response, next) => {
     try {
       response.json(await toggleChallengeEntry(request.userId!, String(request.params.id)));
+    } catch (error) {
+      next(error);
+    }
+  });
+
+  app.get("/api/challenge-notifications", requireAuth, async (request, response, next) => {
+    try {
+      response.json(await buildChallengeNotifications(request.userId!));
+    } catch (error) {
+      next(error);
+    }
+  });
+
+  app.post("/api/push/subscribe", requireAuth, async (request, response, next) => {
+    try {
+      const endpoint = String(request.body?.endpoint ?? "");
+      const p256dh = String(request.body?.keys?.p256dh ?? "");
+      const auth = String(request.body?.keys?.auth ?? "");
+
+      if (!endpoint || !p256dh || !auth) {
+        response.status(400).json({ error: "A valid push subscription is required" });
+        return;
+      }
+
+      await saveSubscription(request.userId!, { endpoint, keys: { p256dh, auth } });
+      response.status(204).end();
     } catch (error) {
       next(error);
     }
