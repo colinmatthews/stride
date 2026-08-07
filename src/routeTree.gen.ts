@@ -21,6 +21,7 @@ import { Route as AthletesRouteImport } from './routes/athletes'
 import { Route as IndexRouteImport } from './routes/index'
 import { Route as SegmentIdRouteImport } from './routes/segment.$id'
 import { Route as ClubIdRouteImport } from './routes/club.$id'
+import { Route as ChallengeIdRouteImport } from './routes/challenge.$id'
 import { Route as AthleteIdRouteImport } from './routes/athlete.$id'
 import { Route as ActivityIdRouteImport } from './routes/activity.$id'
 
@@ -84,6 +85,11 @@ const ClubIdRoute = ClubIdRouteImport.update({
   path: '/club/$id',
   getParentRoute: () => rootRouteImport,
 } as any)
+const ChallengeIdRoute = ChallengeIdRouteImport.update({
+  id: '/challenge/$id',
+  path: '/challenge/$id',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const AthleteIdRoute = AthleteIdRouteImport.update({
   id: '/athlete/$id',
   path: '/athlete/$id',
@@ -108,6 +114,7 @@ export interface FileRoutesByFullPath {
   '/training': typeof TrainingRoute
   '/activity/$id': typeof ActivityIdRoute
   '/athlete/$id': typeof AthleteIdRoute
+  '/challenge/$id': typeof ChallengeIdRoute
   '/club/$id': typeof ClubIdRoute
   '/segment/$id': typeof SegmentIdRoute
 }
@@ -124,6 +131,7 @@ export interface FileRoutesByTo {
   '/training': typeof TrainingRoute
   '/activity/$id': typeof ActivityIdRoute
   '/athlete/$id': typeof AthleteIdRoute
+  '/challenge/$id': typeof ChallengeIdRoute
   '/club/$id': typeof ClubIdRoute
   '/segment/$id': typeof SegmentIdRoute
 }
@@ -141,6 +149,7 @@ export interface FileRoutesById {
   '/training': typeof TrainingRoute
   '/activity/$id': typeof ActivityIdRoute
   '/athlete/$id': typeof AthleteIdRoute
+  '/challenge/$id': typeof ChallengeIdRoute
   '/club/$id': typeof ClubIdRoute
   '/segment/$id': typeof SegmentIdRoute
 }
@@ -159,6 +168,7 @@ export interface FileRouteTypes {
     | '/training'
     | '/activity/$id'
     | '/athlete/$id'
+    | '/challenge/$id'
     | '/club/$id'
     | '/segment/$id'
   fileRoutesByTo: FileRoutesByTo
@@ -175,6 +185,7 @@ export interface FileRouteTypes {
     | '/training'
     | '/activity/$id'
     | '/athlete/$id'
+    | '/challenge/$id'
     | '/club/$id'
     | '/segment/$id'
   id:
@@ -191,6 +202,7 @@ export interface FileRouteTypes {
     | '/training'
     | '/activity/$id'
     | '/athlete/$id'
+    | '/challenge/$id'
     | '/club/$id'
     | '/segment/$id'
   fileRoutesById: FileRoutesById
@@ -208,6 +220,7 @@ export interface RootRouteChildren {
   TrainingRoute: typeof TrainingRoute
   ActivityIdRoute: typeof ActivityIdRoute
   AthleteIdRoute: typeof AthleteIdRoute
+  ChallengeIdRoute: typeof ChallengeIdRoute
   ClubIdRoute: typeof ClubIdRoute
   SegmentIdRoute: typeof SegmentIdRoute
 }
@@ -298,6 +311,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof ClubIdRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/challenge/$id': {
+      id: '/challenge/$id'
+      path: '/challenge/$id'
+      fullPath: '/challenge/$id'
+      preLoaderRoute: typeof ChallengeIdRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/athlete/$id': {
       id: '/athlete/$id'
       path: '/athlete/$id'
@@ -328,6 +348,7 @@ const rootRouteChildren: RootRouteChildren = {
   TrainingRoute: TrainingRoute,
   ActivityIdRoute: ActivityIdRoute,
   AthleteIdRoute: AthleteIdRoute,
+  ChallengeIdRoute: ChallengeIdRoute,
   ClubIdRoute: ClubIdRoute,
   SegmentIdRoute: SegmentIdRoute,
 }

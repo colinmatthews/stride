@@ -156,6 +156,7 @@ export const challenges = pgTable("challenges", {
   sport: text("sport").notNull(),
   goalKm: numeric("goal_km", { precision: 10, scale: 2 }).notNull(),
   participants: integer("participants").notNull(),
+  startsAt: date("starts_at").notNull(),
   endsAt: date("ends_at").notNull(),
   badge: text("badge").notNull(),
   metricType: text("metric_type").notNull(),
@@ -174,6 +175,26 @@ export const challengeEntries = pgTable(
   },
   (table) => ({
     pk: primaryKey({ columns: [table.userId, table.challengeId] }),
+  }),
+);
+
+export const challengeActivities = pgTable(
+  "challenge_activities",
+  {
+    userId: text("user_id")
+      .notNull()
+      .references(() => users.id, { onDelete: "cascade" }),
+    challengeId: text("challenge_id")
+      .notNull()
+      .references(() => challenges.id, { onDelete: "cascade" }),
+    activityId: text("activity_id")
+      .notNull()
+      .references(() => activities.id, { onDelete: "cascade" }),
+    status: text("status").notNull(),
+    createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+  },
+  (table) => ({
+    pk: primaryKey({ columns: [table.userId, table.challengeId, table.activityId] }),
   }),
 );
 

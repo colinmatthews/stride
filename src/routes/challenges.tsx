@@ -1,8 +1,8 @@
-import { createFileRoute } from "@tanstack/react-router";
+import { createFileRoute, Link } from "@tanstack/react-router";
 import { useState } from "react";
 import { CHALLENGES } from "@/lib/mock-data";
 import { AppShell } from "@/components/AppShell";
-import { Trophy, Users, Calendar, Check } from "lucide-react";
+import { Trophy, Users, Calendar, Check, ArrowRight } from "lucide-react";
 import { toggleChallengeJoin } from "@/lib/api";
 import { usePostHog } from "@posthog/react";
 
@@ -174,6 +174,14 @@ function ChallengesPage() {
                     </>
                   )}
                 </button>
+
+                <Link
+                  to="/challenge/$id"
+                  params={{ id: c.id }}
+                  className="mt-3 inline-flex h-11 w-full items-center justify-center gap-2 border border-border text-sm font-medium transition-colors hover:border-foreground/40"
+                >
+                  Track progress <ArrowRight className="h-4 w-4" />
+                </Link>
               </div>
             </article>
           );
