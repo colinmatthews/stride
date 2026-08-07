@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 import {
   buildLeaderboard,
+  checkContributionEligibility,
   computeProgress,
   daysRemaining,
   isWithinWindow,
@@ -202,24 +203,87 @@ describe("projectPace", () => {
   });
 });
 
+describe("checkContributionEligibility", () => {
+  const mine = activity({ athleteId: "me" });
+
+  it("allows an athlete to confirm their own in-window, in-sport activity", () => {
+    expect(checkContributionEligibility(mine, WINDOW, "me")).toBeNull();
+  });
+
+  it("refuses an activity belonging to another athlete", () => {
+    expect(checkContributionEligibility(activity({ athleteId: "rival" }), WINDOW, "me")).toBe(
+      "not_owner",
+    );
+  });
+
+  it("refuses someone else's activity even when it otherwise qualifies", () => {
+    const rivalPerfectMatch = activity({
+      athleteId: "rival",
+      sport: "Run",
+      date: "2026-04-15T06:00:00.000Z",
+    });
+
+    expect(checkContributionEligibility(rivalPerfectMatch, WINDOW, "me")).toBe("not_owner");
+  });
+
+  it("checks ownership before sport, so a rival's wrong-sport activity still reads as not_owner", () => {
+    const rivalWrongSport = activity({ athleteId: "rival", sport: "Swim" });
+
+    expect(checkContributionEligibility(rivalWrongSport, WINDOW, "me")).toBe("not_owner");
+  });
+
+  it("refuses a sport that does not match the challenge", () => {
+    expect(checkContributionEligibility(activity({ sport: "Swim" }), WINDOW, "me")).toBe(
+      "sport_mismatch",
+    );
+  });
+
+  it("refuses an activity before the window opens", () => {
+    expect(
+      checkContributionEligibility(activity({ date: "2026-03-31T23:00:00.000Z" }), WINDOW, "me"),
+    ).toBe("outside_window");
+  });
+
+  it("refuses an activity after the window closes", () => {
+    expect(
+      checkContributionEligibility(activity({ date: "2026-05-01T00:30:00.000Z" }), WINDOW, "me"),
+    ).toBe("outside_window");
+  });
+
+  it("allows activity on both boundary days", () => {
+    expect(
+      checkContributionEligibility(activity({ date: "2026-04-01T00:00:00.000Z" }), WINDOW, "me"),
+    ).toBeNull();
+    expect(
+      checkContributionEligibility(activity({ date: "2026-04-30T23:59:00.000Z" }), WINDOW, "me"),
+    ).toBeNull();
+  });
+});
+
 describe("buildLeaderboard", () => {
   const now = new Date("2026-04-25T09:00:00.000Z");
+  const mine = activity({
+    id: "m1",
+    athleteId: "me",
+    distanceKm: 40,
+    date: "2026-04-20T06:00:00.000Z",
+  });
   const field = [
     activity({ id: "r1", athleteId: "rival", distanceKm: 50, date: "2026-04-02T06:00:00.000Z" }),
     activity({ id: "r2", athleteId: "rival", distanceKm: 30, date: "2026-04-24T06:00:00.000Z" }),
     activity({ id: "o1", athleteId: "other", distanceKm: 20, date: "2026-04-05T06:00:00.000Z" }),
-    activity({ id: "m1", athleteId: "me", distanceKm: 40, date: "2026-04-20T06:00:00.000Z" }),
+    mine,
   ];
 
   it("ranks by total descending and includes the current user", () => {
-    const board = buildLeaderboard(field, WINDOW, { selfId: "me", selfTotal: 40, now });
+    const board = buildLeaderboard(field, WINDOW, { selfId: "me", selfCounted: [mine], now });
 
     expect(board.map((row) => row.athleteId)).toEqual(["rival", "me", "other"]);
     expect(board[0].total).toBe(80);
   });
 
   it("uses the confirmation-gated total for the current user, not raw activity", () => {
-    const board = buildLeaderboard(field, WINDOW, { selfId: "me", selfTotal: 0, now });
+    const board = buildLeaderboard(field, WINDOW, { selfId: "me", selfCounted: [], now });
     const me = board.find((row) => row.athleteId === "me");
 
     expect(me?.total).toBe(0);
@@ -230,19 +294,79 @@ describe("buildLeaderboard", () => {
     const board = buildLeaderboard(
       field.filter((a) => a.athleteId !== "me"),
       WINDOW,
-      { selfId: "me", selfTotal: 0, now },
+      { selfId: "me", selfCounted: [], now },
     );
 
     expect(board.find((row) => row.athleteId === "me")).toMatchObject({ total: 0 });
   });
 
   it("derives rank delta from 7-day form against overall standing", () => {
-    const board = buildLeaderboard(field, WINDOW, { selfId: "me", selfTotal: 40, now });
+    const board = buildLeaderboard(field, WINDOW, { selfId: "me", selfCounted: [mine], now });
     const other = board.find((row) => row.athleteId === "other");
 
     // "other" only logged outside the 7-day window, so its weekly rank trails.
     expect(other?.weeklyTotal).toBe(0);
     expect(other?.rankDelta).toBeLessThanOrEqual(0);
+  });
+
+  it("excludes unconfirmed recent activity from the athlete's 7-day total", () => {
+    // Regression: the weekly figure was previously derived from raw activity
+    // rather than confirmed activity, so pending runs inflated recent form and
+    // the rank-delta callout reported "holding position" while an athlete was
+    // in fact banking nothing.
+    const oldCounted = activity({
+      id: "old",
+      athleteId: "me",
+      distanceKm: 50,
+      date: "2026-04-05T06:00:00.000Z",
+    });
+    const recentPending = activity({
+      id: "new",
+      athleteId: "me",
+      distanceKm: 10,
+      date: "2026-04-23T06:00:00.000Z",
+    });
+
+    const board = buildLeaderboard([oldCounted, recentPending], WINDOW, {
+      selfId: "me",
+      selfCounted: [oldCounted],
+      now,
+    });
+    const me = board.find((row) => row.athleteId === "me");
+
+    expect(me?.total).toBe(50);
+    expect(me?.weeklyTotal).toBe(0);
+  });
+
+  it("counts confirmed recent activity toward the 7-day total", () => {
+    const recentCounted = activity({
+      id: "recent",
+      athleteId: "me",
+      distanceKm: 12,
+      date: "2026-04-23T06:00:00.000Z",
+    });
+
+    const board = buildLeaderboard([recentCounted], WINDOW, {
+      selfId: "me",
+      selfCounted: [recentCounted],
+      now,
+    });
+    const me = board.find((row) => row.athleteId === "me");
+
+    expect(me?.weeklyTotal).toBe(12);
+  });
+
+  it("ignores confirmed activity that falls outside the challenge window", () => {
+    const stale = activity({
+      id: "stale",
+      athleteId: "me",
+      distanceKm: 999,
+      date: "2026-03-01T06:00:00.000Z",
+    });
+
+    const board = buildLeaderboard([stale], WINDOW, { selfId: "me", selfCounted: [stale], now });
+
+    expect(board.find((row) => row.athleteId === "me")?.total).toBe(0);
   });
 
   it("excludes activity from outside the window", () => {
@@ -256,7 +380,7 @@ describe("buildLeaderboard", () => {
         }),
       ],
       WINDOW,
-      { selfId: "me", selfTotal: 0, now },
+      { selfId: "me", selfCounted: [], now },
     );
 
     expect(board.find((row) => row.athleteId === "rival")).toBeUndefined();
@@ -267,7 +391,7 @@ describe("buildLeaderboard", () => {
       activity({ id: "t1", athleteId: "zoe", distanceKm: 10 }),
       activity({ id: "t2", athleteId: "abe", distanceKm: 10 }),
     ];
-    const board = buildLeaderboard(tied, WINDOW, { selfId: "me", selfTotal: 0, now });
+    const board = buildLeaderboard(tied, WINDOW, { selfId: "me", selfCounted: [], now });
 
     expect(board.slice(0, 2).map((row) => row.athleteId)).toEqual(["abe", "zoe"]);
   });

@@ -19,6 +19,7 @@ import {
 import { USER_AVATARS } from "./seed.js";
 import {
   buildLeaderboard,
+  checkContributionEligibility,
   computeProgress,
   daysRemaining,
   projectPace,
@@ -26,6 +27,7 @@ import {
   type CandidateActivity,
   type ChallengeMetric,
   type ChallengeWindow,
+  type ContributionRejection,
   type ContributionStatus,
 } from "./challenge-progress.js";
 
@@ -735,7 +737,7 @@ export async function getChallengeTracker(userId: string, challengeId: string, n
   const pace = projectPace(progress, window, now);
   const leaderboard = buildLeaderboard(field, window, {
     selfId: userId,
-    selfTotal: progress.countedTotal,
+    selfCounted: split.counted,
     now,
   });
 
@@ -779,6 +781,13 @@ function toContributionDto(activity: CandidateActivity) {
   };
 }
 
+const CONTRIBUTION_REJECTIONS: Record<ContributionRejection, { message: string; status: number }> =
+  {
+    not_owner: { message: "You can only confirm your own activities", status: 403 },
+    sport_mismatch: { message: "Activity sport does not match this challenge", status: 409 },
+    outside_window: { message: "Activity falls outside the challenge window", status: 409 },
+  };
+
 /**
  * Record (or clear) the athlete's decision about one activity. Passing
  * `undefined` removes the row, returning the activity to the pending list so a
@@ -808,23 +817,15 @@ export async function setChallengeActivityStatus(
     throw new ChallengeTrackerError("Activity not found", 404);
   }
 
-  // Confirming someone else's activity would let an athlete inflate their own
-  // total from the public feed.
-  if (activityRow.athleteId !== userId) {
-    throw new ChallengeTrackerError("You can only confirm your own activities", 403);
-  }
-
+  // Ownership, sport, and window are all enforced here — notably ownership,
+  // without which an athlete could count a rival's activity from the public
+  // feed toward their own total.
   const candidate = toCandidate(activityRow);
+  const rejection = checkContributionEligibility(candidate, loaded.window, userId);
 
-  if (candidate.sport !== loaded.window.sport) {
-    throw new ChallengeTrackerError("Activity sport does not match this challenge", 409);
-  }
-
-  if (
-    candidate.date.slice(0, 10) < loaded.window.startsAt ||
-    candidate.date.slice(0, 10) > loaded.window.endsAt
-  ) {
-    throw new ChallengeTrackerError("Activity falls outside the challenge window", 409);
+  if (rejection) {
+    const { message, status } = CONTRIBUTION_REJECTIONS[rejection];
+    throw new ChallengeTrackerError(message, status);
   }
 
   if (status === undefined) {

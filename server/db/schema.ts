@@ -1,4 +1,15 @@
-import { date, integer, numeric, pgTable, primaryKey, text, timestamp } from "drizzle-orm/pg-core";
+import { sql } from "drizzle-orm";
+import {
+  check,
+  date,
+  index,
+  integer,
+  numeric,
+  pgTable,
+  primaryKey,
+  text,
+  timestamp,
+} from "drizzle-orm/pg-core";
 
 export const users = pgTable("users", {
   id: text("id").primaryKey(),
@@ -41,26 +52,34 @@ export const follows = pgTable(
   }),
 );
 
-export const activities = pgTable("activities", {
-  id: text("id").primaryKey(),
-  athleteId: text("athlete_id")
-    .notNull()
-    .references(() => users.id, { onDelete: "cascade" }),
-  sport: text("sport").notNull(),
-  title: text("title").notNull(),
-  description: text("description"),
-  date: timestamp("date", { withTimezone: true }).notNull(),
-  distanceKm: numeric("distance_km", { precision: 10, scale: 2 }).notNull(),
-  movingSeconds: integer("moving_seconds").notNull(),
-  elevationM: integer("elevation_m").notNull(),
-  avgHr: integer("avg_hr"),
-  avgPaceSecPerKm: integer("avg_pace_sec_per_km"),
-  avgSpeedKmh: numeric("avg_speed_kmh", { precision: 10, scale: 1 }),
-  kudos: integer("kudos").notNull().default(0),
-  achievements: integer("achievements").notNull().default(0),
-  photo: text("photo"),
-  routeSeed: integer("route_seed").notNull(),
-});
+export const activities = pgTable(
+  "activities",
+  {
+    id: text("id").primaryKey(),
+    athleteId: text("athlete_id")
+      .notNull()
+      .references(() => users.id, { onDelete: "cascade" }),
+    sport: text("sport").notNull(),
+    title: text("title").notNull(),
+    description: text("description"),
+    date: timestamp("date", { withTimezone: true }).notNull(),
+    distanceKm: numeric("distance_km", { precision: 10, scale: 2 }).notNull(),
+    movingSeconds: integer("moving_seconds").notNull(),
+    elevationM: integer("elevation_m").notNull(),
+    avgHr: integer("avg_hr"),
+    avgPaceSecPerKm: integer("avg_pace_sec_per_km"),
+    avgSpeedKmh: numeric("avg_speed_kmh", { precision: 10, scale: 1 }),
+    kudos: integer("kudos").notNull().default(0),
+    achievements: integer("achievements").notNull().default(0),
+    photo: text("photo"),
+    routeSeed: integer("route_seed").notNull(),
+  },
+  (table) => ({
+    // The challenge tracker filters the whole table by sport and date window on
+    // every page view; without this it is a sequential scan.
+    sportDateIdx: index("activities_sport_date_idx").on(table.sport, table.date),
+  }),
+);
 
 export const activityComments = pgTable("activity_comments", {
   id: text("id").primaryKey(),
@@ -195,6 +214,13 @@ export const challengeActivities = pgTable(
   },
   (table) => ({
     pk: primaryKey({ columns: [table.userId, table.challengeId, table.activityId] }),
+    // Application code validates this too, but an unconstrained column lets any
+    // other write path insert a value that `splitByStatus` would silently treat
+    // as pending.
+    statusCheck: check(
+      "challenge_activities_status_check",
+      sql`${table.status} in ('counted', 'dismissed')`,
+    ),
   }),
 );
 

@@ -63,6 +63,35 @@ export function qualifies(activity: CandidateActivity, window: ChallengeWindow) 
   return activity.sport === window.sport && isWithinWindow(activity.date, window);
 }
 
+export type ContributionRejection = "not_owner" | "sport_mismatch" | "outside_window";
+
+/**
+ * Decides whether an athlete may record a decision about an activity, returning
+ * `null` when they may. Kept pure and separate from `data.ts` so the rules —
+ * especially the ownership check, which is what stops an athlete counting a
+ * rival's activity toward their own total — are directly testable without a
+ * database.
+ */
+export function checkContributionEligibility(
+  activity: Pick<CandidateActivity, "athleteId" | "sport" | "date">,
+  window: ChallengeWindow,
+  userId: string,
+): ContributionRejection | null {
+  if (activity.athleteId !== userId) {
+    return "not_owner";
+  }
+
+  if (activity.sport !== window.sport) {
+    return "sport_mismatch";
+  }
+
+  if (!isWithinWindow(activity.date, window)) {
+    return "outside_window";
+  }
+
+  return null;
+}
+
 export function sumMetric(activities: CandidateActivity[], metricType: ChallengeMetric) {
   const total = activities.reduce((acc, activity) => acc + metricValue(activity, metricType), 0);
   return roundMetric(total);
@@ -185,13 +214,16 @@ export function projectPace(
  *
  * Other athletes are not confirmation-gated — only the current user confirms
  * their own activities — so their totals use all qualifying activity. The
- * caller passes the current user's counted-only total via `selfTotal` to keep
- * that asymmetry explicit rather than buried here.
+ * caller passes the current user's *confirmed* activities via `selfCounted`,
+ * and both the overall and 7-day figures are derived from that one list. An
+ * earlier version passed a pre-summed total instead, which left the weekly
+ * figure with no confirmation data to filter on and made it count pending
+ * activity toward recent form.
  */
 export function buildLeaderboard(
   activities: CandidateActivity[],
   window: ChallengeWindow,
-  options: { selfId: string; selfTotal: number; now: Date },
+  options: { selfId: string; selfCounted: CandidateActivity[]; now: Date },
 ): RankedAthlete[] {
   const weekStart = new Date(options.now.getTime() - 7 * 86400000).toISOString().slice(0, 10);
   const totals = new Map<string, number>();
@@ -209,18 +241,16 @@ export function buildLeaderboard(
     }
   }
 
-  totals.set(options.selfId, options.selfTotal);
+  const selfQualifying = options.selfCounted.filter((activity) => qualifies(activity, window));
 
-  const selfWeekly = activities
-    .filter(
-      (activity) =>
-        activity.athleteId === options.selfId &&
-        qualifies(activity, window) &&
-        activity.date.slice(0, 10) >= weekStart,
-    )
-    .reduce((acc, activity) => acc + metricValue(activity, window.metricType), 0);
-
-  weekly.set(options.selfId, Math.min(selfWeekly, options.selfTotal));
+  totals.set(options.selfId, sumMetric(selfQualifying, window.metricType));
+  weekly.set(
+    options.selfId,
+    sumMetric(
+      selfQualifying.filter((activity) => activity.date.slice(0, 10) >= weekStart),
+      window.metricType,
+    ),
+  );
 
   const weeklyOrder = Array.from(totals.keys()).sort(
     (left, right) =>

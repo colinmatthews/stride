@@ -2,6 +2,7 @@ import { createFileRoute, Link } from "@tanstack/react-router";
 import { useState } from "react";
 import { CHALLENGES } from "@/lib/mock-data";
 import { AppShell } from "@/components/AppShell";
+import { Meter } from "@/components/Meter";
 import { Trophy, Users, Calendar, Check, ArrowRight } from "lucide-react";
 import { toggleChallengeJoin } from "@/lib/api";
 import { usePostHog } from "@posthog/react";
@@ -130,12 +131,7 @@ function ChallengesPage() {
                       )}
                     </span>
                   </div>
-                  <div className="mt-2 h-1.5 overflow-hidden bg-muted">
-                    <div
-                      className="h-full bg-primary transition-all"
-                      style={{ width: `${isJoined ? pct : 0}%` }}
-                    />
-                  </div>
+                  <Meter value={isJoined ? pct : 0} className="mt-2 h-1.5" />
                   {isJoined && (
                     <div className="mt-2 flex justify-between font-mono text-[10px] uppercase tracking-[0.22em] text-muted-foreground">
                       <span>{Math.round(pct)}% complete</span>

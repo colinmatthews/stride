@@ -9,6 +9,8 @@ import {
 } from "@/lib/mock-data";
 import { AppShell } from "@/components/AppShell";
 import { SportBadge } from "@/components/SportBadge";
+import { Stat } from "@/components/Stat";
+import { Meter } from "@/components/Meter";
 import { ApiError, fetchChallengeTracker, setChallengeActivityStatus } from "@/lib/api";
 import { usePostHog } from "@posthog/react";
 import {
@@ -198,12 +200,12 @@ function ChallengeTrackerPage() {
             </span>
           </div>
 
-          <div className="mt-6 h-2 overflow-hidden bg-secondary-foreground/15">
-            <div
-              className="h-full bg-primary transition-all duration-500"
-              style={{ width: `${progress.percentComplete}%` }}
-            />
-          </div>
+          <Meter
+            value={progress.percentComplete}
+            className="mt-6 h-2"
+            trackClassName="bg-secondary-foreground/15"
+            barClassName="bg-primary duration-500"
+          />
 
           <div className="mt-3 flex flex-wrap justify-between gap-2 font-mono text-[10px] uppercase tracking-[0.22em] text-secondary-foreground/60">
             <span>{Math.round(progress.percentComplete)}% complete</span>
@@ -221,25 +223,32 @@ function ChallengeTrackerPage() {
 
       {/* Stat tiles */}
       <div className="mt-6 grid grid-cols-3 gap-4">
-        <TileStat
-          icon={<Clock className="h-3.5 w-3.5" />}
-          label="Days left"
-          value={meta.daysLeft}
-          caption={meta.closed ? "challenge ended" : `ends ${fmtDate(meta.endsAt)}`}
-        />
-        <TileStat
-          icon={<Gauge className="h-3.5 w-3.5" />}
-          label="Daily target"
-          value={`${pace.dailyTarget} ${unit}`}
-          caption={meta.closed ? "no time remaining" : "to finish on time"}
-        />
-        <TileStat
-          icon={<Trophy className="h-3.5 w-3.5" />}
-          label="To confirm"
-          value={progress.pendingActivityCount}
-          caption={`${progress.pendingTotal} ${unit} waiting`}
-          accent={progress.pendingActivityCount > 0}
-        />
+        <div className="border border-border bg-surface p-5">
+          <Stat
+            icon={<Clock className="h-3.5 w-3.5" />}
+            label="Days left"
+            value={meta.daysLeft}
+            caption={meta.closed ? "challenge ended" : `ends ${fmtDate(meta.endsAt)}`}
+          />
+        </div>
+        <div className="border border-border bg-surface p-5">
+          <Stat
+            icon={<Gauge className="h-3.5 w-3.5" />}
+            label="Daily target"
+            value={pace.dailyTarget}
+            unit={unit}
+            caption={meta.closed ? "no time remaining" : "to finish on time"}
+          />
+        </div>
+        <div className="border border-border bg-surface p-5">
+          <Stat
+            icon={<Trophy className="h-3.5 w-3.5" />}
+            label="To confirm"
+            value={progress.pendingActivityCount}
+            caption={`${progress.pendingTotal} ${unit} waiting`}
+            emphasis={progress.pendingActivityCount > 0}
+          />
+        </div>
       </div>
 
       {/* Pending confirmation */}
@@ -425,12 +434,11 @@ function ChallengeTrackerPage() {
                 )}
                 <div className="min-w-0 flex-1">
                   <div className="truncate text-sm font-medium">{isMe ? "You" : athlete.name}</div>
-                  <div className="mt-1.5 h-1 overflow-hidden bg-muted">
-                    <div
-                      className={`h-full ${isMe ? "bg-primary" : "bg-muted-foreground/40"}`}
-                      style={{ width: `${Math.min(100, (value / topTotal) * 100)}%` }}
-                    />
-                  </div>
+                  <Meter
+                    value={(value / topTotal) * 100}
+                    className="mt-1.5 h-1"
+                    barClassName={isMe ? "bg-primary" : "bg-muted-foreground/40"}
+                  />
                 </div>
                 <span className="inline-flex shrink-0 items-center gap-1">
                   <RankTrend delta={row.rankDelta} />
@@ -530,33 +538,4 @@ function RankTrend({ delta }: { delta: number }) {
   }
 
   return <Minus className="h-3 w-3 text-muted-foreground" />;
-}
-
-function TileStat({
-  icon,
-  label,
-  value,
-  caption,
-  accent,
-}: {
-  icon: React.ReactNode;
-  label: string;
-  value: string | number;
-  caption: string;
-  accent?: boolean;
-}) {
-  return (
-    <div className="border border-border bg-surface p-5">
-      <div className="flex items-center gap-1.5 font-mono text-[10px] uppercase tracking-[0.22em] text-muted-foreground">
-        {icon}
-        {label}
-      </div>
-      <div
-        className={`stat-num mt-2 text-3xl font-bold leading-none ${accent ? "text-primary" : ""}`}
-      >
-        {value}
-      </div>
-      <div className="mt-1.5 text-xs text-muted-foreground">{caption}</div>
-    </div>
-  );
 }
