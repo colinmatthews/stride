@@ -40,9 +40,15 @@ import { AppShell } from "@/components/AppShell";
 import { RouteMap } from "@/components/RouteMap";
 import { SportBadge } from "@/components/SportBadge";
 import { Stat } from "@/components/Stat";
+import { InviteShareCard } from "@/components/InviteShareCard";
 import { addActivityComment, fetchActivity, toggleActivityKudo } from "@/lib/api";
 
 export const Route = createFileRoute("/activity/$id")({
+  validateSearch: (search: Record<string, unknown>) => ({
+    // Set by the record flow when the athlete said others were there, so the invite
+    // link is minted on arrival instead of needing a second click.
+    invite: search.invite === true || search.invite === "true",
+  }),
   loader: async ({ params }) => {
     const activity =
       getActivity(params.id) ??
@@ -79,9 +85,11 @@ export const Route = createFileRoute("/activity/$id")({
 
 function ActivityDetail() {
   const { activity } = Route.useLoaderData() as { activity: import("@/lib/mock-data").Activity };
+  const { invite: autoCreateInvite } = Route.useSearch();
   const posthog = usePostHog();
   const router = useRouter();
   const ath = getAthlete(activity.athleteId);
+  const isMine = activity.athleteId === "me";
   const [kudoed, setKudoed] = useState(activity.kudoed ?? false);
   const [kudosCount, setKudosCount] = useState(activity.kudos);
   const [comment, setComment] = useState("");
@@ -196,6 +204,8 @@ function ActivityDetail() {
               className="w-full h-[380px] object-cover border border-border mt-4"
             />
           )}
+
+          {isMine && <InviteShareCard activity={activity} autoCreate={autoCreateInvite} />}
 
           {/* Elevation */}
           <section className="mt-8">

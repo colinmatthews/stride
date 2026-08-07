@@ -1,4 +1,13 @@
-import { date, integer, numeric, pgTable, primaryKey, text, timestamp } from "drizzle-orm/pg-core";
+import {
+  boolean,
+  date,
+  integer,
+  numeric,
+  pgTable,
+  primaryKey,
+  text,
+  timestamp,
+} from "drizzle-orm/pg-core";
 
 export const users = pgTable("users", {
   id: text("id").primaryKey(),
@@ -190,5 +199,45 @@ export const activityKudos = pgTable(
   },
   (table) => ({
     pk: primaryKey({ columns: [table.userId, table.activityId] }),
+  }),
+);
+
+// A shareable link that lets everyone who trained together log the same effort on
+// their own record. The code is random rather than derived from the activity, so a
+// link can be revoked without the next one being guessable.
+export const invites = pgTable("invites", {
+  id: text("id").primaryKey(),
+  code: text("code").notNull().unique(),
+  activityId: text("activity_id")
+    .notNull()
+    .references(() => activities.id, { onDelete: "cascade" }),
+  inviterId: text("inviter_id")
+    .notNull()
+    .references(() => users.id, { onDelete: "cascade" }),
+  message: text("message").notNull(),
+  expiresAt: timestamp("expires_at", { withTimezone: true }).notNull(),
+  createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+});
+
+// One row per person who took the invite up on it. The claimed activity is a real,
+// independent activity owned by the claimer — editing or deleting it never touches
+// the inviter's. Unique on (invite, user) so a link can't be claimed twice.
+export const inviteClaims = pgTable(
+  "invite_claims",
+  {
+    inviteId: text("invite_id")
+      .notNull()
+      .references(() => invites.id, { onDelete: "cascade" }),
+    userId: text("user_id")
+      .notNull()
+      .references(() => users.id, { onDelete: "cascade" }),
+    activityId: text("activity_id")
+      .notNull()
+      .references(() => activities.id, { onDelete: "cascade" }),
+    wasEdited: boolean("was_edited").notNull().default(false),
+    claimedAt: timestamp("claimed_at", { withTimezone: true }).notNull().defaultNow(),
+  },
+  (table) => ({
+    pk: primaryKey({ columns: [table.inviteId, table.userId] }),
   }),
 );

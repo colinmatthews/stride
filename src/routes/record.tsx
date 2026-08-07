@@ -12,9 +12,11 @@ import {
   PencilLine,
   Timer as TimerIcon,
   ArrowRight,
+  Check,
   LoaderCircle,
 } from "lucide-react";
 import { saveActivity } from "@/lib/api";
+import { sportNoun } from "@/lib/invites";
 
 export const Route = createFileRoute("/record")({
   head: () => ({
@@ -154,6 +156,7 @@ function ManualForm({ sport }: { sport: Sport }) {
   const [seconds, setSeconds] = useState("");
   const [elevation, setElevation] = useState("");
   const [avgHr, setAvgHr] = useState("");
+  const [withOthers, setWithOthers] = useState(false);
   const [error, setError] = useState("");
   const [busy, setBusy] = useState(false);
 
@@ -200,8 +203,13 @@ function ManualForm({ sport }: { sport: Sport }) {
         moving_seconds: totalSeconds,
         elevation_m: Number(elevation) || 0,
         entry_mode: "manual",
+        with_others: withOthers,
       });
-      router.navigate({ to: "/activity/$id", params: { id: activity.id } });
+      router.navigate({
+        to: "/activity/$id",
+        params: { id: activity.id },
+        search: { invite: withOthers },
+      });
     } catch (err) {
       posthog.captureException(err);
       setError("Couldn't save activity. Try again.");
@@ -268,6 +276,8 @@ function ManualForm({ sport }: { sport: Sport }) {
         </div>
       </div>
 
+      <GroupSection sport={sport} checked={withOthers} onChange={setWithOthers} />
+
       <div className="border-b border-border p-6">
         <div className="font-mono text-[10px] uppercase tracking-[0.22em] text-muted-foreground">
           Optional
@@ -320,6 +330,56 @@ function ManualForm({ sport }: { sport: Sport }) {
         </button>
       </div>
     </section>
+  );
+}
+
+/**
+ * Asked at the moment the effort is logged, while the athlete still remembers who was
+ * there. Deliberately optional — most activities are solo, and making this a required
+ * step would tax the core flow to serve the minority case.
+ */
+function GroupSection({
+  sport,
+  checked,
+  onChange,
+}: {
+  sport: Sport;
+  checked: boolean;
+  onChange: (value: boolean) => void;
+}) {
+  return (
+    <div className="border-b border-border p-6">
+      <div className="font-mono text-[10px] uppercase tracking-[0.22em] text-muted-foreground">
+        Who else was there?
+      </div>
+      <button
+        type="button"
+        onClick={() => onChange(!checked)}
+        aria-pressed={checked}
+        className={`mt-4 flex w-full items-start gap-4 border p-4 text-left transition-colors ${
+          checked ? "border-foreground bg-surface-2" : "border-border hover:bg-muted"
+        }`}
+      >
+        <span
+          className={`mt-0.5 grid h-6 w-6 shrink-0 place-items-center border transition-colors ${
+            checked
+              ? "border-primary bg-primary text-primary-foreground"
+              : "border-border text-transparent"
+          }`}
+        >
+          <Check className="h-4 w-4" />
+        </span>
+        <span className="min-w-0">
+          <span className="block text-sm font-medium">
+            I did this {sportNoun(sport)} with other people
+          </span>
+          <span className="mt-1 block text-sm leading-6 text-muted-foreground">
+            We'll create a link you can text or email them. They get this effort prefilled on their
+            own record — no account needed to open it.
+          </span>
+        </span>
+      </button>
+    </div>
   );
 }
 
@@ -487,6 +547,7 @@ function TimerMode({ sport }: { sport: Sport }) {
   const [distance, setDistance] = useState(0);
   const [title, setTitle] = useState("");
   const [description, setDescription] = useState("");
+  const [withOthers, setWithOthers] = useState(false);
   const [saving, setSaving] = useState(false);
   const ref = useRef<number | null>(null);
 
@@ -543,8 +604,13 @@ function TimerMode({ sport }: { sport: Sport }) {
         moving_seconds: elapsed,
         elevation_m: Math.floor(distance * 12),
         entry_mode: "timer",
+        with_others: withOthers,
       });
-      router.navigate({ to: "/activity/$id", params: { id: activity.id } });
+      router.navigate({
+        to: "/activity/$id",
+        params: { id: activity.id },
+        search: { invite: withOthers },
+      });
     } catch (err) {
       posthog.captureException(err);
       setSaving(false);
@@ -635,6 +701,9 @@ function TimerMode({ sport }: { sport: Sport }) {
                 className="w-full resize-none border border-border bg-background px-3 py-2 text-sm outline-none transition-colors focus:border-foreground"
               />
             </label>
+          </div>
+          <div className="-mx-6 mt-6 border-t border-border">
+            <GroupSection sport={sport} checked={withOthers} onChange={setWithOthers} />
           </div>
           <div className="mt-6 flex items-center justify-end gap-3">
             <button

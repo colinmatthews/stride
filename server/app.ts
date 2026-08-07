@@ -18,9 +18,41 @@ import {
   createSession,
   destroySession,
   hashPassword,
+  optionalAuth,
   requireAuth,
   verifyPassword,
 } from "./auth.js";
+import {
+  HttpError,
+  claimInvite,
+  createInvite,
+  getPublicInvite,
+  listInvitesForActivity,
+} from "./invites.js";
+
+/**
+ * Prefers the browser's Origin header because in development the client runs on Vite's
+ * port and proxies to this server — `host` would produce a link pointing at the API
+ * port, which nobody can open.
+ */
+function requestOrigin(request: express.Request) {
+  const origin = request.get("origin");
+
+  if (origin) {
+    return origin;
+  }
+
+  return `${request.protocol}://${request.get("host") ?? "localhost"}`;
+}
+
+function forwardError(error: unknown, response: express.Response, next: express.NextFunction) {
+  if (error instanceof HttpError) {
+    response.status(error.status).json({ error: error.message });
+    return;
+  }
+
+  next(error);
+}
 
 export function createApp() {
   const app = express();
@@ -214,6 +246,78 @@ export function createApp() {
       response.json(await toggleChallengeEntry(request.userId!, String(request.params.id)));
     } catch (error) {
       next(error);
+    }
+  });
+
+  // Public: a recipient opens this before they have an account, so it must not sit
+  // behind requireAuth. optionalAuth still resolves a session when there is one, so a
+  // signed-in viewer gets the "you already logged this" state instead of the signup CTA.
+  app.get("/api/invites/:code", optionalAuth, async (request, response, next) => {
+    try {
+      const invite = await getPublicInvite(String(request.params.code), request.userId ?? null);
+
+      if (!invite) {
+        response.status(404).json({ error: "That invite link doesn't exist" });
+        return;
+      }
+
+      response.json(invite);
+    } catch (error) {
+      next(error);
+    }
+  });
+
+  app.post("/api/invites", requireAuth, async (request, response, next) => {
+    try {
+      const activityId = String(request.body.activityId ?? "");
+
+      if (!activityId) {
+        response.status(400).json({ error: "activityId is required" });
+        return;
+      }
+
+      response.status(201).json(
+        await createInvite({
+          userId: request.userId!,
+          activityId,
+          origin: requestOrigin(request),
+        }),
+      );
+    } catch (error) {
+      forwardError(error, response, next);
+    }
+  });
+
+  app.get("/api/invites", requireAuth, async (request, response, next) => {
+    try {
+      const activityId = String(request.query.activityId ?? "");
+
+      if (!activityId) {
+        response.status(400).json({ error: "activityId is required" });
+        return;
+      }
+
+      response.json(await listInvitesForActivity(request.userId!, activityId));
+    } catch (error) {
+      next(error);
+    }
+  });
+
+  app.post("/api/invites/:code/claim", requireAuth, async (request, response, next) => {
+    try {
+      response.status(201).json(
+        await claimInvite({
+          code: String(request.params.code),
+          userId: request.userId!,
+          distanceKm: Number(request.body.distanceKm ?? 0),
+          movingSeconds: Number(request.body.movingSeconds ?? 0),
+          elevationM: Number(request.body.elevationM ?? 0),
+          title: String(request.body.title ?? "").trim(),
+          description: request.body.description ? String(request.body.description) : undefined,
+        }),
+      );
+    } catch (error) {
+      forwardError(error, response, next);
     }
   });
 

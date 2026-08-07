@@ -20,6 +20,7 @@ import { Route as AuthRouteImport } from './routes/auth'
 import { Route as AthletesRouteImport } from './routes/athletes'
 import { Route as IndexRouteImport } from './routes/index'
 import { Route as SegmentIdRouteImport } from './routes/segment.$id'
+import { Route as JCodeRouteImport } from './routes/j.$code'
 import { Route as ClubIdRouteImport } from './routes/club.$id'
 import { Route as AthleteIdRouteImport } from './routes/athlete.$id'
 import { Route as ActivityIdRouteImport } from './routes/activity.$id'
@@ -79,6 +80,11 @@ const SegmentIdRoute = SegmentIdRouteImport.update({
   path: '/segment/$id',
   getParentRoute: () => rootRouteImport,
 } as any)
+const JCodeRoute = JCodeRouteImport.update({
+  id: '/j/$code',
+  path: '/j/$code',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const ClubIdRoute = ClubIdRouteImport.update({
   id: '/club/$id',
   path: '/club/$id',
@@ -109,6 +115,7 @@ export interface FileRoutesByFullPath {
   '/activity/$id': typeof ActivityIdRoute
   '/athlete/$id': typeof AthleteIdRoute
   '/club/$id': typeof ClubIdRoute
+  '/j/$code': typeof JCodeRoute
   '/segment/$id': typeof SegmentIdRoute
 }
 export interface FileRoutesByTo {
@@ -125,6 +132,7 @@ export interface FileRoutesByTo {
   '/activity/$id': typeof ActivityIdRoute
   '/athlete/$id': typeof AthleteIdRoute
   '/club/$id': typeof ClubIdRoute
+  '/j/$code': typeof JCodeRoute
   '/segment/$id': typeof SegmentIdRoute
 }
 export interface FileRoutesById {
@@ -142,6 +150,7 @@ export interface FileRoutesById {
   '/activity/$id': typeof ActivityIdRoute
   '/athlete/$id': typeof AthleteIdRoute
   '/club/$id': typeof ClubIdRoute
+  '/j/$code': typeof JCodeRoute
   '/segment/$id': typeof SegmentIdRoute
 }
 export interface FileRouteTypes {
@@ -160,6 +169,7 @@ export interface FileRouteTypes {
     | '/activity/$id'
     | '/athlete/$id'
     | '/club/$id'
+    | '/j/$code'
     | '/segment/$id'
   fileRoutesByTo: FileRoutesByTo
   to:
@@ -176,6 +186,7 @@ export interface FileRouteTypes {
     | '/activity/$id'
     | '/athlete/$id'
     | '/club/$id'
+    | '/j/$code'
     | '/segment/$id'
   id:
     | '__root__'
@@ -192,6 +203,7 @@ export interface FileRouteTypes {
     | '/activity/$id'
     | '/athlete/$id'
     | '/club/$id'
+    | '/j/$code'
     | '/segment/$id'
   fileRoutesById: FileRoutesById
 }
@@ -209,6 +221,7 @@ export interface RootRouteChildren {
   ActivityIdRoute: typeof ActivityIdRoute
   AthleteIdRoute: typeof AthleteIdRoute
   ClubIdRoute: typeof ClubIdRoute
+  JCodeRoute: typeof JCodeRoute
   SegmentIdRoute: typeof SegmentIdRoute
 }
 
@@ -291,6 +304,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof SegmentIdRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/j/$code': {
+      id: '/j/$code'
+      path: '/j/$code'
+      fullPath: '/j/$code'
+      preLoaderRoute: typeof JCodeRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/club/$id': {
       id: '/club/$id'
       path: '/club/$id'
@@ -329,6 +349,7 @@ const rootRouteChildren: RootRouteChildren = {
   ActivityIdRoute: ActivityIdRoute,
   AthleteIdRoute: AthleteIdRoute,
   ClubIdRoute: ClubIdRoute,
+  JCodeRoute: JCodeRoute,
   SegmentIdRoute: SegmentIdRoute,
 }
 export const routeTree = rootRouteImport
