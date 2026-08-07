@@ -1,6 +1,12 @@
 import { randomUUID } from "node:crypto";
-import { and, asc, desc, eq, gt, inArray, lt, min, sum, type SQL } from "drizzle-orm";
+import { and, asc, desc, eq, gt, gte, inArray, lt, min, sql, sum, type SQL } from "drizzle-orm";
 import { db } from "./db.js";
+import {
+  WEEKLY_CADENCE,
+  activeChallengeWeek,
+  isoDate,
+  weeklyChallengeSeeds,
+} from "./challenges/weekly.js";
 import {
   activities as activitiesTable,
   activityComments,
@@ -317,7 +323,71 @@ export async function getActivityById(userId: string, activityId: string) {
   return activities[0] ?? null;
 }
 
+/**
+ * Materialize the five weekly challenge rows for the week an athlete arriving
+ * now should be offered. Idempotent: a week that already exists keeps the
+ * participant count it has accumulated, so this is safe on every bootstrap.
+ */
+export async function ensureWeeklyChallenges(now: Date = new Date()) {
+  const seeds = weeklyChallengeSeeds(now);
+
+  await db
+    .insert(challengesTable)
+    .values(
+      seeds.map((seed) => ({
+        id: seed.id,
+        name: seed.name,
+        sport: seed.sport,
+        goalKm: String(seed.goalKm),
+        participants: seed.participants,
+        startsAt: seed.startsAt,
+        endsAt: seed.endsAt,
+        badge: seed.badge,
+        metricType: seed.metricType,
+        cadence: seed.cadence,
+      })),
+    )
+    .onConflictDoNothing({ target: challengesTable.id });
+
+  return seeds;
+}
+
+/**
+ * Weekly challenges score against the week they cover, not the athlete's whole
+ * history — otherwise a returning athlete's lifetime distance would complete a
+ * 20 km week the moment they joined. Monthly challenges keep their existing
+ * lifetime-total behaviour.
+ */
+function weeklyProgressKm(
+  activities: { sport: string; date: Date; distanceKm: string }[],
+  sport: string,
+  startsAt: string,
+  endsAt: string,
+) {
+  const total = activities.reduce((sum, activity) => {
+    if (activity.sport !== sport) {
+      return sum;
+    }
+
+    const day = isoDate(activity.date);
+
+    if (day < startsAt || day > endsAt) {
+      return sum;
+    }
+
+    return sum + Number(activity.distanceKm);
+  }, 0);
+
+  return Number(total.toFixed(1));
+}
+
 export async function buildBootstrap(userId: string) {
+  // The server owns the clock here: it decides which week is on offer and
+  // materializes it before we read the challenge table below.
+  const now = new Date();
+  const week = activeChallengeWeek(now);
+  await ensureWeeklyChallenges(now);
+
   const [
     usersResult,
     followsResult,
@@ -370,6 +440,42 @@ export async function buildBootstrap(userId: string) {
   const followedIds = new Set(followsResult.map((row) => row.followedId));
   const joinedClubIds = new Set(clubMembershipsResult.map((row) => row.clubId));
   const joinedChallengeIds = new Set(challengeEntriesResult.map((row) => row.challengeId));
+  const today = isoDate(new Date());
+
+  // Weekly rows accumulate five per week forever. Show the ones still running
+  // (or yet to start) plus any the athlete actually joined, so a finished week
+  // they took part in stays visible without the list growing without bound.
+  const visibleChallenges = challengesResult.filter((row) => {
+    if (row.cadence !== WEEKLY_CADENCE) {
+      return true;
+    }
+
+    return row.endsAt >= today || joinedChallengeIds.has(row.id);
+  });
+
+  const weeklyStartDates = visibleChallenges
+    .filter((row) => row.cadence === WEEKLY_CADENCE && row.startsAt)
+    .map((row) => row.startsAt!);
+  const earliestWeeklyStart =
+    weeklyStartDates.length > 0 ? weeklyStartDates.reduce((a, b) => (a < b ? a : b)) : null;
+
+  // Only the activities a weekly challenge could possibly score — at most a
+  // couple of weeks of one athlete's own logs.
+  const weeklyProgressActivities = earliestWeeklyStart
+    ? await db
+        .select({
+          sport: activitiesTable.sport,
+          date: activitiesTable.date,
+          distanceKm: activitiesTable.distanceKm,
+        })
+        .from(activitiesTable)
+        .where(
+          and(
+            eq(activitiesTable.athleteId, userId),
+            gte(activitiesTable.date, new Date(`${earliestWeeklyStart}T00:00:00`)),
+          ),
+        )
+    : [];
   const myBestBySegment = new Map(
     mySegmentBests.map((row) => [row.segmentId, row.effortSeconds ?? undefined]),
   );
@@ -416,20 +522,30 @@ export async function buildBootstrap(userId: string) {
     joined: joinedClubIds.has(row.id),
   }));
 
-  const challenges = challengesResult.map((row) => ({
-    id: row.id,
-    name: row.name,
-    sport: row.sport,
-    goalKm: Number(row.goalKm),
-    myProgressKm:
-      row.metricType === "elevation_m"
-        ? totalElevation
-        : Number((distanceBySport.get(row.sport) ?? 0).toFixed(1)),
-    participants: row.participants,
-    endsAt: row.endsAt,
-    badge: row.badge,
-    joined: joinedChallengeIds.has(row.id),
-  }));
+  const challenges = visibleChallenges.map((row) => {
+    const isWeekly = row.cadence === WEEKLY_CADENCE && row.startsAt !== null;
+
+    return {
+      id: row.id,
+      name: row.name,
+      sport: row.sport,
+      goalKm: Number(row.goalKm),
+      myProgressKm: isWeekly
+        ? weeklyProgressKm(weeklyProgressActivities, row.sport, row.startsAt!, row.endsAt)
+        : row.metricType === "elevation_m"
+          ? totalElevation
+          : Number((distanceBySport.get(row.sport) ?? 0).toFixed(1)),
+      participants: row.participants,
+      startsAt: row.startsAt ?? undefined,
+      endsAt: row.endsAt,
+      badge: row.badge,
+      cadence: row.cadence,
+      // Sent so the client can label the unit from the real metric instead of
+      // inferring it from sport and magnitude.
+      metricType: row.metricType,
+      joined: joinedChallengeIds.has(row.id),
+    };
+  });
 
   return {
     me,
@@ -439,6 +555,12 @@ export async function buildBootstrap(userId: string) {
     segments,
     clubs,
     challenges,
+    challengeWeek: {
+      start: isoDate(week.start),
+      end: isoDate(week.end),
+      isNextWeek: week.isNextWeek,
+      daysLeftInCurrentWeek: Math.max(0, Math.floor(week.daysLeftInCurrentWeek)),
+    },
   };
 }
 
@@ -657,4 +779,59 @@ export async function toggleChallengeEntry(userId: string, challengeId: string) 
     joined: existing.length === 0,
     participants,
   };
+}
+
+const MAX_BULK_CHALLENGE_JOINS = 25;
+
+/**
+ * Bulk join used by onboarding, where an athlete confirms several weekly
+ * challenges at once. Idempotent — re-running it (a refreshed onboarding, a
+ * retried request) never double-counts a participant, because only the entry
+ * rows actually inserted drive the increment.
+ */
+export async function joinChallenges(userId: string, challengeIds: string[]) {
+  const requested = Array.from(new Set(challengeIds.map((id) => String(id)))).slice(
+    0,
+    MAX_BULK_CHALLENGE_JOINS,
+  );
+
+  if (requested.length === 0) {
+    return { joined: [], added: [] };
+  }
+
+  return db.transaction(async (tx) => {
+    // Ignore ids that don't exist rather than failing the whole batch on a
+    // stale week the client was still holding.
+    const known = await tx
+      .select({ id: challengesTable.id })
+      .from(challengesTable)
+      .where(inArray(challengesTable.id, requested));
+
+    if (known.length === 0) {
+      return { joined: [], added: [] };
+    }
+
+    const inserted = await tx
+      .insert(challengeEntries)
+      .values(known.map((row) => ({ userId, challengeId: row.id })))
+      .onConflictDoNothing()
+      .returning({ challengeId: challengeEntries.challengeId });
+
+    if (inserted.length > 0) {
+      await tx
+        .update(challengesTable)
+        .set({ participants: sql`${challengesTable.participants} + 1` })
+        .where(
+          inArray(
+            challengesTable.id,
+            inserted.map((row) => row.challengeId),
+          ),
+        );
+    }
+
+    return {
+      joined: known.map((row) => row.id),
+      added: inserted.map((row) => row.challengeId),
+    };
+  });
 }

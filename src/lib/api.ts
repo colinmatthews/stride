@@ -200,4 +200,29 @@ export async function toggleChallengeJoin(challengeId: string) {
   return payload;
 }
 
+/**
+ * Bulk join used by onboarding. Idempotent server-side, so a retry or a
+ * re-run of onboarding never double-counts the athlete.
+ */
+export async function joinChallenges(challengeIds: string[]) {
+  const payload = await apiFetch<{ joined: string[]; added: string[] }>("/api/challenges/join", {
+    method: "POST",
+    body: JSON.stringify({ challengeIds }),
+  });
+  const joined = new Set(payload.joined);
+  const added = new Set(payload.added);
+
+  for (const challenge of CHALLENGES) {
+    if (joined.has(challenge.id)) {
+      challenge.joined = true;
+
+      if (added.has(challenge.id)) {
+        challenge.participants += 1;
+      }
+    }
+  }
+
+  return payload;
+}
+
 export { ApiError };

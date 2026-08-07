@@ -70,9 +70,32 @@ export interface Challenge {
   goalKm: number;
   myProgressKm: number;
   participants: number;
+  /** Set on weekly challenges only; monthly challenges score against all time. */
+  startsAt?: string;
   endsAt: string;
   badge: string;
+  cadence?: string;
+  /** "distance_km" | "elevation_m" — drives the unit a challenge is scored in. */
+  metricType?: string;
   joined?: boolean;
+}
+
+/** The unit a challenge's goal and progress are expressed in. */
+export function challengeUnit(challenge: Pick<Challenge, "metricType">): string {
+  return challenge.metricType === "elevation_m" ? "m" : "km";
+}
+
+/**
+ * The challenge week the server is currently offering. The server owns this
+ * calculation so every athlete sees the same week regardless of their device
+ * clock or timezone.
+ */
+export interface ChallengeWeek {
+  start: string;
+  end: string;
+  /** True when the current week was too far gone and we rolled forward. */
+  isNextWeek: boolean;
+  daysLeftInCurrentWeek: number;
 }
 
 export interface AppData {
@@ -82,6 +105,7 @@ export interface AppData {
   segments: Segment[];
   clubs: Club[];
   challenges: Challenge[];
+  challengeWeek?: ChallengeWeek;
 }
 
 const EMPTY_ATHLETE: Athlete = {
@@ -102,6 +126,7 @@ export let ACTIVITIES: Activity[] = [];
 export let SEGMENTS: Segment[] = [];
 export let CLUBS: Club[] = [];
 export let CHALLENGES: Challenge[] = [];
+export let CHALLENGE_WEEK: ChallengeWeek | null = null;
 
 export function initializeAppData(data: AppData) {
   ME = data.me;
@@ -110,6 +135,7 @@ export function initializeAppData(data: AppData) {
   SEGMENTS = data.segments;
   CLUBS = data.clubs;
   CHALLENGES = data.challenges;
+  CHALLENGE_WEEK = data.challengeWeek ?? null;
 }
 
 export function mergeActivities(activities: Activity[]) {
@@ -131,6 +157,63 @@ export function clearAppData() {
   SEGMENTS = [];
   CLUBS = [];
   CHALLENGES = [];
+  CHALLENGE_WEEK = null;
+}
+
+/* ---------------------------------------------------------------------------
+ * Weekly per-sport challenges
+ *
+ * The rows themselves are generated and stored server-side; everything here is
+ * display and selection on top of what bootstrap returned.
+ * ------------------------------------------------------------------------- */
+
+export const WEEKLY_CADENCE = "weekly";
+
+export const SPORT_ORDER: Sport[] = ["Run", "Ride", "Swim", "Hike", "Walk"];
+
+/**
+ * Parses a `YYYY-MM-DD` date as local midnight. `new Date("2026-08-03")` is
+ * parsed as UTC, which renders as the previous day west of Greenwich.
+ */
+export function parseIsoDate(iso: string): Date {
+  const [year, month, day] = iso.split("-").map(Number);
+  return new Date(year, (month ?? 1) - 1, day ?? 1);
+}
+
+export function fmtDayMonth(iso: string): string {
+  return parseIsoDate(iso).toLocaleDateString(undefined, { month: "short", day: "numeric" });
+}
+
+export function fmtDayMonthLong(iso: string): string {
+  return parseIsoDate(iso).toLocaleDateString(undefined, { month: "long", day: "numeric" });
+}
+
+/**
+ * The weekly challenges on offer for the given sports, in SPORT_ORDER. Scoped
+ * to a single week's start date so a week the athlete joined earlier (still in
+ * the challenge list until it ends) is never offered again as new.
+ */
+export function weeklyChallengesForSports(
+  sports: Iterable<Sport>,
+  weekStart: string | null | undefined,
+  challenges: Challenge[] = CHALLENGES,
+): Challenge[] {
+  if (!weekStart) {
+    return [];
+  }
+
+  const wanted = new Set(sports);
+
+  return SPORT_ORDER.filter((sport) => wanted.has(sport)).flatMap((sport) => {
+    const match = challenges.find(
+      (challenge) =>
+        challenge.cadence === WEEKLY_CADENCE &&
+        challenge.startsAt === weekStart &&
+        challenge.sport === sport,
+    );
+
+    return match ? [match] : [];
+  });
 }
 
 function pad(value: number) {

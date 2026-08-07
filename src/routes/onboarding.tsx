@@ -1,17 +1,21 @@
 import { createFileRoute } from "@tanstack/react-router";
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
+import { ArrowLeft, ArrowRight, Check, LoaderCircle } from "lucide-react";
 import {
-  ArrowLeft,
-  ArrowRight,
-  Bike,
-  Check,
-  LoaderCircle,
-  Mountain,
-  PersonStanding,
-  Waves,
-} from "lucide-react";
-import { ATHLETES, ME } from "@/lib/mock-data";
-import { toggleAthleteFollow } from "@/lib/api";
+  ATHLETES,
+  CHALLENGE_WEEK,
+  CHALLENGES,
+  ME,
+  SPORT_ORDER,
+  fmtDayMonth,
+  fmtDayMonthLong,
+  weeklyChallengesForSports,
+  type Challenge,
+  type ChallengeWeek,
+  type Sport,
+} from "@/lib/mock-data";
+import { joinChallenges, toggleAthleteFollow } from "@/lib/api";
+import { SPORT_ICONS, SportBadge } from "@/components/SportBadge";
 import { usePostHog } from "@posthog/react";
 
 export const ONBOARDING_STORAGE_KEY = "stride:onboarding:v1";
@@ -23,21 +27,20 @@ export const Route = createFileRoute("/onboarding")({
   component: OnboardingPage,
 });
 
-type Sport = "run" | "ride" | "swim" | "multi";
-
-const SPORTS: { id: Sport; label: string; hint: string; icon: typeof Bike }[] = [
-  { id: "run", label: "Run", hint: "Road · track · trail", icon: PersonStanding },
-  { id: "ride", label: "Ride", hint: "Road · gravel · MTB", icon: Bike },
-  { id: "swim", label: "Swim", hint: "Pool · open water", icon: Waves },
-  { id: "multi", label: "Multisport", hint: "Triathlon · hybrid", icon: Mountain },
-];
+const SPORT_HINTS: Record<Sport, string> = {
+  Run: "Road · track · trail",
+  Ride: "Road · gravel · MTB",
+  Swim: "Pool · open water",
+  Hike: "Trail · summit",
+  Walk: "Daily miles",
+};
 
 const GOAL_PRESETS = [15, 30, 50, 80, 120];
 
 const DONE_IMG =
   "https://images.unsplash.com/photo-1502904550040-7534597429ae?w=1200&q=80&auto=format&fit=crop";
 
-const STEPS = ["Discipline", "Weekly target", "Your circle", "Ready"] as const;
+const STEPS = ["Disciplines", "Weekly target", "Your circle", "Ready"] as const;
 
 function OnboardingPage() {
   const posthog = usePostHog();
@@ -55,15 +58,74 @@ function OnboardingPage() {
   }, []);
 
   const [step, setStep] = useState(0);
-  const [sport, setSport] = useState<Sport | null>(null);
+  const [sports, setSports] = useState<Set<Sport>>(new Set());
   const [goalKm, setGoalKm] = useState(30);
   const [followed, setFollowed] = useState<Set<string>>(new Set());
+  const [optedOut, setOptedOut] = useState<Set<string>>(new Set());
   const [saving, setSaving] = useState(false);
 
   const suggested = useMemo(
     () => ATHLETES.filter((athlete) => athlete.id !== "me" && athlete.id !== ME.id).slice(0, 6),
     [],
   );
+
+  // The week on offer is decided by the server and delivered with bootstrap, so
+  // a late-week registrant gets the same rollover every other athlete gets.
+  const week = CHALLENGE_WEEK;
+  // Every sport the athlete picked gets its weekly challenge offered, already
+  // ticked. Opting out is tracked separately so revisiting step 0 doesn't
+  // silently re-check something they turned off.
+  const offered = useMemo(
+    () => weeklyChallengesForSports(sports, week?.start, CHALLENGES),
+    [sports, week?.start],
+  );
+  const chosen = useMemo(
+    () => offered.filter((challenge) => !optedOut.has(challenge.id)),
+    [offered, optedOut],
+  );
+
+  function toggleSport(sport: Sport) {
+    setSports((prev) => {
+      const copy = new Set(prev);
+      if (copy.has(sport)) copy.delete(sport);
+      else copy.add(sport);
+      return copy;
+    });
+  }
+
+  // Fired once, when the athlete first reaches the picker. Without it, opt-out
+  // is only measurable across athletes who finish onboarding — anyone who sees
+  // the challenges and abandons is invisible.
+  const offeredCaptured = useRef(false);
+  useEffect(() => {
+    if (step !== STEPS.length - 1 || offeredCaptured.current) {
+      return;
+    }
+
+    offeredCaptured.current = true;
+    posthog.capture("onboarding_challenges_offered", {
+      challenge_ids: offered.map((challenge) => challenge.id),
+      challenge_count: offered.length,
+      sports: Array.from(sports),
+      challenge_week_start: week?.start,
+      rolled_forward: week?.isNextWeek ?? false,
+    });
+  }, [step, offered, sports, week, posthog]);
+
+  function toggleChallenge(challenge: Challenge) {
+    const leaving = !optedOut.has(challenge.id);
+    setOptedOut((prev) => {
+      const copy = new Set(prev);
+      if (leaving) copy.add(challenge.id);
+      else copy.delete(challenge.id);
+      return copy;
+    });
+    posthog.capture(leaving ? "onboarding_challenge_removed" : "onboarding_challenge_restored", {
+      challenge_id: challenge.id,
+      sport: challenge.sport,
+      goal_km: challenge.goalKm,
+    });
+  }
 
   if (!ready) {
     return (
@@ -74,7 +136,7 @@ function OnboardingPage() {
   }
 
   const canAdvance = () => {
-    if (step === 0) return sport !== null;
+    if (step === 0) return sports.size > 0;
     if (step === 1) return goalKm > 0;
     return true;
   };
@@ -85,23 +147,67 @@ function OnboardingPage() {
     // isn't empty on first entry.
     const baseline = suggested.slice(0, 4).map((athlete) => athlete.id);
     const ids = followed.size > 0 ? Array.from(followed) : baseline;
+    const requestedChallengeIds = chosen.map((challenge) => challenge.id);
+    // Only the challenges the server confirmed are recorded as joined — a
+    // failed join must not leave the athlete believing they're entered.
+    let joinedChallengeIds: string[] = [];
+
     try {
       await Promise.all(ids.map((id) => toggleAthleteFollow(id).catch(() => null)));
+
+      if (requestedChallengeIds.length > 0) {
+        try {
+          const result = await joinChallenges(requestedChallengeIds);
+          joinedChallengeIds = result.joined;
+
+          // One challenge_joined per challenge, matching the shape /challenges
+          // emits, so both routes into a challenge land in the same funnel.
+          // Driven off `added` rather than `joined`: the endpoint is idempotent,
+          // and a re-run of onboarding must not re-count a challenge the
+          // athlete is already in.
+          const offeredById = new Map(offered.map((challenge) => [challenge.id, challenge]));
+
+          for (const id of result.added) {
+            const challenge = offeredById.get(id);
+            posthog.capture("challenge_joined", {
+              challenge_id: id,
+              challenge_name: challenge?.name,
+              sport: challenge?.sport,
+              goal_km: challenge?.goalKm,
+              source: "onboarding",
+            });
+          }
+        } catch (error) {
+          // Non-fatal: the athlete still gets into the app and can join from
+          // /challenges. Captured so the drop-off is visible in analytics.
+          posthog.capture("onboarding_challenge_join_failed", {
+            challenge_ids: requestedChallengeIds,
+            message: error instanceof Error ? error.message : "unknown",
+          });
+        }
+      }
+
       posthog.capture("onboarding_completed", {
-        sport,
+        sports: Array.from(sports),
         goal_km: goalKm,
         follow_count: ids.length,
         auto_followed: followed.size === 0,
+        challenge_count: joinedChallengeIds.length,
+        challenge_ids: joinedChallengeIds,
+        challenge_opt_out_count: offered.length - requestedChallengeIds.length,
+        challenge_week_start: week?.start,
+        challenge_week_rolled_forward: week?.isNextWeek ?? false,
       });
     } finally {
       localStorage.setItem(
         ONBOARDING_STORAGE_KEY,
         JSON.stringify({
           completed: true,
-          sport,
+          sports: Array.from(sports),
           goalKm,
           followed: ids,
           autoFollowed: followed.size === 0,
+          challenges: joinedChallengeIds,
           completedAt: new Date().toISOString(),
         }),
       );
@@ -147,12 +253,12 @@ function OnboardingPage() {
         <div className="w-full max-w-2xl">
           {step === 0 && (
             <SportStep
-              sport={sport}
-              setSport={setSport}
+              sports={sports}
+              toggleSport={toggleSport}
               name={ME.name.split(" ")[0] || "athlete"}
             />
           )}
-          {step === 1 && <GoalStep goalKm={goalKm} setGoalKm={setGoalKm} sport={sport} />}
+          {step === 1 && <GoalStep goalKm={goalKm} setGoalKm={setGoalKm} sports={sports} />}
           {step === 2 && (
             <FollowStep
               suggested={suggested}
@@ -170,9 +276,13 @@ function OnboardingPage() {
           {step === 3 && (
             <DoneStep
               name={ME.name.split(" ")[0] || "athlete"}
-              sport={sport}
+              sports={sports}
               goalKm={goalKm}
               followCount={followed.size}
+              week={week}
+              offered={offered}
+              optedOut={optedOut}
+              onToggleChallenge={toggleChallenge}
             />
           )}
         </div>
@@ -267,29 +377,30 @@ function StepHeader({ eyebrow, title, body }: { eyebrow: string; title: string; 
 }
 
 function SportStep({
-  sport,
-  setSport,
+  sports,
+  toggleSport,
   name,
 }: {
-  sport: Sport | null;
-  setSport: (s: Sport) => void;
+  sports: Set<Sport>;
+  toggleSport: (sport: Sport) => void;
   name: string;
 }) {
   return (
     <div>
       <StepHeader
         eyebrow={`Welcome, ${name}`}
-        title="What's your primary discipline?"
-        body="We'll tune your feed, challenges, and training views around how you move. You can adjust this anytime."
+        title="What are you training for?"
+        body="Pick everything you do — most athletes move in more than one way. We'll tune your feed, challenges, and training views around all of them. You can adjust this anytime."
       />
-      <div className="mt-10 grid grid-cols-2 gap-3">
-        {SPORTS.map((item) => {
-          const Icon = item.icon;
-          const active = sport === item.id;
+      <div className="mt-10 grid grid-cols-2 gap-3 sm:grid-cols-3">
+        {SPORT_ORDER.map((sport) => {
+          const Icon = SPORT_ICONS[sport];
+          const active = sports.has(sport);
           return (
             <button
-              key={item.id}
-              onClick={() => setSport(item.id)}
+              key={sport}
+              onClick={() => toggleSport(sport)}
+              aria-pressed={active}
               className={`group relative flex flex-col items-start gap-4 border p-5 text-left transition-all ${
                 active
                   ? "border-foreground bg-secondary text-secondary-foreground"
@@ -304,13 +415,13 @@ function SportStep({
                 <Icon className="h-5 w-5" />
               </div>
               <div>
-                <div className="font-display text-xl font-bold tracking-tight">{item.label}</div>
+                <div className="font-display text-xl font-bold tracking-tight">{sport}</div>
                 <div
                   className={`mt-1 font-mono text-[10px] uppercase tracking-[0.22em] ${
                     active ? "text-secondary-foreground/70" : "text-muted-foreground"
                   }`}
                 >
-                  {item.hint}
+                  {SPORT_HINTS[sport]}
                 </div>
               </div>
               {active && (
@@ -322,6 +433,9 @@ function SportStep({
           );
         })}
       </div>
+      <div className="mt-6 font-mono text-[10px] uppercase tracking-[0.22em] text-muted-foreground">
+        {sports.size} selected · pick as many as you like
+      </div>
     </div>
   );
 }
@@ -329,13 +443,13 @@ function SportStep({
 function GoalStep({
   goalKm,
   setGoalKm,
-  sport,
+  sports,
 }: {
   goalKm: number;
   setGoalKm: (n: number) => void;
-  sport: Sport | null;
+  sports: Set<Sport>;
 }) {
-  const unitLabel = sport === "swim" ? "km in the pool" : "km per week";
+  const unitLabel = sports.size === 1 && sports.has("Swim") ? "km in the pool" : "km per week";
   return (
     <div>
       <StepHeader
@@ -458,32 +572,143 @@ function FollowStep({
 
 function DoneStep({
   name,
-  sport,
+  sports,
   goalKm,
   followCount,
+  week,
+  offered,
+  optedOut,
+  onToggleChallenge,
 }: {
   name: string;
-  sport: Sport | null;
+  sports: Set<Sport>;
   goalKm: number;
   followCount: number;
+  week: ChallengeWeek | null;
+  offered: Challenge[];
+  optedOut: Set<string>;
+  onToggleChallenge: (challenge: Challenge) => void;
 }) {
-  const sportLabel = SPORTS.find((s) => s.id === sport)?.label ?? "Athlete";
+  const joinedCount = offered.filter((challenge) => !optedOut.has(challenge.id)).length;
+  const daysLeft = week?.daysLeftInCurrentWeek ?? 0;
+
   return (
     <div>
       <StepHeader
-        eyebrow="All set"
-        title={`You're ready, ${name}.`}
-        body="Your training home is waiting. Record your first effort, scroll through the feed, or build the habit one day at a time."
+        eyebrow={`All set, ${name}`}
+        title="Pick your first challenge."
+        body="Each weekly challenge is sized so about three in four athletes clear it in their first week. They're open to every athlete on Stride — we've ticked one for each sport you picked, so untick anything you'd rather skip."
       />
 
-      <div className="mt-10 grid gap-0 border border-border bg-surface sm:grid-cols-3">
-        <RecapCell label="Discipline" value={sportLabel} />
+      {week?.isNextWeek && (
+        <div className="mt-8 border-l-2 border-primary bg-surface-2 px-4 py-3">
+          <div className="font-mono text-[10px] uppercase tracking-[0.22em] text-muted-foreground">
+            Rolled forward
+          </div>
+          <p className="mt-1.5 text-sm leading-6 text-foreground/80">
+            This week closes in{" "}
+            {daysLeft === 0 ? "under a day" : `${daysLeft} day${daysLeft === 1 ? "" : "s"}`}, which
+            isn't much of a run-up. You're starting with the week of {fmtDayMonth(week.start)}{" "}
+            instead.
+          </p>
+        </div>
+      )}
+
+      <div className="mt-8 grid gap-3">
+        {offered.map((challenge) => {
+          const joined = !optedOut.has(challenge.id);
+          return (
+            <button
+              key={challenge.id}
+              onClick={() => onToggleChallenge(challenge)}
+              aria-pressed={joined}
+              className={`flex items-center gap-5 border p-4 text-left transition-all ${
+                joined
+                  ? "border-foreground bg-surface"
+                  : "border-border bg-surface-2/60 hover:border-foreground/40"
+              }`}
+            >
+              <div className="w-14 shrink-0">
+                <div
+                  className={`stat-num text-3xl font-bold leading-none tracking-[-0.03em] ${
+                    joined ? "text-foreground" : "text-muted-foreground"
+                  }`}
+                >
+                  {challenge.goalKm}
+                </div>
+                <div className="mt-1.5 font-mono text-[10px] uppercase tracking-[0.22em] text-muted-foreground">
+                  km
+                </div>
+              </div>
+
+              <div className="min-w-0 flex-1">
+                <div className="flex flex-wrap items-center gap-2">
+                  {challenge.sport !== "Multisport" && <SportBadge sport={challenge.sport} />}
+                  <span
+                    className={`truncate text-sm font-semibold ${
+                      joined ? "text-foreground" : "text-muted-foreground"
+                    }`}
+                  >
+                    {challenge.name}
+                  </span>
+                </div>
+                {challenge.startsAt && (
+                  <div className="mt-1.5 text-xs text-muted-foreground">
+                    {fmtDayMonthLong(challenge.startsAt)} – {fmtDayMonthLong(challenge.endsAt)}
+                  </div>
+                )}
+                <div className="mt-1.5 font-mono text-[10px] uppercase tracking-[0.22em] text-muted-foreground">
+                  {challenge.participants.toLocaleString()} athletes in
+                </div>
+              </div>
+
+              <div
+                className={`grid h-8 w-8 shrink-0 place-items-center border ${
+                  joined
+                    ? "border-primary bg-primary text-primary-foreground"
+                    : "border-border text-muted-foreground"
+                }`}
+              >
+                {joined && <Check className="h-4 w-4" />}
+              </div>
+            </button>
+          );
+        })}
+      </div>
+
+      {offered.length > 0 ? (
+        <div className="mt-6 font-mono text-[10px] uppercase tracking-[0.22em] text-muted-foreground">
+          {joinedCount} of {offered.length} joined · untick to skip
+        </div>
+      ) : (
+        <div className="mt-8 border border-dashed border-border bg-surface-2/60 px-4 py-5 text-sm text-muted-foreground">
+          No weekly challenge is on offer right now. You can join one any time from the Challenges
+          page.
+        </div>
+      )}
+
+      <div className="mt-10 font-mono text-[10px] uppercase tracking-[0.22em] text-muted-foreground">
+        Your Stride
+      </div>
+      <div className="mt-3 grid gap-0 border border-border bg-surface sm:grid-cols-3">
+        <RecapCell label="Disciplines">
+          <div className="mt-2 flex flex-wrap gap-1.5">
+            {SPORT_ORDER.filter((sport) => sports.has(sport)).map((sport) => (
+              <SportBadge key={sport} sport={sport} />
+            ))}
+          </div>
+        </RecapCell>
         <RecapCell label="Weekly target" value={`${goalKm} km`} />
         <RecapCell
           label="Following"
           value={`${followCount} athlete${followCount === 1 ? "" : "s"}`}
         />
       </div>
+
+      <p className="mt-5 max-w-xl text-sm leading-6 text-muted-foreground">
+        Your training home is waiting. Record your first effort, scroll through the feed, or build
+        the habit one day at a time.
+      </p>
 
       <div className="mt-10 relative overflow-hidden border border-border">
         <img src={DONE_IMG} alt="Runner silhouette at dawn" className="h-56 w-full object-cover" />
@@ -501,13 +726,21 @@ function DoneStep({
   );
 }
 
-function RecapCell({ label, value }: { label: string; value: string }) {
+function RecapCell({
+  label,
+  value,
+  children,
+}: {
+  label: string;
+  value?: string;
+  children?: React.ReactNode;
+}) {
   return (
     <div className="border-border p-5 [&:not(:last-child)]:border-b sm:[&:not(:last-child)]:border-b-0 sm:[&:not(:last-child)]:border-r">
       <div className="font-mono text-[10px] uppercase tracking-[0.22em] text-muted-foreground">
         {label}
       </div>
-      <div className="stat-num mt-2 text-2xl font-bold tracking-tight">{value}</div>
+      {children ?? <div className="stat-num mt-2 text-2xl font-bold tracking-tight">{value}</div>}
     </div>
   );
 }

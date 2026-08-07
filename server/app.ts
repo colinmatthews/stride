@@ -8,6 +8,7 @@ import {
   createUser,
   findUserForAuth,
   getActivityById,
+  joinChallenges,
   listActivities,
   toggleChallengeEntry,
   toggleClubMembership,
@@ -204,6 +205,22 @@ export function createApp() {
   app.post("/api/clubs/:id/join", requireAuth, async (request, response, next) => {
     try {
       response.json(await toggleClubMembership(request.userId!, String(request.params.id)));
+    } catch (error) {
+      next(error);
+    }
+  });
+
+  // Bulk join used by onboarding's "Pick your first challenge" step.
+  app.post("/api/challenges/join", requireAuth, async (request, response, next) => {
+    try {
+      const challengeIds = request.body.challengeIds;
+
+      if (!Array.isArray(challengeIds) || challengeIds.some((id) => typeof id !== "string")) {
+        response.status(400).json({ error: "challengeIds must be an array of strings" });
+        return;
+      }
+
+      response.json(await joinChallenges(request.userId!, challengeIds));
     } catch (error) {
       next(error);
     }
