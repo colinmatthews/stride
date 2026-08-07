@@ -58,7 +58,7 @@ export async function fetchActivities(
   if (options.limit) params.set("limit", String(options.limit));
 
   const suffix = params.toString() ? `?${params.toString()}` : "";
-  const page = await apiFetch<{ activities: Activity[]; nextCursor?: string }>(
+  const page = await apiFetch<{ activities: Activity[]; nextCursor?: string; totalCount?: number }>(
     `/api/activities${suffix}`,
   );
 

@@ -1,5 +1,5 @@
 import { randomUUID } from "node:crypto";
-import { and, asc, desc, eq, gt, inArray, lt, min, sum, type SQL } from "drizzle-orm";
+import { and, asc, count, desc, eq, gt, inArray, lt, min, sum, type SQL } from "drizzle-orm";
 import { db } from "./db.js";
 import {
   activities as activitiesTable,
@@ -263,11 +263,16 @@ export async function listActivities(
   const limit = parsePageLimit(options.limit, BOOTSTRAP_ACTIVITY_LIMIT);
   const filters: SQL[] = [];
 
+  // totalCount must reflect the athlete filter only, never the cursor, or it
+  // would report "activities remaining after this page" instead of the
+  // athlete's true total. Built before the cursor filter is added below.
   if (options.athleteId) {
     filters.push(eq(activitiesTable.athleteId, resolveAliasedUserId(options.athleteId, userId)));
   } else if (options.athleteIds) {
     filters.push(inArray(activitiesTable.athleteId, options.athleteIds));
   }
+
+  const totalCountWhere = filters.length > 0 ? and(...filters) : undefined;
 
   if (options.cursor) {
     const cursorDate = new Date(options.cursor);
@@ -278,12 +283,21 @@ export async function listActivities(
   }
 
   const where = filters.length > 0 ? and(...filters) : undefined;
-  const rows = await db
-    .select()
-    .from(activitiesTable)
-    .where(where)
-    .orderBy(desc(activitiesTable.date))
-    .limit(limit + 1);
+
+  // Only compute the total on the first page. It doesn't change between
+  // "load more" pages for the same athlete, so re-querying it every time
+  // would just be an extra round trip for no new information.
+  const [rows, totalCountResult] = await Promise.all([
+    db
+      .select()
+      .from(activitiesTable)
+      .where(where)
+      .orderBy(desc(activitiesTable.date))
+      .limit(limit + 1),
+    options.cursor
+      ? Promise.resolve(undefined)
+      : db.select({ value: count() }).from(activitiesTable).where(totalCountWhere),
+  ]);
   const pageRows = rows.slice(0, limit);
   const activities = await hydrateActivities(pageRows, userId);
   const nextRow = rows[limit];
@@ -291,6 +305,7 @@ export async function listActivities(
   return {
     activities,
     nextCursor: nextRow?.date.toISOString(),
+    totalCount: totalCountResult?.[0]?.value,
   };
 }
 

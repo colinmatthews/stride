@@ -1,7 +1,7 @@
 import { createFileRoute, Link, notFound } from "@tanstack/react-router";
-import { useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { usePostHog } from "@posthog/react";
-import { ACTIVITIES, ATHLETES, type Activity, fmtDate, fmtDuration, getAthlete, weeklyStats } from "@/lib/mock-data";
+import { ATHLETES, type Activity, fmtDate, fmtDuration } from "@/lib/mock-data";
 import { AppShell } from "@/components/AppShell";
 import { ActivityCard } from "@/components/ActivityCard";
 import { ResponsiveContainer, BarChart, Bar, XAxis, YAxis, Tooltip, CartesianGrid } from "recharts";
@@ -9,61 +9,23 @@ import { MapPin, Trophy, UserPlus, Check, ChevronDown, Lock } from "lucide-react
 import { SportBadge } from "@/components/SportBadge";
 import { fetchActivities, toggleAthleteFollow } from "@/lib/api";
 import { Badge } from "@/components/ui/badge";
-
-interface Tier {
-  name: string;
-  min: number;
-  icon: string;
-  blurb: string;
-}
-
-const TIERS: Tier[] = [
-  {
-    name: "Getting started",
-    min: 0,
-    icon: "🌱",
-    blurb: "Every athlete starts here. Log your first few efforts.",
-  },
-  {
-    name: "Building momentum",
-    min: 5,
-    icon: "🔥",
-    blurb: "You're showing up more than once a week. Keep it going.",
-  },
-  {
-    name: "Consistent",
-    min: 10,
-    icon: "⚡",
-    blurb: "Regular enough that Stride can start spotting real trends in your training.",
-  },
-  {
-    name: "Committed",
-    min: 18,
-    icon: "🏅",
-    blurb: "You've logged more than most athletes ever do. Segments start to feel like home turf.",
-  },
-  {
-    name: "Elite",
-    min: 28,
-    icon: "🏆",
-    blurb: "Top tier of logged training. Nothing left to prove — just keep training.",
-  },
-];
-
-function tierIndexFor(count: number) {
-  let idx = 0;
-  for (let i = 0; i < TIERS.length; i += 1) {
-    if (count >= TIERS[i].min) idx = i;
-  }
-  return idx;
-}
+import { getTierProgress, TIERS } from "@/lib/tiers";
 
 export const Route = createFileRoute("/athlete/$id")({
   loader: async ({ params }) => {
     const athlete = ATHLETES.find((a) => a.id === params.id);
     if (!athlete) throw notFound();
     const activityPage = await fetchActivities({ athleteId: params.id, limit: 50 });
-    return { athlete, activities: activityPage.activities };
+    // totalCount is only computed server-side on the first (no-cursor) page,
+    // so it's always present here. Falling back to the loaded page length
+    // just guards against a malformed response rather than crashing the page.
+    const totalCount = activityPage.totalCount ?? activityPage.activities.length;
+    return {
+      athlete,
+      activities: activityPage.activities,
+      nextCursor: activityPage.nextCursor,
+      totalActivityCount: totalCount,
+    };
   },
   head: ({ loaderData }) => ({
     meta: loaderData
@@ -81,10 +43,12 @@ function AthletePage() {
     athlete,
     activities: initialActivities,
     nextCursor: initialNextCursor,
+    totalActivityCount,
   } = Route.useLoaderData() as {
     athlete: import("@/lib/mock-data").Athlete;
     activities: Activity[];
     nextCursor?: string;
+    totalActivityCount: number;
   };
   const posthog = usePostHog();
   const [following, setFollowing] = useState(Boolean(athlete.isFollowing));
@@ -98,12 +62,27 @@ function AthletePage() {
   const totalTime = acts.reduce((s, a) => s + a.movingSeconds, 0);
   const totalElev = acts.reduce((s, a) => s + a.elevationM, 0);
 
-  const tierIdx = tierIndexFor(acts.length);
-  const currentTier = TIERS[tierIdx];
-  const nextTier = TIERS[tierIdx + 1];
-  const tierProgressPct = nextTier
-    ? Math.min(100, ((acts.length - currentTier.min) / (nextTier.min - currentTier.min)) * 100)
-    : 100;
+  // totalActivityCount is the athlete's real total from the DB, not
+  // acts.length (the loaded/paginated subset) — using acts.length here would
+  // under-report the tier for anyone with more activities than one page, and
+  // make it jump every time "Load more" is clicked.
+  const {
+    current: currentTier,
+    next: nextTier,
+    progressPct: tierProgressPct,
+    currentIdx: tierIdx,
+  } = getTierProgress(totalActivityCount);
+
+  const trackedTierRef = useRef<string | null>(null);
+  useEffect(() => {
+    if (trackedTierRef.current === currentTier.name) return;
+    trackedTierRef.current = currentTier.name;
+    posthog.capture("tier_viewed", {
+      athlete_id: athlete.id,
+      tier_name: currentTier.name,
+      activity_count: totalActivityCount,
+    });
+  }, [athlete.id, currentTier.name, posthog, totalActivityCount]);
 
   const isMe = athlete.id === "me";
   const loadMore = async () => {
@@ -190,7 +169,7 @@ function AthletePage() {
       <div className="mt-8 grid grid-cols-5 border border-border">
         <BigStat label="Followers" value={followers.toLocaleString()} />
         <BigStat label="Following" value={athlete.following.toLocaleString()} />
-        <BigStat label="Activities" value={acts.length} />
+        <BigStat label="Activities" value={totalActivityCount} />
         <BigStat label="Distance" value={`${totalKm.toFixed(0)} km`} />
         <BigStat label="Elevation" value={`${totalElev.toLocaleString()} m`} />
       </div>
@@ -289,14 +268,24 @@ function AthletePage() {
                 <div className="text-sm font-semibold">{currentTier.name}</div>
                 {nextTier && (
                   <div className="text-xs text-muted-foreground">
-                    {Math.max(0, nextTier.min - acts.length)} to {nextTier.name}
+                    {Math.max(0, nextTier.min - totalActivityCount)} to {nextTier.name}
                   </div>
                 )}
               </div>
             </div>
             {nextTier && <ProgressBar pct={tierProgressPct} />}
             <div className="mt-4">
-              <TierLadder currentIdx={tierIdx} count={acts.length} />
+              <TierLadder
+                currentIdx={tierIdx}
+                count={totalActivityCount}
+                onExpand={(tierName) =>
+                  posthog.capture("tier_row_expanded", {
+                    athlete_id: athlete.id,
+                    tier_name: tierName,
+                    activity_count: totalActivityCount,
+                  })
+                }
+              />
             </div>
           </div>
           <div className="bg-surface rounded-xl border border-border p-5">
@@ -348,7 +337,15 @@ function weeklyStatsForActivities(activities: Activity[]) {
   return weeks;
 }
 
-function TierLadder({ currentIdx, count }: { currentIdx: number; count: number }) {
+function TierLadder({
+  currentIdx,
+  count,
+  onExpand,
+}: {
+  currentIdx: number;
+  count: number;
+  onExpand?: (tierName: string) => void;
+}) {
   const [openIdx, setOpenIdx] = useState<number>(currentIdx);
 
   return (
@@ -360,7 +357,11 @@ function TierLadder({ currentIdx, count }: { currentIdx: number; count: number }
         return (
           <li key={tier.name}>
             <button
-              onClick={() => setOpenIdx(isOpen ? -1 : i)}
+              onClick={() => {
+                const opening = !isOpen;
+                setOpenIdx(opening ? i : -1);
+                if (opening) onExpand?.(tier.name);
+              }}
               className={`w-full rounded-lg border p-3 text-left transition-colors ${
                 unlocked
                   ? "border-[color:var(--pr)]/30 bg-[color:var(--pr)]/6"
