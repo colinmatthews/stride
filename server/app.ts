@@ -8,6 +8,7 @@ import {
   createUser,
   findUserForAuth,
   getActivityById,
+  getPostRunMomentum,
   listActivities,
   toggleChallengeEntry,
   toggleClubMembership,
@@ -138,6 +139,16 @@ export function createApp() {
       }
 
       response.json(activity);
+    } catch (error) {
+      next(error);
+    }
+  });
+
+  // Null body means there is no challenge worth pitching for this activity —
+  // the post-run surface renders nothing rather than inventing a nudge.
+  app.get("/api/activities/:id/momentum", requireAuth, async (request, response, next) => {
+    try {
+      response.json(await getPostRunMomentum(request.userId!, String(request.params.id)));
     } catch (error) {
       next(error);
     }
