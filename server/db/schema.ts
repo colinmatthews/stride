@@ -156,9 +156,14 @@ export const challenges = pgTable("challenges", {
   sport: text("sport").notNull(),
   goalKm: numeric("goal_km", { precision: 10, scale: 2 }).notNull(),
   participants: integer("participants").notNull(),
+  // Weekly challenges need a start date so progress can be scoped to the week
+  // rather than counting an athlete's whole history. Null on the older monthly
+  // challenges, which have always scored against lifetime totals.
+  startsAt: date("starts_at"),
   endsAt: date("ends_at").notNull(),
   badge: text("badge").notNull(),
   metricType: text("metric_type").notNull(),
+  cadence: text("cadence").notNull().default("monthly"),
 });
 
 export const challengeEntries = pgTable(

@@ -1,6 +1,6 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { useState } from "react";
-import { CHALLENGES } from "@/lib/mock-data";
+import { CHALLENGES, challengeUnit } from "@/lib/mock-data";
 import { AppShell } from "@/components/AppShell";
 import { Trophy, Users, Calendar, Check } from "lucide-react";
 import { toggleChallengeJoin } from "@/lib/api";
@@ -52,7 +52,7 @@ function ChallengesPage() {
         {CHALLENGES.map((c) => {
           const isJoined = joined[c.id];
           const pct = Math.min(100, (c.myProgressKm / c.goalKm) * 100);
-          const unit = c.sport === "Ride" && c.goalKm > 1000 ? "m" : "km";
+          const unit = challengeUnit(c);
           return (
             <article
               key={c.id}
@@ -70,7 +70,7 @@ function ChallengesPage() {
                 />
                 <div className="relative flex items-start justify-between gap-3">
                   <div className="font-mono text-[10px] uppercase tracking-[0.22em] text-secondary-foreground/60">
-                    {c.sport} · monthly
+                    {c.sport} · {c.cadence ?? "monthly"}
                   </div>
                   {isJoined ? (
                     <div className="flex items-center gap-1.5 bg-primary px-2.5 py-1 font-mono text-[10px] uppercase tracking-[0.22em] text-primary-foreground">
@@ -156,6 +156,9 @@ function ChallengesPage() {
                       challenge_name: c.name,
                       sport: c.sport,
                       goal_km: c.goalKm,
+                      // Onboarding emits the same event with source "onboarding",
+                      // so both routes into a challenge are comparable.
+                      source: "challenges_page",
                     });
                   }}
                   className={`mt-6 inline-flex h-11 w-full items-center justify-center gap-2 text-sm font-medium transition-opacity hover:opacity-95 ${
