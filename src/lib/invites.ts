@@ -1,6 +1,6 @@
 import type { Sport } from "./mock-data";
 
-export type InviteState = "open" | "expired" | "revoked";
+export type InviteState = "open" | "expired";
 
 /** What a logged-out recipient receives from `GET /api/invites/:code`. */
 export interface PublicInvite {

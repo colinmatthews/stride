@@ -8,6 +8,7 @@ import {
   inviteState,
   inviteUrl,
   isEditedClaim,
+  isUniqueViolation,
 } from "./invite-codes.js";
 
 describe("encodeInviteCode", () => {
@@ -44,34 +45,56 @@ describe("inviteState", () => {
   const now = new Date("2026-08-06T12:00:00.000Z");
 
   it("is open before the expiry date", () => {
-    const state = inviteState(
-      { expiresAt: new Date("2026-08-07T12:00:00.000Z"), revokedAt: null },
-      now,
-    );
-
-    expect(state).toBe("open");
+    expect(inviteState({ expiresAt: new Date("2026-08-07T12:00:00.000Z") }, now)).toBe("open");
   });
 
   it("is expired once the expiry date passes", () => {
-    const state = inviteState(
-      { expiresAt: new Date("2026-08-05T12:00:00.000Z"), revokedAt: null },
-      now,
-    );
-
-    expect(state).toBe("expired");
+    expect(inviteState({ expiresAt: new Date("2026-08-05T12:00:00.000Z") }, now)).toBe("expired");
   });
 
   it("treats the exact expiry instant as expired", () => {
-    expect(inviteState({ expiresAt: now, revokedAt: null }, now)).toBe("expired");
+    expect(inviteState({ expiresAt: now }, now)).toBe("expired");
+  });
+});
+
+describe("isUniqueViolation", () => {
+  it("recognises the Postgres unique-violation code", () => {
+    expect(isUniqueViolation({ code: "23505" })).toBe(true);
   });
 
-  it("reports revoked ahead of expired", () => {
-    const state = inviteState(
-      { expiresAt: new Date("2026-08-05T12:00:00.000Z"), revokedAt: new Date() },
-      now,
-    );
+  it("finds the code when Drizzle wraps the driver error in a cause", () => {
+    // This is the shape that actually reaches the claim handler. A check that only
+    // looked at the top-level error let a concurrent duplicate claim surface as a 500.
+    const wrapped = Object.assign(new Error("Failed query"), {
+      cause: Object.assign(new Error("duplicate key value violates unique constraint"), {
+        code: "23505",
+        constraint: "invite_claims_invite_id_user_id_pk",
+      }),
+    });
 
-    expect(state).toBe("revoked");
+    expect(isUniqueViolation(wrapped)).toBe(true);
+  });
+
+  it("gives up rather than looping on a self-referential cause chain", () => {
+    const looped: { code?: string; cause?: unknown } = { code: "08006" };
+    looped.cause = looped;
+
+    expect(isUniqueViolation(looped)).toBe(false);
+  });
+
+  it("ignores other Postgres errors", () => {
+    // 23503 is a foreign-key violation — a real failure that must not be reported as
+    // "you already logged this".
+    expect(isUniqueViolation({ code: "23503" })).toBe(false);
+  });
+
+  it("ignores errors with no code at all", () => {
+    expect(isUniqueViolation(new Error("connection reset"))).toBe(false);
+  });
+
+  it("does not throw on null or undefined", () => {
+    expect(isUniqueViolation(null)).toBe(false);
+    expect(isUniqueViolation(undefined)).toBe(false);
   });
 });
 

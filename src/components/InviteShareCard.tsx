@@ -109,12 +109,22 @@ export function InviteShareCard({ activity, autoCreate = false }: Props) {
   const url = `${window.location.origin}/j/${invite.code}`;
   const subject = `Log the ${noun} we did together`;
 
+  // Every share route reports the same event so channel mix is comparable. Nothing here
+  // confirms delivery — the handoff to the device's own app is the last thing Stride sees.
+  const recordShare = (channel: "copy" | "sms" | "email") => {
+    posthog.capture("invite_shared", {
+      activity_id: activity.id,
+      invite_code: invite.code,
+      channel,
+    });
+  };
+
   const copy = async () => {
     try {
       await navigator.clipboard.writeText(invite.message);
       setCopied(true);
       window.setTimeout(() => setCopied(false), 2400);
-      posthog.capture("invite_shared", { activity_id: activity.id, channel: "copy" });
+      recordShare("copy");
     } catch {
       setError("Couldn't reach the clipboard — select the link below and copy it manually.");
     }
@@ -156,12 +166,14 @@ export function InviteShareCard({ activity, autoCreate = false }: Props) {
           </button>
           <a
             href={smsHref(invite.message)}
+            onClick={() => recordShare("sms")}
             className="inline-flex h-10 items-center gap-2 border border-border bg-surface px-5 text-sm font-medium transition-colors hover:bg-muted"
           >
             <MessageCircle className="h-4 w-4" /> Text it
           </a>
           <a
             href={mailtoHref(subject, invite.message)}
+            onClick={() => recordShare("email")}
             className="inline-flex h-10 items-center gap-2 border border-border bg-surface px-5 text-sm font-medium transition-colors hover:bg-muted"
           >
             <Mail className="h-4 w-4" /> Email it

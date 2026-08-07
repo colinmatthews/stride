@@ -14,7 +14,6 @@ CREATE TABLE "invites" (
 	"inviter_id" text NOT NULL,
 	"message" text NOT NULL,
 	"expires_at" timestamp with time zone NOT NULL,
-	"revoked_at" timestamp with time zone,
 	"created_at" timestamp with time zone DEFAULT now() NOT NULL,
 	CONSTRAINT "invites_code_unique" UNIQUE("code")
 );

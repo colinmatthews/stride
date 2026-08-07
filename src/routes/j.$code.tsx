@@ -1,5 +1,5 @@
 import { createFileRoute, notFound, Link } from "@tanstack/react-router";
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { usePostHog } from "@posthog/react";
 import { ArrowLeft, ArrowRight, Clock, LoaderCircle, MapPin, Mountain, Zap } from "lucide-react";
 import { RouteMap } from "@/components/RouteMap";
@@ -48,13 +48,28 @@ type Step = "landing" | "join" | "log";
 
 function InvitePage() {
   const { invite } = Route.useLoaderData() as { invite: PublicInvite };
+  const posthog = usePostHog();
   const [step, setStep] = useState<Step>("landing");
+
+  // Top of the referral funnel. Fires for every open, including the states that stop
+  // short of a claim, so open → signup → claim conversion is measurable rather than
+  // inferred from the claims alone.
+  useEffect(() => {
+    posthog.capture("invite_link_opened", {
+      invite_code: invite.code,
+      sport: invite.activity.sport,
+      invite_state: invite.state,
+      is_inviter: invite.isInviter,
+      already_claimed: invite.viewerClaimActivityId !== null,
+    });
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [invite.code]);
 
   if (invite.state !== "open") {
     return (
       <InviteMessage
         eyebrow="Invite link"
-        title={invite.state === "expired" ? "This link has expired." : "This link was turned off."}
+        title="This link has expired."
         body={`Ask ${invite.inviter.name} to send a fresh one — the activity is still on their log.`}
       />
     );

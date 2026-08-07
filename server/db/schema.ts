@@ -216,7 +216,6 @@ export const invites = pgTable("invites", {
     .references(() => users.id, { onDelete: "cascade" }),
   message: text("message").notNull(),
   expiresAt: timestamp("expires_at", { withTimezone: true }).notNull(),
-  revokedAt: timestamp("revoked_at", { withTimezone: true }),
   createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
 });
 

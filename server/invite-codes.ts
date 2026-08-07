@@ -48,21 +48,36 @@ export function inviteExpiryFrom(now: Date): Date {
   return new Date(now.getTime() + INVITE_TTL_DAYS * 24 * 60 * 60 * 1000);
 }
 
-export type InviteState = "open" | "expired" | "revoked";
+export type InviteState = "open" | "expired";
 
-export function inviteState(
-  invite: { expiresAt: Date; revokedAt: Date | null },
-  now: Date,
-): InviteState {
-  if (invite.revokedAt !== null) {
-    return "revoked";
+export function inviteState(invite: { expiresAt: Date }, now: Date): InviteState {
+  return invite.expiresAt.getTime() <= now.getTime() ? "expired" : "open";
+}
+
+/**
+ * Postgres unique-violation. The claim path pre-checks for an existing claim, but two
+ * concurrent requests can both pass that check — the composite primary key is what
+ * actually rejects the second, and this turns that into a 409 rather than a 500.
+ *
+ * Walks the `cause` chain because Drizzle wraps driver errors: the 23505 lives on
+ * `error.cause`, not on the error itself.
+ */
+export function isUniqueViolation(error: unknown): boolean {
+  let current: unknown = error;
+
+  for (let depth = 0; depth < 5; depth += 1) {
+    if (typeof current !== "object" || current === null) {
+      return false;
+    }
+
+    if ((current as { code?: unknown }).code === "23505") {
+      return true;
+    }
+
+    current = (current as { cause?: unknown }).cause;
   }
 
-  if (invite.expiresAt.getTime() <= now.getTime()) {
-    return "expired";
-  }
-
-  return "open";
+  return false;
 }
 
 /**

@@ -17,10 +17,13 @@ import {
   inviteState,
   inviteUrl,
   isEditedClaim,
+  isUniqueViolation,
   type Sport,
 } from "./invite-codes.js";
 
 export { HttpError } from "./invite-codes.js";
+
+const ALREADY_CLAIMED = "You've already logged this activity";
 
 export async function createInvite(input: {
   userId: string;
@@ -224,19 +227,17 @@ export async function claimInvite(input: {
     throw new HttpError(404, "That invite link doesn't exist");
   }
 
-  const state = inviteState(row.invite, new Date());
-
-  if (state !== "open") {
-    throw new HttpError(
-      410,
-      `That invite link has ${state === "expired" ? "expired" : "been revoked"}`,
-    );
+  if (inviteState(row.invite, new Date()) !== "open") {
+    throw new HttpError(410, "That invite link has expired");
   }
 
   if (row.invite.inviterId === input.userId) {
     throw new HttpError(409, "This is your own invite — the activity is already on your log");
   }
 
+  // Fast path for the common case. This is advisory only — two concurrent requests can
+  // both pass it, which is why the transaction below also translates the primary-key
+  // rejection into the same 409 instead of letting a raw driver error become a 500.
   const existing = await db
     .select({ activityId: inviteClaims.activityId })
     .from(inviteClaims)
@@ -244,7 +245,7 @@ export async function claimInvite(input: {
     .limit(1);
 
   if (existing[0]) {
-    throw new HttpError(409, "You've already logged this activity");
+    throw new HttpError(409, ALREADY_CLAIMED);
   }
 
   if (input.distanceKm <= 0 || input.movingSeconds <= 0) {
@@ -268,76 +269,87 @@ export async function claimInvite(input: {
   const activityId = `act-${randomUUID()}`;
   const inviterId = row.invite.inviterId;
 
-  await db.transaction(async (tx) => {
-    await tx.insert(activitiesTable).values({
-      id: activityId,
-      athleteId: input.userId,
-      sport,
-      title: input.title,
-      description: input.description ?? null,
-      // The claimer's copy carries its own timestamp — they logged it now, even
-      // though the effort happened on the inviter's date.
-      date: new Date(),
-      distanceKm: String(input.distanceKm),
-      movingSeconds: input.movingSeconds,
-      elevationM: input.elevationM,
-      avgHr: null,
-      avgPaceSecPerKm: sport === "Ride" ? null : Math.round(input.movingSeconds / input.distanceKm),
-      avgSpeedKmh:
-        sport === "Ride"
-          ? String(Math.round((input.distanceKm / (input.movingSeconds / 3600)) * 10) / 10)
-          : null,
-      kudos: 0,
-      achievements: 0,
-      photo: null,
-      // Same seed as the source: they covered the same ground, so the route preview
-      // should match. Distance edits only change the label, not the shape.
-      routeSeed: row.activity.routeSeed,
-    });
+  try {
+    await db.transaction(async (tx) => {
+      await tx.insert(activitiesTable).values({
+        id: activityId,
+        athleteId: input.userId,
+        sport,
+        title: input.title,
+        description: input.description ?? null,
+        // The claimer's copy carries its own timestamp — they logged it now, even
+        // though the effort happened on the inviter's date.
+        date: new Date(),
+        distanceKm: String(input.distanceKm),
+        movingSeconds: input.movingSeconds,
+        elevationM: input.elevationM,
+        avgHr: null,
+        avgPaceSecPerKm:
+          sport === "Ride" ? null : Math.round(input.movingSeconds / input.distanceKm),
+        avgSpeedKmh:
+          sport === "Ride"
+            ? String(Math.round((input.distanceKm / (input.movingSeconds / 3600)) * 10) / 10)
+            : null,
+        kudos: 0,
+        achievements: 0,
+        photo: null,
+        // Same seed as the source: they covered the same ground, so the route preview
+        // should match. Distance edits only change the label, not the shape.
+        routeSeed: row.activity.routeSeed,
+      });
 
-    await tx.insert(inviteClaims).values({
-      inviteId: row.invite.id,
-      userId: input.userId,
-      activityId,
-      wasEdited,
-    });
+      await tx.insert(inviteClaims).values({
+        inviteId: row.invite.id,
+        userId: input.userId,
+        activityId,
+        wasEdited,
+      });
 
-    // Close the social loop for real rather than showing copy that claims it.
-    const alreadyFollowing = await tx
-      .select({ followedId: follows.followedId })
-      .from(follows)
-      .where(and(eq(follows.followerId, input.userId), eq(follows.followedId, inviterId)))
-      .limit(1);
-
-    if (alreadyFollowing.length === 0) {
-      await tx.insert(follows).values({ followerId: input.userId, followedId: inviterId });
-
-      const [claimer] = await tx
-        .select({ followingCount: users.followingCount })
-        .from(users)
-        .where(eq(users.id, input.userId))
-        .limit(1);
-      const [inviter] = await tx
-        .select({ followersCount: users.followersCount })
-        .from(users)
-        .where(eq(users.id, inviterId))
+      // Close the social loop for real rather than showing copy that claims it.
+      const alreadyFollowing = await tx
+        .select({ followedId: follows.followedId })
+        .from(follows)
+        .where(and(eq(follows.followerId, input.userId), eq(follows.followedId, inviterId)))
         .limit(1);
 
-      if (claimer) {
-        await tx
-          .update(users)
-          .set({ followingCount: claimer.followingCount + 1 })
-          .where(eq(users.id, input.userId));
-      }
+      if (alreadyFollowing.length === 0) {
+        await tx.insert(follows).values({ followerId: input.userId, followedId: inviterId });
 
-      if (inviter) {
-        await tx
-          .update(users)
-          .set({ followersCount: inviter.followersCount + 1 })
-          .where(eq(users.id, inviterId));
+        const [claimer] = await tx
+          .select({ followingCount: users.followingCount })
+          .from(users)
+          .where(eq(users.id, input.userId))
+          .limit(1);
+        const [inviter] = await tx
+          .select({ followersCount: users.followersCount })
+          .from(users)
+          .where(eq(users.id, inviterId))
+          .limit(1);
+
+        if (claimer) {
+          await tx
+            .update(users)
+            .set({ followingCount: claimer.followingCount + 1 })
+            .where(eq(users.id, input.userId));
+        }
+
+        if (inviter) {
+          await tx
+            .update(users)
+            .set({ followersCount: inviter.followersCount + 1 })
+            .where(eq(users.id, inviterId));
+        }
       }
+    });
+  } catch (error) {
+    // Lost the race against a concurrent claim by the same user. The primary key did
+    // its job; report it the same way the pre-check would have.
+    if (isUniqueViolation(error)) {
+      throw new HttpError(409, ALREADY_CLAIMED);
     }
-  });
+
+    throw error;
+  }
 
   return { activityId, wasEdited };
 }
