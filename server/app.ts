@@ -22,6 +22,7 @@ import {
   verifyPassword,
 } from "./auth.js";
 import { saveSubscription, sendChallengeCompletionPush } from "./push.js";
+import { buildChallengeNotifications } from "./challenge-notifications.js";
 
 export function createApp() {
   const app = express();
@@ -147,7 +148,7 @@ export function createApp() {
   app.post("/api/activities", requireAuth, async (request, response, next) => {
     try {
       const userId = request.userId!;
-      const { activityId, challenges, completions } = await createActivityWithChallengeUpdates({
+      const { activityId, challenges, challengeUpdates } = await createActivityWithChallengeUpdates({
         userId,
         sport: request.body.sport,
         title: String(request.body.title ?? ""),
@@ -165,12 +166,15 @@ export function createApp() {
 
       const activity = await getActivityById(userId, activityId);
 
-      // Fire-and-forget: never blocks or fails the activity save.
-      for (const completion of completions) {
-        void sendChallengeCompletionPush(userId, completion);
+      // Fire-and-forget: never blocks or fails the activity save. Push is
+      // reserved for actual completions, not every incremental update.
+      for (const update of challengeUpdates) {
+        if (update.completed) {
+          void sendChallengeCompletionPush(userId, update);
+        }
       }
 
-      response.status(201).json({ activity, challenges, completions });
+      response.status(201).json({ activity, challenges, challengeUpdates });
     } catch (error) {
       next(error);
     }
@@ -219,6 +223,14 @@ export function createApp() {
   app.post("/api/challenges/:id/join", requireAuth, async (request, response, next) => {
     try {
       response.json(await toggleChallengeEntry(request.userId!, String(request.params.id)));
+    } catch (error) {
+      next(error);
+    }
+  });
+
+  app.get("/api/challenge-notifications", requireAuth, async (request, response, next) => {
+    try {
+      response.json(await buildChallengeNotifications(request.userId!));
     } catch (error) {
       next(error);
     }

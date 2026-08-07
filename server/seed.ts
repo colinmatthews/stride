@@ -333,6 +333,16 @@ export const SEEDED_CLUBS: SeedClub[] = [
   },
 ];
 
+// Challenge progress is scoped to `endsAt`, so a hardcoded calendar date
+// would silently "expire" every seeded challenge as real time passes. Seed
+// dates relative to whenever the DB is first seeded instead, so a fresh
+// checkout always gets challenges that are actually still open.
+function daysFromNow(days: number): string {
+  const date = new Date();
+  date.setUTCDate(date.getUTCDate() + days);
+  return date.toISOString().slice(0, 10);
+}
+
 export const SEEDED_CHALLENGES: SeedChallenge[] = [
   {
     id: "ch1",
@@ -340,7 +350,7 @@ export const SEEDED_CHALLENGES: SeedChallenge[] = [
     sport: "Run",
     goalKm: 100,
     participants: 184230,
-    endsAt: "2026-04-30",
+    endsAt: daysFromNow(21),
     badge: "RUN",
     metricType: "distance_km",
   },
@@ -350,7 +360,7 @@ export const SEEDED_CHALLENGES: SeedChallenge[] = [
     sport: "Ride",
     goalKm: 5000,
     participants: 92450,
-    endsAt: "2026-04-30",
+    endsAt: daysFromNow(21),
     badge: "CLIMB",
     metricType: "elevation_m",
   },
@@ -360,7 +370,7 @@ export const SEEDED_CHALLENGES: SeedChallenge[] = [
     sport: "Ride",
     goalKm: 100,
     participants: 64200,
-    endsAt: "2026-05-15",
+    endsAt: daysFromNow(36),
     badge: "GF",
     metricType: "distance_km",
   },
@@ -370,7 +380,7 @@ export const SEEDED_CHALLENGES: SeedChallenge[] = [
     sport: "Run",
     goalKm: 10,
     participants: 38120,
-    endsAt: "2026-05-31",
+    endsAt: daysFromNow(52),
     badge: "10K",
     metricType: "distance_km",
   },
@@ -380,7 +390,7 @@ export const SEEDED_CHALLENGES: SeedChallenge[] = [
     sport: "Swim",
     goalKm: 20,
     participants: 22100,
-    endsAt: "2026-04-30",
+    endsAt: daysFromNow(21),
     badge: "SWIM",
     metricType: "distance_km",
   },

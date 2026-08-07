@@ -1,7 +1,7 @@
 import { createFileRoute, useRouter } from "@tanstack/react-router";
 import { useEffect, useRef, useState } from "react";
 import { toast } from "sonner";
-import { fmtDuration, fmtPace, type ChallengeCompletion, type Sport } from "@/lib/mock-data";
+import { fmtDuration, fmtPace, type ChallengeProgressUpdate, type Sport } from "@/lib/mock-data";
 import { AppShell } from "@/components/AppShell";
 import { usePostHog } from "@posthog/react";
 import {
@@ -22,8 +22,13 @@ function unitFor(metricType: string) {
   return metricType === "elevation_m" ? "m" : "km";
 }
 
-function announceCompletions(posthog: ReturnType<typeof usePostHog>, completions: ChallengeCompletion[]) {
-  for (const completion of completions) {
+// The toast (and the analytics event) are reserved for actual completions —
+// firing one on every incremental update would be spammy. The full
+// challengeUpdates list (including in-progress ones) is stashed via
+// setLastChallengeUpdates in saveActivity() and rendered on the activity
+// detail page regardless.
+function announceCompletions(posthog: ReturnType<typeof usePostHog>, updates: ChallengeProgressUpdate[]) {
+  for (const completion of updates.filter((update) => update.completed)) {
     toast(`Challenge complete: ${completion.name}`, {
       description: `You hit ${completion.goalKm} ${unitFor(completion.metricType)} — nice work.`,
       icon: <Trophy className="h-4 w-4 text-primary" />,
@@ -204,7 +209,7 @@ function ManualForm({ sport }: { sport: Sport }) {
       const paceSecPerKm = sport === "Ride" ? undefined : Math.round(totalSeconds / distanceKm);
       const speedKmh =
         sport === "Ride" ? Math.round((distanceKm / (totalSeconds / 3600)) * 10) / 10 : undefined;
-      const { activity, completions } = await saveActivity({
+      const { activity, challengeUpdates } = await saveActivity({
         sport,
         title: title.trim() || defaultTitle(sport, new Date()),
         description: description.trim() || undefined,
@@ -223,7 +228,7 @@ function ManualForm({ sport }: { sport: Sport }) {
         elevation_m: Number(elevation) || 0,
         entry_mode: "manual",
       });
-      announceCompletions(posthog, completions);
+      announceCompletions(posthog, challengeUpdates);
       router.navigate({ to: "/activity/$id", params: { id: activity.id } });
     } catch (err) {
       posthog.captureException(err);
@@ -548,7 +553,7 @@ function TimerMode({ sport }: { sport: Sport }) {
         sport === "Ride" ? undefined : Math.max(180, Math.floor(elapsed / Math.max(0.1, distance)));
       const speed =
         sport === "Ride" ? Math.round((distance / (elapsed / 3600)) * 10) / 10 : undefined;
-      const { activity, completions } = await saveActivity({
+      const { activity, challengeUpdates } = await saveActivity({
         sport,
         title: title || defaultTitle(sport, new Date()),
         description: description || undefined,
@@ -567,7 +572,7 @@ function TimerMode({ sport }: { sport: Sport }) {
         elevation_m: Math.floor(distance * 12),
         entry_mode: "timer",
       });
-      announceCompletions(posthog, completions);
+      announceCompletions(posthog, challengeUpdates);
       router.navigate({ to: "/activity/$id", params: { id: activity.id } });
     } catch (err) {
       posthog.captureException(err);

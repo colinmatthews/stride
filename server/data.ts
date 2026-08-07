@@ -104,8 +104,17 @@ async function createUniqueHandle(baseHandle: string) {
   }
 }
 
-async function getUserActivityRows(userId: string): Promise<ProgressActivityRow[]> {
-  const rows = await db
+// Accepts either the module-level `db` or a `db.transaction()` callback's
+// `tx` handle — both share the same query-builder API, but `tx` doesn't
+// structurally satisfy `typeof db` (it lacks the pool-level `$client`).
+type Tx = Parameters<Parameters<typeof db.transaction>[0]>[0];
+type DbClient = typeof db | Tx;
+
+export async function getUserActivityRows(
+  userId: string,
+  dbClient: DbClient = db,
+): Promise<ProgressActivityRow[]> {
+  const rows = await dbClient
     .select({
       sport: activitiesTable.sport,
       distanceKm: activitiesTable.distanceKm,
@@ -123,14 +132,18 @@ async function getUserActivityRows(userId: string): Promise<ProgressActivityRow[
   }));
 }
 
-async function buildChallengesDto(userId: string, activityRows?: ProgressActivityRow[]) {
+async function buildChallengesDto(
+  userId: string,
+  activityRows?: ProgressActivityRow[],
+  dbClient: DbClient = db,
+) {
   const [challengesResult, challengeEntriesResult, rows] = await Promise.all([
-    db.select().from(challengesTable).orderBy(asc(challengesTable.endsAt)),
-    db
+    dbClient.select().from(challengesTable).orderBy(asc(challengesTable.endsAt)),
+    dbClient
       .select({ challengeId: challengeEntries.challengeId, createdAt: challengeEntries.createdAt })
       .from(challengeEntries)
       .where(eq(challengeEntries.userId, userId)),
-    activityRows ? Promise.resolve(activityRows) : getUserActivityRows(userId),
+    activityRows ? Promise.resolve(activityRows) : getUserActivityRows(userId, dbClient),
   ]);
 
   const joinedAtByChallengeId = new Map(
@@ -478,10 +491,13 @@ type CreateActivityInput = {
   routeSeed: number;
 };
 
-export async function createActivity(input: CreateActivityInput & { date?: Date }) {
+export async function createActivity(
+  input: CreateActivityInput & { date?: Date },
+  dbClient: DbClient = db,
+) {
   const id = `act-${randomUUID()}`;
 
-  await db.insert(activitiesTable).values({
+  await dbClient.insert(activitiesTable).values({
     id,
     athleteId: input.userId,
     sport: input.sport,
@@ -503,27 +519,40 @@ export async function createActivity(input: CreateActivityInput & { date?: Date 
   return id;
 }
 
-export type ChallengeCompletion = {
+export type ChallengeProgressUpdate = {
   id: string;
   name: string;
   sport: string;
   badge: string;
   goalKm: number;
   metricType: string;
+  contribution: number;
+  progressAfter: number;
+  completed: boolean;
 };
 
-// Inserts the activity, then detects whether it pushed any joined,
-// matching-sport challenge from not-complete to complete. Completion is
-// derived by comparing progress before vs. after this activity (using the
-// same computeChallengeProgress used everywhere else), rather than a stored
-// "completed" flag — so a challenge that was already complete before this
-// activity is never re-flagged, with no extra state to keep in sync.
+// Inserts the activity, then reports how it affected every joined,
+// matching-sport challenge this activity actually counted toward —
+// including ones it merely advanced, not just ones it completed.
+// `completed` is derived by comparing progress before vs. after this
+// activity (using the same computeChallengeProgress used everywhere else),
+// rather than a stored "completed" flag — so a challenge that was already
+// complete before this activity is never re-flagged, with no extra state
+// to keep in sync.
+//
+// Runs inside a transaction with the user's matching challengeEntries rows
+// locked (SELECT ... FOR UPDATE) before reading their activity history. Two
+// concurrent saves for the same user (e.g. a retried request) would
+// otherwise both read the pre-insert activity total and could both
+// independently conclude they "crossed the goal", firing two completions
+// for one real event. The lock forces the second transaction to wait for
+// the first to commit its insert before it reads, so its own before/after
+// comparison sees the first activity already counted.
 export async function createActivityWithChallengeUpdates(input: CreateActivityInput) {
-  const now = new Date();
+  return db.transaction(async (tx) => {
+    const now = new Date();
 
-  const [existingRows, joinedMatchingChallenges] = await Promise.all([
-    getUserActivityRows(input.userId),
-    db
+    const joinedMatchingChallenges = await tx
       .select({
         id: challengesTable.id,
         name: challengesTable.name,
@@ -538,45 +567,54 @@ export async function createActivityWithChallengeUpdates(input: CreateActivityIn
       .innerJoin(challengesTable, eq(challengesTable.id, challengeEntries.challengeId))
       .where(
         and(eq(challengeEntries.userId, input.userId), eq(challengesTable.sport, input.sport)),
-      ),
-  ]);
+      )
+      .for("update", { of: challengeEntries });
 
-  const newRow: ProgressActivityRow = {
-    sport: input.sport,
-    distanceKm: input.distanceKm,
-    elevationM: input.elevationM,
-    date: now,
-  };
-  const rowsAfter = [...existingRows, newRow];
+    const existingRows = await getUserActivityRows(input.userId, tx);
 
-  const completions: ChallengeCompletion[] = [];
-
-  for (const challenge of joinedMatchingChallenges) {
-    const goalKm = Number(challenge.goalKm);
-    const window = {
-      sport: challenge.sport,
-      metricType: challenge.metricType,
-      endsAt: endOfChallengeDay(challenge.endsAt),
+    const newRow: ProgressActivityRow = {
+      sport: input.sport,
+      distanceKm: input.distanceKm,
+      elevationM: input.elevationM,
+      date: now,
     };
-    const progressBefore = computeChallengeProgress(existingRows, window, challenge.joinedAt);
-    const progressAfter = computeChallengeProgress(rowsAfter, window, challenge.joinedAt);
+    const rowsAfter = [...existingRows, newRow];
 
-    if (progressBefore < goalKm && progressAfter >= goalKm) {
-      completions.push({
-        id: challenge.id,
-        name: challenge.name,
+    const challengeUpdates: ChallengeProgressUpdate[] = [];
+
+    for (const challenge of joinedMatchingChallenges) {
+      const goalKm = Number(challenge.goalKm);
+      const window = {
         sport: challenge.sport,
-        badge: challenge.badge,
-        goalKm,
         metricType: challenge.metricType,
-      });
+        endsAt: endOfChallengeDay(challenge.endsAt),
+      };
+      const progressBefore = computeChallengeProgress(existingRows, window, challenge.joinedAt);
+      const progressAfter = computeChallengeProgress(rowsAfter, window, challenge.joinedAt);
+
+      // progressAfter === progressBefore means this activity fell outside
+      // the challenge's window (e.g. joined but the challenge has since
+      // ended) — nothing to report for it.
+      if (progressAfter > progressBefore) {
+        challengeUpdates.push({
+          id: challenge.id,
+          name: challenge.name,
+          sport: challenge.sport,
+          badge: challenge.badge,
+          goalKm,
+          metricType: challenge.metricType,
+          contribution: challenge.metricType === "elevation_m" ? input.elevationM : input.distanceKm,
+          progressAfter,
+          completed: progressBefore < goalKm && progressAfter >= goalKm,
+        });
+      }
     }
-  }
 
-  const activityId = await createActivity({ ...input, date: now });
-  const challenges = await buildChallengesDto(input.userId, rowsAfter);
+    const activityId = await createActivity({ ...input, date: now }, tx);
+    const challenges = await buildChallengesDto(input.userId, rowsAfter, tx);
 
-  return { activityId, challenges, completions };
+    return { activityId, challenges, challengeUpdates };
+  });
 }
 
 export async function toggleKudo(userId: string, activityId: string) {

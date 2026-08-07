@@ -3,7 +3,7 @@ import webpush from "web-push";
 import { eq } from "drizzle-orm";
 import { db } from "./db.js";
 import { pushSubscriptions } from "./db/schema.js";
-import type { ChallengeCompletion } from "./data.js";
+import type { ChallengeProgressUpdate } from "./data.js";
 
 const vapidPublicKey = process.env.VAPID_PUBLIC_KEY;
 const vapidPrivateKey = process.env.VAPID_PRIVATE_KEY;
@@ -45,7 +45,10 @@ function unitFor(metricType: string) {
 // Fire-and-forget from the caller: never throws, so it can't fail an
 // activity save. Prunes subscriptions the push service reports as gone
 // (404/410) so a stale endpoint doesn't keep failing forever.
-export async function sendChallengeCompletionPush(userId: string, completion: ChallengeCompletion) {
+export async function sendChallengeCompletionPush(
+  userId: string,
+  completion: ChallengeProgressUpdate,
+) {
   if (!pushConfigured) {
     return;
   }

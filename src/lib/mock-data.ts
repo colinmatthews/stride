@@ -75,14 +75,38 @@ export interface Challenge {
   joined?: boolean;
 }
 
-export interface ChallengeCompletion {
+export interface ChallengeProgressUpdate {
   id: string;
   name: string;
   sport: string;
   badge: string;
   goalKm: number;
   metricType: string;
+  contribution: number;
+  progressAfter: number;
+  completed: boolean;
 }
+
+export type ChallengeNotification =
+  | {
+      type: "completed";
+      challengeId: string;
+      name: string;
+      badge: string;
+      goalKm: number;
+      metricType: string;
+      at: string;
+    }
+  | {
+      type: "ending_soon";
+      challengeId: string;
+      name: string;
+      badge: string;
+      goalKm: number;
+      metricType: string;
+      myProgressKm: number;
+      endsAt: string;
+    };
 
 export interface AppData {
   me: Athlete;
@@ -144,20 +168,20 @@ export function mergeChallenges(challenges: Challenge[]) {
 }
 
 // Transient hand-off from an activity save to whichever screen renders the
-// completion moment next (the record flow, then the activity detail page).
-// Not part of AppData — cleared as soon as it's read so it can't reappear
-// on a later visit to the same activity.
-let lastSaveCompletions: { activityId: string; completions: ChallengeCompletion[] } | null = null;
+// progress/completion moment next (the record flow, then the activity
+// detail page). Not part of AppData — cleared as soon as it's read so it
+// can't reappear on a later visit to the same activity.
+let lastChallengeUpdates: { activityId: string; updates: ChallengeProgressUpdate[] } | null = null;
 
-export function setLastSaveCompletions(activityId: string, completions: ChallengeCompletion[]) {
-  lastSaveCompletions = completions.length > 0 ? { activityId, completions } : null;
+export function setLastChallengeUpdates(activityId: string, updates: ChallengeProgressUpdate[]) {
+  lastChallengeUpdates = updates.length > 0 ? { activityId, updates } : null;
 }
 
-export function takeSaveCompletions(activityId: string): ChallengeCompletion[] {
-  if (lastSaveCompletions && lastSaveCompletions.activityId === activityId) {
-    const completions = lastSaveCompletions.completions;
-    lastSaveCompletions = null;
-    return completions;
+export function takeChallengeUpdates(activityId: string): ChallengeProgressUpdate[] {
+  if (lastChallengeUpdates && lastChallengeUpdates.activityId === activityId) {
+    const updates = lastChallengeUpdates.updates;
+    lastChallengeUpdates = null;
+    return updates;
   }
 
   return [];
@@ -170,7 +194,7 @@ export function clearAppData() {
   SEGMENTS = [];
   CLUBS = [];
   CHALLENGES = [];
-  lastSaveCompletions = null;
+  lastChallengeUpdates = null;
 }
 
 function pad(value: number) {

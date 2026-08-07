@@ -8,11 +8,12 @@ import {
   getAthlete,
   initializeAppData,
   mergeChallenges,
-  setLastSaveCompletions,
-  takeSaveCompletions,
+  setLastChallengeUpdates,
+  takeChallengeUpdates,
   type Athlete,
   type AppData,
   type Challenge,
+  type ChallengeProgressUpdate,
 } from "./mock-data";
 
 function athlete(overrides: Partial<Athlete> = {}): Athlete {
@@ -41,6 +42,21 @@ function challenge(overrides: Partial<Challenge> = {}): Challenge {
     endsAt: "2026-04-30",
     badge: "RUN",
     joined: false,
+    ...overrides,
+  };
+}
+
+function challengeUpdate(overrides: Partial<ChallengeProgressUpdate> = {}): ChallengeProgressUpdate {
+  return {
+    id: "c1",
+    name: "April Distance Run",
+    sport: "Run",
+    badge: "RUN",
+    goalKm: 100,
+    metricType: "distance_km",
+    contribution: 12,
+    progressAfter: 55,
+    completed: false,
     ...overrides,
   };
 }
@@ -145,31 +161,38 @@ describe("mergeChallenges", () => {
   });
 });
 
-describe("takeSaveCompletions", () => {
+describe("takeChallengeUpdates", () => {
   afterEach(() => {
     clearAppData();
   });
 
-  it("returns completions stashed for the matching activity id, then clears them", () => {
-    setLastSaveCompletions("act-1", [
-      { id: "c1", name: "April Distance Run", sport: "Run", badge: "RUN", goalKm: 100, metricType: "distance_km" },
-    ]);
+  it("returns updates stashed for the matching activity id, then clears them", () => {
+    setLastChallengeUpdates("act-1", [challengeUpdate()]);
 
-    expect(takeSaveCompletions("act-1")).toHaveLength(1);
-    expect(takeSaveCompletions("act-1")).toEqual([]);
+    expect(takeChallengeUpdates("act-1")).toHaveLength(1);
+    expect(takeChallengeUpdates("act-1")).toEqual([]);
   });
 
   it("returns an empty array for a non-matching activity id", () => {
-    setLastSaveCompletions("act-1", [
-      { id: "c1", name: "April Distance Run", sport: "Run", badge: "RUN", goalKm: 100, metricType: "distance_km" },
-    ]);
+    setLastChallengeUpdates("act-1", [challengeUpdate()]);
 
-    expect(takeSaveCompletions("act-2")).toEqual([]);
+    expect(takeChallengeUpdates("act-2")).toEqual([]);
   });
 
-  it("stores nothing when there are no completions", () => {
-    setLastSaveCompletions("act-1", []);
+  it("stores nothing when there are no updates", () => {
+    setLastChallengeUpdates("act-1", []);
 
-    expect(takeSaveCompletions("act-1")).toEqual([]);
+    expect(takeChallengeUpdates("act-1")).toEqual([]);
+  });
+
+  it("includes both completed and in-progress updates", () => {
+    setLastChallengeUpdates("act-1", [
+      challengeUpdate({ id: "c1", completed: true, progressAfter: 100 }),
+      challengeUpdate({ id: "c2", completed: false, progressAfter: 40 }),
+    ]);
+
+    const updates = takeChallengeUpdates("act-1");
+    expect(updates.find((u) => u.id === "c1")?.completed).toBe(true);
+    expect(updates.find((u) => u.id === "c2")?.completed).toBe(false);
   });
 });

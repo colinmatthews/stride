@@ -10,14 +10,17 @@ import {
   Search,
   Bell,
   BellRing,
+  BellPlus,
+  Clock,
   Settings,
 } from "lucide-react";
 import { toast } from "sonner";
 import { usePostHog } from "@posthog/react";
-import { ME, clearAppData } from "@/lib/mock-data";
+import { fmtTimeAgo, ME, clearAppData, type ChallengeNotification } from "@/lib/mock-data";
 import { FormEvent, ReactNode, useState } from "react";
-import { logout } from "@/lib/api";
+import { fetchChallengeNotifications, logout } from "@/lib/api";
 import { subscribeToPush } from "@/lib/push";
+import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 
 const NAV = [
   { to: "/", label: "Feed", icon: Home },
@@ -32,38 +35,6 @@ export function AppShell({ children }: { children: ReactNode }) {
   const { location } = useRouterState();
   const path = location.pathname;
   const [searchQuery, setSearchQuery] = useState("");
-  const posthog = usePostHog();
-  const [pushEnabled, setPushEnabled] = useState(
-    () => typeof Notification !== "undefined" && Notification.permission === "granted",
-  );
-
-  async function handleNotificationsClick() {
-    if (pushEnabled) {
-      toast("Notifications are already on", {
-        description: "You'll get a push when you complete a challenge.",
-      });
-      return;
-    }
-
-    const result = await subscribeToPush();
-
-    if (result === "subscribed") {
-      setPushEnabled(true);
-      toast("Notifications enabled", {
-        description: "We'll ping you the moment you complete a challenge.",
-      });
-    } else if (result === "denied") {
-      toast("Notifications blocked", {
-        description: "Enable notifications for this site in your browser settings to turn this on.",
-      });
-    } else {
-      toast("Not supported in this browser", {
-        description: "Try a recent version of Chrome, Edge, or Firefox.",
-      });
-    }
-
-    posthog.capture("push_notifications_opt_in_attempted", { result });
-  }
 
   function handleSearch(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
@@ -167,21 +138,7 @@ export function AppShell({ children }: { children: ReactNode }) {
               />
             </form>
             <div className="ml-auto flex items-center gap-2">
-              <button
-                onClick={handleNotificationsClick}
-                className="h-10 w-10 grid place-items-center rounded-md hover:bg-muted relative"
-                aria-label={pushEnabled ? "Notifications enabled" : "Enable notifications"}
-                title={pushEnabled ? "Notifications enabled" : "Get notified when you complete a challenge"}
-              >
-                {pushEnabled ? (
-                  <BellRing className="h-4 w-4 text-primary" />
-                ) : (
-                  <>
-                    <Bell className="h-4 w-4" />
-                    <span className="absolute top-2 right-2 h-2 w-2 rounded-full bg-primary" />
-                  </>
-                )}
-              </button>
+              <NotificationsMenu />
               <Link
                 to="/record"
                 className="hidden md:inline-flex items-center gap-2 h-10 px-3 rounded-md border border-border text-sm hover:bg-muted"
@@ -194,5 +151,158 @@ export function AppShell({ children }: { children: ReactNode }) {
         <main className="max-w-[1280px] mx-auto px-8 py-8">{children}</main>
       </div>
     </div>
+  );
+}
+
+function fmtEndsIn(dateOnly: string): string {
+  const end = new Date(`${dateOnly}T23:59:59.999Z`);
+  const days = Math.ceil((end.getTime() - Date.now()) / (1000 * 60 * 60 * 24));
+
+  if (days <= 0) return "Ends today";
+  if (days === 1) return "Ends tomorrow";
+  return `Ends in ${days} days`;
+}
+
+function unitFor(metricType: string) {
+  return metricType === "elevation_m" ? "m" : "km";
+}
+
+function NotificationsMenu() {
+  const posthog = usePostHog();
+  const [open, setOpen] = useState(false);
+  const [notifications, setNotifications] = useState<ChallengeNotification[] | null>(null);
+  const [pushEnabled, setPushEnabled] = useState(
+    () => typeof Notification !== "undefined" && Notification.permission === "granted",
+  );
+
+  async function handleOpenChange(nextOpen: boolean) {
+    setOpen(nextOpen);
+
+    if (nextOpen && notifications === null) {
+      try {
+        setNotifications(await fetchChallengeNotifications());
+      } catch {
+        setNotifications([]);
+      }
+    }
+  }
+
+  async function handleEnableNotifications() {
+    if (pushEnabled) {
+      toast("Notifications are already on", {
+        description: "You'll get a push when you complete a challenge.",
+      });
+      return;
+    }
+
+    const result = await subscribeToPush();
+
+    if (result === "subscribed") {
+      setPushEnabled(true);
+      toast("Notifications enabled", {
+        description: "We'll ping you the moment you complete a challenge.",
+      });
+    } else if (result === "denied") {
+      toast("Notifications blocked", {
+        description: "Enable notifications for this site in your browser settings to turn this on.",
+      });
+    } else {
+      toast("Not supported in this browser", {
+        description: "Try a recent version of Chrome, Edge, or Firefox.",
+      });
+    }
+
+    posthog.capture("push_notifications_opt_in_attempted", { result });
+  }
+
+  const hasNotifications = (notifications?.length ?? 0) > 0;
+
+  return (
+    <Popover open={open} onOpenChange={handleOpenChange}>
+      <PopoverTrigger asChild>
+        <button
+          className="h-10 w-10 grid place-items-center rounded-md hover:bg-muted relative"
+          aria-label="Notifications"
+        >
+          {pushEnabled ? <BellRing className="h-4 w-4 text-primary" /> : <Bell className="h-4 w-4" />}
+          {hasNotifications && (
+            <span className="absolute top-2 right-2 h-2 w-2 rounded-full bg-primary" />
+          )}
+        </button>
+      </PopoverTrigger>
+      <PopoverContent align="end" className="w-80 p-0">
+        <div className="flex items-center justify-between border-b border-border px-4 py-3">
+          <h3 className="font-display text-sm font-semibold">Notifications</h3>
+        </div>
+        <div className="max-h-80 overflow-y-auto">
+          {notifications === null ? (
+            <div className="px-4 py-6 text-center text-sm text-muted-foreground">Loading…</div>
+          ) : notifications.length === 0 ? (
+            <div className="px-4 py-6 text-center text-sm text-muted-foreground">
+              You're all caught up.
+            </div>
+          ) : (
+            <ul>
+              {notifications.map((notification) => {
+                const unit = unitFor(notification.metricType);
+
+                return (
+                  <li
+                    key={`${notification.type}-${notification.challengeId}`}
+                    className="flex items-start gap-3 border-b border-border px-4 py-3 last:border-0"
+                  >
+                    {notification.type === "completed" ? (
+                      <Trophy className="h-4 w-4 shrink-0 text-primary mt-0.5" />
+                    ) : (
+                      <Clock className="h-4 w-4 shrink-0 text-muted-foreground mt-0.5" />
+                    )}
+                    <div className="min-w-0">
+                      <div className="text-sm">
+                        {notification.type === "completed" ? (
+                          <>
+                            You completed{" "}
+                            <span className="font-medium">
+                              {notification.badge} {notification.name}
+                            </span>
+                          </>
+                        ) : (
+                          <>
+                            <span className="font-medium">
+                              {notification.badge} {notification.name}
+                            </span>{" "}
+                            ends soon — you're at{" "}
+                            {Math.round((notification.myProgressKm / notification.goalKm) * 100)}%
+                          </>
+                        )}
+                      </div>
+                      <div className="mt-0.5 text-xs text-muted-foreground">
+                        {notification.type === "completed"
+                          ? fmtTimeAgo(notification.at)
+                          : fmtEndsIn(notification.endsAt)}
+                        {notification.type === "ending_soon" &&
+                          ` · ${notification.myProgressKm.toFixed(1)} / ${notification.goalKm} ${unit}`}
+                      </div>
+                    </div>
+                  </li>
+                );
+              })}
+            </ul>
+          )}
+        </div>
+        <div className="border-t border-border p-2">
+          <button
+            onClick={handleEnableNotifications}
+            className="flex w-full items-center gap-2 rounded-md px-2 py-2 text-sm text-foreground hover:bg-muted"
+          >
+            {pushEnabled ? (
+              <BellRing className="h-4 w-4 text-primary" />
+            ) : (
+              <BellPlus className="h-4 w-4" />
+            )}
+            {pushEnabled ? "Push notifications on" : "Enable push notifications"}
+          </button>
+        </div>
+      </PopoverContent>
+    </Popover>
   );
 }

@@ -6,11 +6,12 @@ import {
   ME,
   mergeActivities,
   mergeChallenges,
-  setLastSaveCompletions,
+  setLastChallengeUpdates,
   type Activity,
   type AppData,
   type Challenge,
-  type ChallengeCompletion,
+  type ChallengeNotification,
+  type ChallengeProgressUpdate,
 } from "./mock-data";
 
 class ApiError extends Error {
@@ -112,7 +113,7 @@ export async function saveActivity(payload: {
   const result = await apiFetch<{
     activity: Activity;
     challenges: Challenge[];
-    completions: ChallengeCompletion[];
+    challengeUpdates: ChallengeProgressUpdate[];
   }>("/api/activities", {
     method: "POST",
     body: JSON.stringify(payload),
@@ -120,9 +121,9 @@ export async function saveActivity(payload: {
 
   mergeActivities([result.activity]);
   mergeChallenges(result.challenges);
-  setLastSaveCompletions(result.activity.id, result.completions);
+  setLastChallengeUpdates(result.activity.id, result.challengeUpdates);
 
-  return { activity: result.activity, completions: result.completions };
+  return { activity: result.activity, challengeUpdates: result.challengeUpdates };
 }
 
 export async function apiSubscribeToPush(subscription: {
@@ -133,6 +134,10 @@ export async function apiSubscribeToPush(subscription: {
     method: "POST",
     body: JSON.stringify(subscription),
   });
+}
+
+export async function fetchChallengeNotifications() {
+  return apiFetch<ChallengeNotification[]>("/api/challenge-notifications");
 }
 
 export async function toggleActivityKudo(activityId: string) {

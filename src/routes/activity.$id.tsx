@@ -19,6 +19,7 @@ import {
   Heart,
   MessageCircle,
   Trophy,
+  TrendingUp,
   Share2,
   Flag,
   MapPin,
@@ -36,7 +37,7 @@ import {
   getAthlete,
   getSegment,
   elevationProfile,
-  takeSaveCompletions,
+  takeChallengeUpdates,
 } from "@/lib/mock-data";
 import { AppShell } from "@/components/AppShell";
 import { RouteMap } from "@/components/RouteMap";
@@ -45,7 +46,7 @@ import { Stat } from "@/components/Stat";
 import { addActivityComment, fetchActivity, toggleActivityKudo } from "@/lib/api";
 
 export const Route = createFileRoute("/activity/$id")({
-  loader: async ({ params }) => {
+  loader: async ({ params, cause }) => {
     const activity =
       getActivity(params.id) ??
       (await fetchActivity(params.id).catch(() => {
@@ -53,7 +54,15 @@ export const Route = createFileRoute("/activity/$id")({
       }));
 
     if (!activity) throw notFound();
-    return { activity, completions: takeSaveCompletions(activity.id) };
+
+    // Router preloads (e.g. hover-intent on a <Link>) run this loader before
+    // the user actually navigates. If that happened first, it would consume
+    // and clear the one-shot challenge-updates hand-off before the real
+    // navigation's loader ever saw it — the card would just silently never
+    // appear. Only the actual navigation ("enter") should consume it.
+    const challengeUpdates = cause === "enter" ? takeChallengeUpdates(activity.id) : [];
+
+    return { activity, challengeUpdates };
   },
   head: ({ loaderData }) => ({
     meta: loaderData
@@ -80,9 +89,9 @@ export const Route = createFileRoute("/activity/$id")({
 });
 
 function ActivityDetail() {
-  const { activity, completions } = Route.useLoaderData() as {
+  const { activity, challengeUpdates } = Route.useLoaderData() as {
     activity: import("@/lib/mock-data").Activity;
-    completions: import("@/lib/mock-data").ChallengeCompletion[];
+    challengeUpdates: import("@/lib/mock-data").ChallengeProgressUpdate[];
   };
   const posthog = usePostHog();
   const router = useRouter();
@@ -164,35 +173,45 @@ function ActivityDetail() {
             <p className="text-muted-foreground mt-3 max-w-2xl">{activity.description}</p>
           )}
 
-          {completions.length > 0 && (
+          {challengeUpdates.length > 0 && (
             <div className="mt-6 space-y-3">
-              {completions.map((completion) => {
-                const unit = completion.metricType === "elevation_m" ? "m" : "km";
-                const effort =
-                  completion.metricType === "elevation_m"
-                    ? activity.elevationM
-                    : activity.distanceKm;
+              {challengeUpdates.map((update) => {
+                const unit = update.metricType === "elevation_m" ? "m" : "km";
+                const pct = Math.min(100, (update.progressAfter / update.goalKm) * 100);
 
                 return (
                   <motion.article
-                    key={completion.id}
+                    key={update.id}
                     initial={{ opacity: 0, y: -8 }}
                     animate={{ opacity: 1, y: 0 }}
                     transition={{ duration: 0.3 }}
-                    className="overflow-hidden rounded-xl border border-primary/40 bg-primary/5 p-5"
+                    className={`overflow-hidden rounded-xl border p-5 ${
+                      update.completed
+                        ? "border-primary/40 bg-primary/5"
+                        : "border-border bg-surface"
+                    }`}
                   >
                     <div className="flex items-start justify-between gap-4">
                       <div className="min-w-0">
-                        <div className="inline-flex items-center gap-1.5 font-mono text-[10px] uppercase tracking-[0.22em] text-primary">
-                          <Trophy className="h-3 w-3" /> Challenge complete
+                        <div
+                          className={`inline-flex items-center gap-1.5 font-mono text-[10px] uppercase tracking-[0.22em] ${
+                            update.completed ? "text-primary" : "text-muted-foreground"
+                          }`}
+                        >
+                          {update.completed ? (
+                            <Trophy className="h-3 w-3" />
+                          ) : (
+                            <TrendingUp className="h-3 w-3" />
+                          )}
+                          {update.completed ? "Challenge complete" : "Challenge progress"}
                         </div>
                         <div className="mt-1 truncate font-display text-lg font-semibold tracking-tight">
-                          {completion.badge} {completion.name}
+                          {update.badge} {update.name}
                         </div>
                       </div>
                       <div className="shrink-0 text-right">
                         <div className="stat-num text-sm font-semibold text-primary">
-                          +{effort.toFixed(1)} {unit}
+                          +{update.contribution.toFixed(1)} {unit}
                         </div>
                         <div className="text-xs text-muted-foreground">this effort</div>
                       </div>
@@ -200,18 +219,18 @@ function ActivityDetail() {
                     <div className="mt-4">
                       <div className="flex items-baseline justify-between">
                         <span className="font-mono text-[10px] uppercase tracking-[0.22em] text-muted-foreground">
-                          Goal reached
+                          {update.completed ? "Goal reached" : "Your progress"}
                         </span>
                         <span className="stat-num text-sm font-semibold">
-                          {completion.goalKm}
+                          {update.progressAfter.toFixed(1)}
                           <span className="text-muted-foreground">
                             {" "}
-                            / {completion.goalKm} {unit}
+                            / {update.goalKm} {unit}
                           </span>
                         </span>
                       </div>
                       <div className="mt-2 h-1.5 overflow-hidden rounded-full bg-muted">
-                        <div className="h-full bg-primary" style={{ width: "100%" }} />
+                        <div className="h-full bg-primary" style={{ width: `${pct}%` }} />
                       </div>
                     </div>
                   </motion.article>
