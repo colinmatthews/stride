@@ -437,7 +437,13 @@ export async function buildBootstrap(userId: string) {
     participants: row.participants,
     endsAt: row.endsAt,
     badge: row.badge,
+    tier: row.tier,
     joined: joinedChallengeIds.has(row.id),
+    firstStep: {
+      activityLabel: row.firstStepLabel,
+      suggestedDistanceKm: Number(row.firstStepDistanceKm),
+      suggestedElevationM: row.firstStepElevationM ?? undefined,
+    },
   }));
 
   return {

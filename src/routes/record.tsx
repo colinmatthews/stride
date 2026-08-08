@@ -1,5 +1,6 @@
 import { createFileRoute, useRouter } from "@tanstack/react-router";
 import { useEffect, useRef, useState } from "react";
+import { z } from "zod";
 import { fmtDuration, fmtPace, type Sport } from "@/lib/mock-data";
 import { AppShell } from "@/components/AppShell";
 import { usePostHog } from "@posthog/react";
@@ -13,10 +14,23 @@ import {
   Timer as TimerIcon,
   ArrowRight,
   LoaderCircle,
+  Flame,
+  X,
 } from "lucide-react";
 import { saveActivity } from "@/lib/api";
+import { clearActivationNudge } from "@/lib/nudges";
+import { toast } from "sonner";
+
+const recordSearchSchema = z.object({
+  challengeId: z.string().optional(),
+  challengeName: z.string().optional(),
+  sport: z.enum(["Run", "Ride", "Swim", "Hike", "Walk"]).optional(),
+  distanceKm: z.coerce.number().optional(),
+  elevationM: z.coerce.number().optional(),
+});
 
 export const Route = createFileRoute("/record")({
+  validateSearch: recordSearchSchema,
   head: () => ({
     meta: [
       { title: "Record — Stride" },
@@ -30,8 +44,17 @@ const SPORTS: Sport[] = ["Run", "Ride", "Swim", "Hike", "Walk"];
 type Mode = "manual" | "timer";
 
 function Record() {
+  const search = Route.useSearch();
   const [mode, setMode] = useState<Mode>("manual");
-  const [sport, setSport] = useState<Sport>("Run");
+  const [sport, setSport] = useState<Sport>(search.sport ?? "Run");
+  const [challengeContext, setChallengeContext] = useState(
+    search.challengeId
+      ? {
+          challengeId: search.challengeId,
+          challengeName: search.challengeName ?? "your challenge",
+        }
+      : null,
+  );
 
   return (
     <AppShell>
@@ -49,6 +72,26 @@ function Record() {
             Record activity
           </h1>
         </div>
+
+        {challengeContext && (
+          <div className="mt-6 flex items-center justify-between gap-3 border border-primary/30 bg-primary/5 px-5 py-4">
+            <div className="flex items-center gap-3 text-sm">
+              <Flame className="h-4 w-4 shrink-0 text-primary" />
+              <span>
+                This is your first step toward{" "}
+                <span className="font-semibold">{challengeContext.challengeName}</span> — we've
+                pre-filled a good starting point below.
+              </span>
+            </div>
+            <button
+              onClick={() => setChallengeContext(null)}
+              aria-label="Clear challenge context"
+              className="shrink-0 text-muted-foreground transition-colors hover:text-foreground"
+            >
+              <X className="h-4 w-4" />
+            </button>
+          </div>
+        )}
 
         <div className="mt-8 grid grid-cols-2 border border-border">
           <ModeTab
@@ -69,7 +112,17 @@ function Record() {
 
         <SportPicker sport={sport} setSport={setSport} />
 
-        {mode === "manual" ? <ManualForm sport={sport} /> : <TimerMode sport={sport} />}
+        {mode === "manual" ? (
+          <ManualForm
+            sport={sport}
+            initialDistanceKm={challengeContext ? search.distanceKm : undefined}
+            initialElevationM={challengeContext ? search.elevationM : undefined}
+            challengeId={challengeContext?.challengeId}
+            challengeName={challengeContext?.challengeName}
+          />
+        ) : (
+          <TimerMode sport={sport} />
+        )}
       </div>
     </AppShell>
   );
@@ -143,16 +196,28 @@ function SportPicker({ sport, setSport }: { sport: Sport; setSport: (s: Sport) =
   );
 }
 
-function ManualForm({ sport }: { sport: Sport }) {
+function ManualForm({
+  sport,
+  initialDistanceKm,
+  initialElevationM,
+  challengeId,
+  challengeName,
+}: {
+  sport: Sport;
+  initialDistanceKm?: number;
+  initialElevationM?: number;
+  challengeId?: string;
+  challengeName?: string;
+}) {
   const posthog = usePostHog();
   const router = useRouter();
   const [title, setTitle] = useState("");
   const [description, setDescription] = useState("");
-  const [distance, setDistance] = useState("");
+  const [distance, setDistance] = useState(initialDistanceKm ? String(initialDistanceKm) : "");
   const [hours, setHours] = useState("");
   const [minutes, setMinutes] = useState("");
   const [seconds, setSeconds] = useState("");
-  const [elevation, setElevation] = useState("");
+  const [elevation, setElevation] = useState(initialElevationM ? String(initialElevationM) : "");
   const [avgHr, setAvgHr] = useState("");
   const [error, setError] = useState("");
   const [busy, setBusy] = useState(false);
@@ -200,7 +265,18 @@ function ManualForm({ sport }: { sport: Sport }) {
         moving_seconds: totalSeconds,
         elevation_m: Number(elevation) || 0,
         entry_mode: "manual",
+        challenge_id: challengeId,
       });
+      if (challengeId) {
+        clearActivationNudge();
+        posthog.capture("challenge_first_step_logged", {
+          challenge_id: challengeId,
+          challenge_name: challengeName,
+        });
+        toast.success(`Nice — ${challengeName} is under way.`, {
+          description: "Your first step is logged. Keep the momentum going.",
+        });
+      }
       router.navigate({
         to: "/activity/$id",
         params: { id: activity.id },

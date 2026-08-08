@@ -73,6 +73,13 @@ export interface Challenge {
   endsAt: string;
   badge: string;
   joined?: boolean;
+  tier: "approachable" | "aspirational";
+  /** The specific, small first activity we nudge a new joiner toward within their first 48 hours. */
+  firstStep: {
+    activityLabel: string;
+    suggestedDistanceKm: number;
+    suggestedElevationM?: number;
+  };
 }
 
 export interface AppData {
