@@ -1,0 +1,78 @@
+{
+  "reference_dir": "/Users/colin/Documents/GitHub/strava-prototype/tmp/slides/mcp-pm-training/pro-reference-images",
+  "deck_size": {
+    "width": 1280,
+    "height": 720
+  },
+  "generation_mode": "platform-native-imagegen",
+  "instructions": [
+    "Use the platform-native imagegen tool once per prompt.",
+    "Do not display generated images in chat unless the user explicitly asks to review them.",
+    "Generate slide 1 first as the visual style setter.",
+    "For slides 2..N, use slide 1 as a style reference when the platform supports image context.",
+    "Move or copy each selected generated image to its expected_image_path.",
+    "Before finalizing the response, delete temporary imagegen files created during the run unless the user explicitly requested those image files as deliverables."
+  ],
+  "slides": [
+    {
+      "index": 1,
+      "title": "Create a cohesive modern product-strategy visual system for a 16:9 teaching deck about Model Context Protocol for product managers. Use a dark charcoal and warm white base with teal, blue, and amber accents; subtle grid texture; clean enterprise software atmosphere; abstract connector lines; glassy panels without readable text; no logos; no letters, numbers, code, labels, or UI copy.",
+      "prompt_path": "/Users/colin/Documents/GitHub/strava-prototype/tmp/slides/mcp-pm-training/pro-reference-images/prompts/slide-01.txt",
+      "expected_image_path": "/Users/colin/Documents/GitHub/strava-prototype/tmp/slides/mcp-pm-training/pro-reference-images/slide-01.png"
+    },
+    {
+      "index": 2,
+      "title": "## Slide 1",
+      "prompt_path": "/Users/colin/Documents/GitHub/strava-prototype/tmp/slides/mcp-pm-training/pro-reference-images/prompts/slide-02.txt",
+      "expected_image_path": "/Users/colin/Documents/GitHub/strava-prototype/tmp/slides/mcp-pm-training/pro-reference-images/slide-02.png"
+    },
+    {
+      "index": 3,
+      "title": "## Slide 2",
+      "prompt_path": "/Users/colin/Documents/GitHub/strava-prototype/tmp/slides/mcp-pm-training/pro-reference-images/prompts/slide-03.txt",
+      "expected_image_path": "/Users/colin/Documents/GitHub/strava-prototype/tmp/slides/mcp-pm-training/pro-reference-images/slide-03.png"
+    },
+    {
+      "index": 4,
+      "title": "## Slide 3",
+      "prompt_path": "/Users/colin/Documents/GitHub/strava-prototype/tmp/slides/mcp-pm-training/pro-reference-images/prompts/slide-04.txt",
+      "expected_image_path": "/Users/colin/Documents/GitHub/strava-prototype/tmp/slides/mcp-pm-training/pro-reference-images/slide-04.png"
+    },
+    {
+      "index": 5,
+      "title": "## Slide 4",
+      "prompt_path": "/Users/colin/Documents/GitHub/strava-prototype/tmp/slides/mcp-pm-training/pro-reference-images/prompts/slide-05.txt",
+      "expected_image_path": "/Users/colin/Documents/GitHub/strava-prototype/tmp/slides/mcp-pm-training/pro-reference-images/slide-05.png"
+    },
+    {
+      "index": 6,
+      "title": "## Slide 5",
+      "prompt_path": "/Users/colin/Documents/GitHub/strava-prototype/tmp/slides/mcp-pm-training/pro-reference-images/prompts/slide-06.txt",
+      "expected_image_path": "/Users/colin/Documents/GitHub/strava-prototype/tmp/slides/mcp-pm-training/pro-reference-images/slide-06.png"
+    },
+    {
+      "index": 7,
+      "title": "## Slide 6",
+      "prompt_path": "/Users/colin/Documents/GitHub/strava-prototype/tmp/slides/mcp-pm-training/pro-reference-images/prompts/slide-07.txt",
+      "expected_image_path": "/Users/colin/Documents/GitHub/strava-prototype/tmp/slides/mcp-pm-training/pro-reference-images/slide-07.png"
+    },
+    {
+      "index": 8,
+      "title": "## Slide 7",
+      "prompt_path": "/Users/colin/Documents/GitHub/strava-prototype/tmp/slides/mcp-pm-training/pro-reference-images/prompts/slide-08.txt",
+      "expected_image_path": "/Users/colin/Documents/GitHub/strava-prototype/tmp/slides/mcp-pm-training/pro-reference-images/slide-08.png"
+    },
+    {
+      "index": 9,
+      "title": "## Slide 8",
+      "prompt_path": "/Users/colin/Documents/GitHub/strava-prototype/tmp/slides/mcp-pm-training/pro-reference-images/prompts/slide-09.txt",
+      "expected_image_path": "/Users/colin/Documents/GitHub/strava-prototype/tmp/slides/mcp-pm-training/pro-reference-images/slide-09.png"
+    },
+    {
+      "index": 10,
+      "title": "## Slide 9",
+      "prompt_path": "/Users/colin/Documents/GitHub/strava-prototype/tmp/slides/mcp-pm-training/pro-reference-images/prompts/slide-10.txt",
+      "expected_image_path": "/Users/colin/Documents/GitHub/strava-prototype/tmp/slides/mcp-pm-training/pro-reference-images/slide-10.png"
+    }
+  ]
+}

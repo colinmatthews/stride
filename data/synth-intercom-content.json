@@ -1,0 +1,582 @@
+[
+  {
+    "title": "Charged twice after cancelling subscription",
+    "body": "I cancelled my subscription back in February but I was still charged $9.99 this month. Looking at my bank statement, it looks like I was actually charged twice in March? I'm not using the app anymore anyway so I definitely don't want to keep paying. Can you refund both charges and confirm the subscription is actually cancelled this time?"
+  },
+  {
+    "title": "Nørrebro Hill Run segment not recorded",
+    "body": "Hey, I just finished a track workout this morning and ran the Nørrebro Hill segment pretty hard—definitely would've been top 20 on the leaderboard. But when I checked my activity, there's no segment effort showing up. Did the segment get deleted or is there a sync issue with my watch? The activity uploaded fine otherwise."
+  },
+  {
+    "title": "Missing kudos from friend on activity",
+    "body": "Hey, my friend told me they gave me kudos on my 'Errands' walk from Wednesday but I don't see it in my activity feed. Is there a lag or something? Also not sure if the kudos count is supposed to go up and down - saw it change earlier and got confused lol. Thanks!"
+  },
+  {
+    "title": "GPS track cut through building, distance way off",
+    "body": "Hey, my run from yesterday got totally messed up by the GPS. The track literally goes through a building on Nørrebrogade and cuts across the river instead of following the actual path I took. My actual distance was around 12km but it's only showing 10.2km, which is frustrating because I was proud of that run lol. Can you guys look into what happened? This kind of ruins the whole point of tracking these workouts properly."
+  },
+  {
+    "title": "Password reset email not arriving",
+    "body": "Hi, I tried to reset my password but I never received the email. I've checked my spam folder too and nothing's there. I really want to get back into my account to log my walks. Can you help me resend it or reset it another way?"
+  },
+  {
+    "title": "Request permanent account deletion with all data",
+    "body": "Hey, I've decided to move on from the app and need my account completely deleted. I want all my activity data, personal info, and everything else wiped from your servers. I know I'm on the premium plan, so just let me know if there's a process for this or if I need to do anything specific. Thanks."
+  },
+  {
+    "title": "Password reset email never arrived",
+    "body": "Hi, I'm trying to reset my password but I haven't received any email from you guys. I clicked the forgot password button like 10 mins ago and checked spam too. Can you help me get back into my account? I just started using the app and was logging my dog walks."
+  },
+  {
+    "title": "GPS track cuts through buildings on sunset ride",
+    "body": "Just finished my sunset spin around the lake and the GPS went completely haywire. The track shows me riding straight through like 3 buildings near the Limmat, then somehow cuts 2km short of where I actually finished. My distance is showing 38km when it was definitely closer to 41. This is pretty frustrating when I'm trying to log my actual performance. Can you guys look into what happened with the satellite signal or whatever's causing this?"
+  },
+  {
+    "title": "Password reset email never arrived",
+    "body": "Hi, I've been trying to reset my password for the past hour but I'm not getting the email. I checked spam too and nothing's there. I've got a ride I want to log from this morning and I'm locked out. Can you either resend it or help me get back in another way? Thanks."
+  },
+  {
+    "title": "Power zones for cycling analysis please",
+    "body": "Hey, I've been using the app for a while now and I'm really happy with the ride tracking overall. But I'd love to see power zone breakdowns during my rides—like knowing what percentage of time I spent in Z2 vs Z3 etc. I've got a power meter on my bike and I know the data's coming through, so it'd be huge for structured training if I could see that analysis in the app or on the website. Would this be something you could add?"
+  },
+  {
+    "title": "Kudos from friend disappeared?",
+    "body": "Hey, my mate said they gave me kudos on my climbing day activity from last week but I don't see it in the feed. Did it glitch or am I missing something obvious? Also noticed the kudos count seemed to jump around earlier but now it's lower than before. Cheers!"
+  },
+  {
+    "title": "App keeps crashing when I open the feed",
+    "body": "Hey, I've been trying to use the app on my iPhone 15 Pro this morning but it crashes every time I try to view my feed or click into any of my activities. I already restarted my phone and even deleted/reinstalled the app but it's still happening. This is pretty frustrating since I'm training for a triathlon and need to track my workouts. Can you help me figure out what's going on?"
+  },
+  {
+    "title": "Elevation data way off on lunchtime loop",
+    "body": "I did my usual 7km run around Bangalore today (March 3rd) and hit some decent hills - I know for a fact I climbed at least 600m based on the route. The app is showing only 47m of elevation. This isn't the first time this has happened and honestly it's a big reason I've stopped using the service. Did you guys ever fix the barometer calibration issue or is this still broken?"
+  },
+  {
+    "title": "Refund request for April premium charge",
+    "body": "Hey, I signed up for premium last month to track my rides during a training block, but I ended up not using the app nearly as much as I thought I would. I just got charged again and realized I completely forgot to cancel my subscription. Could you process a refund for the most recent charge? I appreciate it."
+  },
+  {
+    "title": "GPS track went straight through a building",
+    "body": "Hey, I just finished my hill repeats workout yesterday and the GPS recorded me running directly through some apartment building near Parque Güell? Obviously I didn't actually run through a wall lol. My actual distance was around 8km but it's showing 9.5km because of this weird detour. Kind of kills the vibe when I'm trying to share my times with friends. Can you check what happened with the tracking?"
+  },
+  {
+    "title": "Monsanto Park Run segment not recording",
+    "body": "Hey, I ran the Monsanto Park climb this morning (the one from Calvário up to the viewpoint) and my time would've been in the top 20 easily, but the activity didn't pick up the segment effort at all. The run is logged in my profile, GPS looks clean, so not sure what happened. Is there a known issue with that segment or something I need to enable?"
+  },
+  {
+    "title": "Garmin run from yesterday missing from feed",
+    "body": "Hey, I did a 10k run yesterday morning on my Garmin Forerunner 265 and it synced to the app but it's not showing up in my feed or activity history. I've already force-quit and reopened the app a few times. This was a solid run for me and I'm pretty frustrated it's just vanished. Can you help me track down where it went?"
+  },
+  {
+    "title": "How do I downgrade from premium to free?",
+    "body": "Hey, I'm currently on a premium plan but I want to switch back to the free version. I'd like to keep my account and all my activity history though. Can you walk me through how to do this, or does it happen automatically when my subscription renews?"
+  },
+  {
+    "title": "Djurgården Loop segment not recorded on ride",
+    "body": "I completed a solid effort on the Djurgården Loop today (my time would've placed top-20 easily) but the app didn't log any segment effort even though I clearly hit all the markers. This is exactly the kind of thing that made me cancel—the segment tracking is unreliable and I can't trust the data. What's going on with the detection system?"
+  },
+  {
+    "title": "GPS track went straight through the building??",
+    "body": "Hey, just did a recovery jog this morning around Zurich and my track is completely messed up. The GPS literally routed me straight through a building near Sihlfeld—like through the actual walls—and then jumped across the river somehow. My distance is showing 9.2km when I know I only did about 7.5km. Really frustrating because I was hoping to actually log this one properly. Can you help fix this?"
+  },
+  {
+    "title": "Garmin Forerunner 265 workout disappeared from feed",
+    "body": "Hey, I did a killer interval session on my Garmin yesterday morning and it synced to the app (I saw the notification), but the workout just vanished from my feed. I've force-quit the app, restarted my watch, and checked my connected devices—everything looks fine. This was a PR effort and I'm pretty frustrated it's not showing up. Can you help me figure out what happened?"
+  },
+  {
+    "title": "Elevation gain showing as zero on mountain ride",
+    "body": "Did a 1200m climb yesterday in the Serra da Mantiqueira and the app recorded basically nothing for elevation. My watch has a barometer and usually nails this stuff, so either something's wrong with the calibration or there's a bug. Can you check what happened with my Sunset spin activity from yesterday?"
+  },
+  {
+    "title": "Friend's kudos not showing up on my run",
+    "body": "Hey, my friend said they gave me kudos on my 'Errands' run from yesterday but I don't see it in the activity. Did it maybe not go through? Also noticed the kudos count seemed to jump around earlier which was weird. Just want to make sure I'm not missing something obvious lol"
+  },
+  {
+    "title": "Can we get swim stroke type breakdown?",
+    "body": "Hey! I'm doing a lot of triathlon training and the swim data is pretty basic right now. Would love to see a breakdown of my stroke types during each session — like how much time I spent doing freestyle vs backstroke vs whatever. I know my watch can probably track this stuff, and it'd be super helpful for analyzing my technique work. Thanks!"
+  },
+  {
+    "title": "Trail run from yesterday morning disappeared",
+    "body": "Hi, I did a trail run yesterday morning (April 20th) on my Garmin Forerunner 265 and it synced to the app, but now it's completely gone from my feed. I already tried force-quitting and reopening but nothing. It was a really good run for me and I'm frustrated it's not showing up. Can you help me figure out what happened?"
+  },
+  {
+    "title": "Activity not counting toward elevation challenge",
+    "body": "Hey, I just uploaded a ride from March 1st (the sunset spin) and it's not showing up in my elevation challenge progress even though I'm pretty sure it should count. The challenge deadline is coming up and I'm worried it won't register in time. Can you help me figure out what's going on?"
+  },
+  {
+    "title": "Friend's kudos not showing up on my run",
+    "body": "Hey, my buddy Jake said he gave me kudos on my dog walk from last week but I don't see it in the activity. Did it maybe come through and disappear? Or is there a sync issue? Either way pretty weird lol"
+  },
+  {
+    "title": "Charged twice for premium subscription in April",
+    "body": "Hi, I was just checking my bank statement and noticed I got charged $9.99 twice on April 15th. I'm still on the free plan and definitely didn't authorize two charges. Can you look into this and refund one of them? Let me know what's going on."
+  },
+  {
+    "title": "20-mile ride yesterday missing from feed",
+    "body": "Hey, I did a solid 20-mile ride on my Garmin Forerunner 265 yesterday morning around 8am and it synced to the app, but it's not showing up in my feed at all. I've already force-quit the app and restarted my phone but still nothing. This was a pretty meaningful workout for me and I'm frustrated it's not there. Can you help me track down what happened?"
+  },
+  {
+    "title": "GPS track went through a building downtown",
+    "body": "My ride this morning got totally messed up by GPS drift. The track shows me cutting straight through the CN Tower and then across the Don River like I'm some kind of superhero. I actually stayed on the Lakeshore Trail the whole time but it's showing almost 2km short of what I actually rode. Pretty frustrating since I was going for a personal best on that segment. Can you guys look into why the signal was so bad or if there's a way to manually correct it?"
+  },
+  {
+    "title": "Bear Creek Trail segment not recorded on ride",
+    "body": "I completed a ride this morning on Bear Creek Trail—it's one of the most popular segments in Denver—and my activity tracked fine, but the segment effort never showed up. I know my time would've been top-20 on that one, which is frustrating since that's literally the whole point of using an app like this. I've already cancelled my subscription over other issues, but figured I'd report it in case it helps. The activity is there, just no segment attribution."
+  },
+  {
+    "title": "Whitefield Loop segment not recorded on swim",
+    "body": "Hey, I just completed my swim at Whitefield Loop this morning (the one that usually shows up in the leaderboard) but the activity didn't register any segment effort. I know my time would've been solid for the leaderboard too. Can you check why the segment attribution didn't trigger? It's showing in my activity feed but no segment data attached."
+  },
+  {
+    "title": "GPS track went straight through a building",
+    "body": "Hey, just did a trail run this morning around the canal area and my GPS track is completely messed up. It shows me running directly through the Rijksmuseum and then cutting across the water instead of staying on the actual path. My distance is showing as like 8.2km but I know it was closer to 10km. This kind of ruins the activity when I'm trying to share it. Any idea why this happens or how to fix it?"
+  },
+  {
+    "title": "Can't cancel premium, keep getting charged",
+    "body": "I've been trying to cancel my subscription for the past week but there's no obvious option in settings. I got an error message yesterday saying 'subscription update failed' and now I'm worried I'm still going to be charged next month. I don't use the app anymore so I really need to get this sorted before my next billing date. Can someone just confirm my subscription is actually cancelled?"
+  },
+  {
+    "title": "Request to delete my account and all data",
+    "body": "Hi, I've decided this app isn't really for me and I'd like to permanently delete my account. I only have a couple of walks logged, so there's not much data, but I want everything removed completely. Can you walk me through how to do this or just handle it on your end? Thanks."
+  },
+  {
+    "title": "Apple Watch Ultra 2 workout missing from feed",
+    "body": "Hi, I did a hill repeats walk yesterday morning with my Apple Watch Ultra 2 and it definitely recorded everything - I watched the metrics the whole time. But when I opened the app it's just not there? I already tried force-quitting and reopening but nothing. This was a really good session for me and I'm bummed it's not showing up in my feed. Can you help me figure out what happened?"
+  },
+  {
+    "title": "Delete my account and all data permanently",
+    "body": "Hey, I've decided to move on from the app and need my account completely removed. Can you delete everything associated with my profile—all my ride data, stats, segments, everything. I don't need the data exported or anything, just completely wiped. Let me know what I need to do on my end to make this happen. Thanks."
+  },
+  {
+    "title": "Getting bombarded with notifications, can't find settings",
+    "body": "Hey, I've been using the app for like a week and I'm getting notifications constantly - every time someone gives me a kudo, when people follow me, reminders about challenges I didn't even join. I've looked through the settings a few times but can't figure out where to actually turn these down. Is there a way to mute most of them or do I just have to deal with it?"
+  },
+  {
+    "title": "GPS track went through a building, distance way off",
+    "body": "Just finished what should've been my longest zone 2 ride this month and the GPS tracked me going straight through the Flatiron building for like half a mile. My actual route was around the park but the app shows me cutting through downtown Manhattan. Total distance is 2km short of what I actually rode, so my numbers are all messed up. This is pretty frustrating when I'm tracking my base building. Can you guys fix this or let me know what's going on?"
+  },
+  {
+    "title": "Garmin Forerunner 265 swim workout missing from feed",
+    "body": "Hey, I did a 2.1km swim yesterday morning at my usual pool and my Forerunner 265 synced to the app (I saw the notification), but the workout still isn't showing up in my feed or on my profile. I've already force-quit the app twice and restarted my phone. This was supposed to be part of my race prep block so it's pretty frustrating that it's just vanished. Can you help me track down where it went?"
+  },
+  {
+    "title": "Hill repeats workout missing from feed",
+    "body": "Hey, I did a solid hill repeats session on my Garmin Forerunner 265 yesterday morning and it synced to the app just fine, but the workout never actually showed up in my feed. I've tried force-quitting and reopening the app a bunch of times but still nothing. This was a pretty meaningful workout for me so I'd really like to get it back. What's going on?"
+  },
+  {
+    "title": "Password reset email never arrived",
+    "body": "Hey, I tried to reset my password but I never got the email. I've checked spam too and nothing. Just want to get back into my account and log my run from this morning. Can you help me out or resend the link? Thanks."
+  },
+  {
+    "title": "Apple Watch Ultra 2 workout disappeared from feed",
+    "body": "I completed a 90min ride on my Apple Watch Ultra 2 yesterday morning and it synced to the app, but the workout never appeared in my feed. I've already force-quit the app and restarted my watch, but nothing. This was a key session for my training block and I need the data logged. What's going on?"
+  },
+  {
+    "title": "Kudos from my friend disappeared?",
+    "body": "Hey, my friend texted me that they gave me kudos on my Tempo Tuesday run from last week, but I don't see it in my activity. I even checked my notifications and nothing shows up there either. Did it maybe get deleted by accident or is there a bug? Just want to make sure I'm not missing something obvious since I'm still pretty new to the app."
+  },
+  {
+    "title": "Dark mode for evening workout logging",
+    "body": "Hey! I've been using the app to log my weekend rides around Lyon and I'm loving it so far. One thing that's been bugging me though – I usually review and tag my activities in the evening, and the bright white interface is pretty harsh on the eyes in a dark room. Would it be possible to add a dark mode toggle? I know a lot of fitness apps have it these days and it'd make the post-ride routine way more comfortable. Thanks!"
+  },
+  {
+    "title": "Getting way too many notifications lately",
+    "body": "Hey, I'm getting bombarded with push notifications constantly—kudos alerts, follow requests, challenge reminders, you name it. I've looked through the settings menu but can't find where to actually dial these down. Can you point me to the right place or just tone them down on your end? I like using the app but the constant buzzing is getting annoying."
+  },
+  {
+    "title": "Charged twice for April premium subscription",
+    "body": "Hey, I just noticed I was charged $9.99 twice this month for my premium subscription. The first charge went through on April 1st like normal, but there's another identical charge from April 15th. I definitely haven't cancelled and only have one active subscription, so I'm not sure what happened here. Can you look into this and refund one of the charges? Thanks."
+  },
+  {
+    "title": "GPS track went straight through a building",
+    "body": "Hey, my ride this morning is completely messed up. The GPS cut right through that office building on 5th Ave instead of following the actual street, and now my distance is showing 2km short of what I actually rode. I've got a premium subscription and my other rides look fine, so something glitched with this one. Can you manually correct it or let me know what's going on?"
+  },
+  {
+    "title": "Request: Pace zone calibration for tempo runs",
+    "body": "Hi, I've been using the app for about 8 months now and absolutely love the training features. One thing that would really level up my training is the ability to set custom pace zones based on my threshold pace rather than just the default HR zones. I do a lot of tempo work and it'd be amazing to see my efforts color-coded against zones I've actually calibrated for my running style. Would love to see this added!"
+  },
+  {
+    "title": "Password reset email never arrived",
+    "body": "Hey, I requested a password reset like 20 minutes ago but I haven't gotten the email yet. Checked spam folder too and nothing. Just want to log back in and see my hill repeats from yesterday. Can you resend it or help me get access again?"
+  },
+  {
+    "title": "Tempo Tuesday run missing from feed",
+    "body": "Hey, I completed my tempo run yesterday morning (Tuesday 4/21) on my Garmin Forerunner 265 and it synced to the app, but it's completely missing from my feed and activity history. I've already force-quit and reopened the app twice. This was a solid workout and I'm really frustrated it's not showing up—can you help me track down where it went?"
+  },
+  {
+    "title": "Friend's kudos disappeared from my run",
+    "body": "Hey, my buddy Jake said he gave me kudos on my lunchtime loop from yesterday but I don't see it on the activity. Did he maybe accidentally unlike it or is there a sync issue? His account works fine so not sure what's going on."
+  },
+  {
+    "title": "Hill repeats workout from yesterday missing",
+    "body": "Hey, I did a hill repeats session yesterday morning on my Garmin Forerunner 265 and it synced to the app, but it's not showing up in my feed at all. I've tried force-quitting and relaunching but nothing's changed. It was a pretty solid workout too so I'm keen to see it tracked. What's going on?"
+  },
+  {
+    "title": "Can't find where to cancel premium",
+    "body": "Hey, I've been looking through settings for like 10 minutes and I can't figure out how to cancel my premium subscription. I don't want to get charged next month if I'm not using it actively. Am I missing something obvious or is the cancel button just buried somewhere? Would appreciate a quick pointer before my renewal date."
+  },
+  {
+    "title": "Can we get elevation gain breakdown by segment?",
+    "body": "Hey! I've been doing a lot of trail runs around Portland lately and it'd be really helpful to see elevation broken down by each segment rather than just the total. Especially for training—I want to know which sections are actually climbing vs which are recovery downhills. Would make analyzing my efforts way easier!"
+  },
+  {
+    "title": "Garmin Forerunner 265 workout missing from feed",
+    "body": "Hey, I completed a 90min Zone 2 base ride on my Garmin yesterday morning and synced it to the app, but it's not showing up in my feed at all. I've force quit the app and tried syncing again but nothing. This was a key workout for my training block and I need it logged. What's going on?"
+  },
+  {
+    "title": "Workout from yesterday morning not syncing",
+    "body": "Hey, I recorded a 10-mile walk yesterday morning on my Garmin Forerunner 265 and it definitely completed, but it's not showing up anywhere in my feed. I already force-quit the app and signed back in but nothing. This was a big deal for me since I've been training for a marathon, would really appreciate some help figuring out what happened."
+  },
+  {
+    "title": "Can't find how to cancel premium subscription",
+    "body": "I've been looking everywhere in settings and I literally cannot figure out how to cancel my premium. I don't want to keep getting charged next month so I need this sorted ASAP. Can you just tell me where the cancel button is or do it for me? I'm on the app btw."
+  },
+  {
+    "title": "GPS track goes through buildings on my ride",
+    "body": "Hi, just finished my commute this morning and the GPS completely butchered it. The track cuts straight through like 3 buildings near the waterfront instead of following the actual road I took, and it's showing me 2km short of what I actually rode. This is frustrating because my time doesn't match the distance at all now and my average speed looks insane. Can you guys look into what happened with the signal or fix this somehow?"
+  },
+  {
+    "title": "Run from yesterday morning disappeared from feed",
+    "body": "Hey, I recorded a 10k run on my Garmin Forerunner 265 yesterday morning but it's not showing up anywhere in my feed. I've already force-quit the app and tried syncing again but nothing. This was a pretty meaningful workout for me and I'm confused why it's not appearing. The watch definitely recorded it since I can see it in the Garmin app. Any idea what's going on?"
+  },
+  {
+    "title": "App keeps crashing when I open the feed",
+    "body": "Hey, every time I try to open the app it crashes immediately or freezes when I'm looking at the feed. I've tried restarting my phone (iPhone 15 Pro) and even deleted and reinstalled it but nothing's working. I just want to log my runs, this is frustrating. Can you help?"
+  },
+  {
+    "title": "Can I downgrade to free without losing my data?",
+    "body": "Hey, I'm thinking about switching from premium to the free plan, but I want to make sure all my activity history and stats stay on my account. Do I lose anything if I downgrade, or will everything just be there waiting if I decide to come back to premium later? Thanks!"
+  },
+  {
+    "title": "Garmin workout from yesterday disappeared",
+    "body": "Hey, my Garmin Forerunner 265 synced what felt like a really solid tempo run yesterday morning (April 20th) but it's just... not showing up in my feed? I can see it on the watch itself but nothing here. Already tried force-quitting and reopening the app a couple times. This was a meaningful workout for me and I'd rather not lose the data. What's going on?"
+  },
+  {
+    "title": "App keeps crashing when I open the feed",
+    "body": "Hey, I just started using the app last week and it was working fine at first. But now every time I try to look at my feed or click on one of my walks, the whole thing just crashes and closes. I've tried restarting my phone (iPhone 15 Pro) and even deleted and reinstalled the app, but it's still doing it. Not sure what's going on - is this a known issue?"
+  },
+  {
+    "title": "Password reset email never arrived, locked out",
+    "body": "Hey, I'm trying to get back into my account after being away for a bit but the password reset email isn't showing up in my inbox. I've waited 20 minutes and checked spam too. Also tried requesting another reset link and still nothing. Really want to get back to logging my rides. Can you help me reset it or resend that email?"
+  },
+  {
+    "title": "Challenge progress not updating after walk",
+    "body": "Hey, I just finished my neighborhood loop walk yesterday and uploaded it, but my distance challenge still shows the same progress as before. The activity is definitely there in my feed. Is there a delay in how the app counts activities toward challenges, or did something go wrong with my upload? I'd really like to make sure it counts before the deadline."
+  },
+  {
+    "title": "Trail run from yesterday morning disappeared",
+    "body": "Hey, I did a trail run yesterday morning around 7am on my Garmin Forerunner 265 and it synced to the app but never actually showed up in my feed. I've tried force-quitting and restarting but still nothing. This was like my longest run in weeks and I'm pretty frustrated it's just vanished. Can you help me figure out what happened?"
+  },
+  {
+    "title": "Password reset email never arrived",
+    "body": "Hey, I've been trying to reset my password for the last hour but I'm not getting the email. Checked spam folder too. I really need to get back in and log my runs—I've got a long run planned for tomorrow and want to track it. Can you help me reset or resend that link? Thanks"
+  },
+  {
+    "title": "Lakefront 10K segment not recording efforts",
+    "body": "Hey, I just completed a run on the Lakefront 10K course this morning and my time would've easily been top 20, but the segment didn't register any effort. I ran the exact same route as always—from Oak Street Beach heading north—and the activity uploaded fine, but there's no segment credit. Is there a bug with this segment or do I need to manually add it somehow?"
+  },
+  {
+    "title": "Garmin workout from Sunday morning not syncing",
+    "body": "Hey, I did a really solid 2-hour ride on my Garmin Forerunner 265 Sunday morning before work and it's still not showing up in my feed. Already force-quit the app and checked my Garmin Connect sync settings – everything looks fine over there. This was a key training session for me and I need it logged. What's going on?"
+  },
+  {
+    "title": "Garmin workout from Sunday morning disappeared",
+    "body": "I did a 12km run on my Garmin Forerunner 265 yesterday morning and synced it right after, but it's still not showing up in my feed. Already tried force-quitting the app and restarting my phone. This was a solid workout and I'm really frustrated it's not tracking. Can someone help me figure out what's going on?"
+  },
+  {
+    "title": "Missing kudos from friend on commute run",
+    "body": "Hey, my friend Sarah said she gave me kudos on my commute run from Sunday but I don't see it in my activity. Also I could've sworn the kudos count went up to like 3 earlier today and now it's back to 2? Not sure if this is a glitch or if I'm just losing it lol. Can you check what's going on?"
+  },
+  {
+    "title": "Delete my account and all my data permanently",
+    "body": "Hey, I've decided to move on from the app and need to completely delete my account. Can you make sure all my activity history, personal info, and everything else gets removed? I want a clean break. Thanks"
+  },
+  {
+    "title": "Garmin Forerunner 265 workout disappeared from feed",
+    "body": "Hey, I recorded a 45-minute ride on my Garmin Forerunner 265 yesterday morning and synced it to the app, but it's not showing up in my feed or activity history. I've force-quit the app and restarted it, checked my connections—everything looks fine on the device side. This was a solid effort and I'm frustrated it's just vanished. Can you help me track down what happened?"
+  },
+  {
+    "title": "Delete my account and all my data permanently",
+    "body": "Hey, I've decided to move on from the app and need my account fully deleted along with everything I've logged. I don't want any of my running data kept on your servers. Can you walk me through how to do this or just handle it on your end?"
+  },
+  {
+    "title": "Password reset email never arrived",
+    "body": "Hey, I requested a password reset like 20 mins ago but haven't received any email. I've checked spam too and nothing. Really frustrating because I'm trying to log back in and see my Tempo Tuesday stats from last week. Can you either resend it or help me get back into my account?"
+  },
+  {
+    "title": "Lost my lunchtime ride from yesterday, already unsubscribed",
+    "body": "Hey, so I did a solid 45min ride on my Garmin Forerunner 265 yesterday (Thursday lunchtime) and it synced to the app fine—I could see it in the activity list for like 10 seconds before it vanished. Force quit the app, restarted my watch, nothing. That was actually one of my better efforts this month and now it's just gone. Already cancelled my subscription because of stuff like this happening, but figured I'd at least report it since the data clearly made it through at some point."
+  },
+  {
+    "title": "Didn't capture Ravine Run segment effort today",
+    "body": "I completed a run this morning that took me through the Ravine Run segment in High Park, and my time was definitely top-20 material. The activity uploaded fine but there's no segment effort recorded for it. Can you check why the segment wasn't attributed? It's a pretty standard route for me on weekends."
+  },
+  {
+    "title": "Workout from yesterday morning not syncing",
+    "body": "Hey, I did a 8 mile run yesterday morning on my Garmin Forerunner 265 and it definitely recorded it—I can see it on the watch. But it's not showing up in my feed or anywhere in the app. I already tried force-quitting and restarting but nothing. This was a really solid run for me and I'm frustrated it's disappeared. Can you help me figure out what's going on?"
+  },
+  {
+    "title": "Elevation gain way off on today's run",
+    "body": "Just finished a proper hill session in the Cotswolds with about 1,200m of elevation, but the app is showing only 180m. I've got a premium watch synced and the barometer should be calibrated - did it last week. Is there a known issue with elevation data right now, or should I manually recalibrate the sensor?"
+  },
+  {
+    "title": "App keeps crashing, already wasted my time",
+    "body": "I cancelled my subscription last month because this app is literally unusable. Tried to check my gravel ride from last week and it crashes the second I tap on it. Even tried force closing and restarting my phone - nope, still crashes. Using iPhone 15 Pro so it's not a old device issue. Why should I even consider coming back if basic features don't work?"
+  },
+  {
+    "title": "Can't find the cancel subscription button",
+    "body": "I've been poking around in settings for like 10 minutes trying to find where to cancel my premium membership and I'm not seeing it anywhere. I don't want to get charged again next month so I need to turn this off ASAP. Am I missing something obvious or is this buried somewhere weird?"
+  },
+  {
+    "title": "Lakefront 10K segment not recorded on my run",
+    "body": "Hey, I just finished a run along the Lakefront 10K route this morning and I'm pretty sure I would've placed in the top 20, but the segment effort didn't show up in my activity at all. The run was logged correctly and everything, but there's no leaderboard data. Is this a known issue or am I missing something in my settings?"
+  },
+  {
+    "title": "Coogee to Bondi coastal run not tracking segment",
+    "body": "Hey, I just finished a trail run from Coogee to Bondi this morning and my time would've been solid for the coastal segment leaderboard, but it didn't show up as a segment effort. The activity recorded fine otherwise—7.2km in 41 mins. Is this a common issue with coastal routes or am I missing something in my settings?"
+  },
+  {
+    "title": "My Garmin Forerunner 265 ride disappeared",
+    "body": "I did a 45-minute ride yesterday morning and my Garmin synced it fine, but the workout never showed up in my feed here. I've force-quit the app and tried reconnecting but nothing. This was a pretty solid ride for me and I'm frustrated it's just gone. Can you help me find it or at least figure out what happened?"
+  },
+  {
+    "title": "Capitol Hill Run segment not recorded",
+    "body": "Hey, I just completed a run on the Green Lake to Capitol Hill route this morning and my time would've easily placed me top-20 on that segment, but it didn't show up in my activity at all. I checked my GPS trace and it definitely covered the full segment path. Is there a sync issue or something I'm missing in my settings?"
+  },
+  {
+    "title": "Trail run didn't record Montmartre segment effort",
+    "body": "Hey, I just completed a trail run this morning that took me through the Montmartre climb—pretty sure my time would've placed in the top 20 for that segment based on my pace. But when I checked my activity, no segment effort was recorded. Did the segment not get detected, or is there something I need to enable in my settings? Running on the free plan if that matters."
+  },
+  {
+    "title": "Hiking workout from Sunday morning disappeared",
+    "body": "Hey, I did a pretty intense hike Sunday morning on Lady Bird Lake trail with my Apple Watch Ultra 2 and it synced to the app, but then it just vanished from my feed. I've force-quit the app and tried logging out/back in but still nothing. This was like 8 miles and almost 2 hours—def don't want to lose that one. Can you help me figure out what happened?"
+  },
+  {
+    "title": "Password reset email never arrived",
+    "body": "Hey, I tried to reset my password but I haven't received the email yet. I've checked spam too and nothing. I'm trying to log back in to check my training data from this week's rides, so I need to get this sorted pretty quick. Can you help me out or send another reset link?"
+  },
+  {
+    "title": "Garmin Forerunner 265 workout disappeared from feed",
+    "body": "Hi, I did a really solid interval session yesterday morning on my Garmin Forerunner 265 and it synced to the app, but it's not showing up in my feed or activity list. I've tried force-quitting and reopening the app but it's still gone. The workout data is definitely on my watch. Is there a sync issue or something I'm missing? This was a pretty meaningful workout for me so I'd really like to get it back."
+  },
+  {
+    "title": "GPS track went through building on my long run",
+    "body": "Just finished what felt like a solid 18km long run this morning around Parc de la Tête d'Or, but the GPS track has me running straight through the Musée de Confluences like I'm some kind of parkour athlete. The actual distance is also showing 16.2km when my watch clearly had 18+. This kind of ruins the whole point of logging it properly, especially when I'm training for something. Can you guys look into what happened with the satellite signal or whatever caused this?"
+  },
+  {
+    "title": "Password reset email never arrived",
+    "body": "Hey, I requested a password reset like 20 mins ago but I haven't gotten any email yet. Checked spam too and nothing. I'm trying to log back in to check my run from yesterday but I'm totally locked out. Can you help me get back in or resend the link? Thanks."
+  },
+  {
+    "title": "Can't join my friend's club, button won't work",
+    "body": "Hey, I'm trying to join a club that my friend created but when I click the join button nothing happens. No error message or anything, it just sits there. I've tried refreshing and even reinstalling the app but still nothing. Can you help me get into this club?"
+  },
+  {
+    "title": "Charged $9.99 after canceling subscription",
+    "body": "I cancelled my subscription on March 15th and got a confirmation email, but I was just charged $9.99 again on April 1st. I definitely don't want to keep paying for this - I switched to a different app weeks ago. Can you please refund this charge and make sure there are no more charges going forward? This is frustrating because I thought cancelling meant cancelling."
+  },
+  {
+    "title": "Request refund for April charge",
+    "body": "Hi, I just realized I got charged this month but I'm still on the free plan? I only use the app on weekends for my rides and honestly haven't checked my account in a few weeks. Can you refund the charge and let me know what happened? Thanks!"
+  },
+  {
+    "title": "Hill repeats workout disappeared from feed",
+    "body": "Hey, I did a brutal hill repeats session yesterday morning with my Garmin Forerunner 265 and it synced to the app, but it's just... gone from my feed now? I force quit and restarted everything. It was a solid workout and I'm pretty frustrated it's not showing up. Can you help me figure out what happened?"
+  },
+  {
+    "title": "GPS track went through building on forest loop",
+    "body": "Hey, just finished my forest loop run this morning and the GPS absolutely tanked it. The track shows me running straight through a building near the station—like, a solid 200m detour that never happened. My actual distance was 12.8km but the app recorded 11.2km, so now my split times look terrible compared to yesterday's run. This is frustrating because I was trying to beat my pace and now the numbers are all wrong. Can you guys look into the GPS data from this morning around 6:45am in the Shibuya area?"
+  },
+  {
+    "title": "Request: Elevation gain breakdown by mile",
+    "body": "Hey! I've been logging my trail runs and would love to see elevation gain broken down mile-by-mile instead of just the total. It'd help me understand which sections of my routes are the gnarliest and plan my pacing better. I know a bunch of ultra runners who'd probably use this feature too if it existed. Thanks!"
+  },
+  {
+    "title": "Signal Hill segment didn't record my effort",
+    "body": "Hey, I just finished a run this morning that took me up Signal Hill—my watch showed it as a PR for me on that route, would've easily been top 20. But when I synced to the app, there's no segment effort recorded at all. The activity uploaded fine otherwise. Is this a known issue with that segment or did something go wrong on my end?"
+  },
+  {
+    "title": "App keeps crashing when I open the feed",
+    "body": "Hey, I've been trying to use the app this morning but every time I open the feed it just crashes immediately. I've restarted my phone (iPhone 15 Pro) and even deleted and reinstalled the app, but it's still happening. Really frustrating because I wanted to check out some of the runs from people I follow. Can you help?"
+  },
+  {
+    "title": "Too many notifications, can't find settings",
+    "body": "Hey, I'm getting bombarded with kudos alerts, follow requests, and challenge reminders every day. I've dug through the settings menu but can't figure out where to actually disable these without turning everything off. I still want activity notifications but these social ones are driving me nuts. Can you point me to the right setting or is there a better way to manage this?"
+  },
+  {
+    "title": "Elevation gain way off on Long run",
+    "body": "Did my long run today with 2,000m of elevation in the Cascades, but the app is only showing like 300m gained. I know my watch synced properly because distance and time look right. Is this a barometer calibration issue? I'm on premium so I'd expect accurate elevation tracking for trail runs like this."
+  },
+  {
+    "title": "Password reset email never arrived, can't log in",
+    "body": "Hey, I've been trying to reset my password for like 20 mins now but I'm not getting any emails. I checked spam too. I've got a group ride coming up this weekend and I really need to get back into my account to sync my bike computer. Can you either resend the reset link or help me get back in another way? My email is sally@[email protected]"
+  },
+  {
+    "title": "Delete my account and all my data",
+    "body": "Hey, I've decided to move on from the app and I need to permanently delete my account. Can you remove everything—all my runs, stats, segments, the whole thing? I'm not coming back so I don't need any of it saved. Just want a clean break. Let me know what I need to do on my end."
+  },
+  {
+    "title": "Walk workout from yesterday not syncing to feed",
+    "body": "Hey, I recorded a 45-minute walk on my Apple Watch Ultra 2 yesterday morning and it synced to the watch app fine, but it's never showed up in my feed here. I've force-quit the app and tried reopening it a few times but still nothing. This was a pretty meaningful walk for me and I'd really like to see it tracked. What's going on?"
+  },
+  {
+    "title": "Marathon run from Sunday missing from feed",
+    "body": "Hey, I did a marathon-pace 42km run on my Garmin Forerunner 265 this past Sunday morning and it synced to the app (I saw the notification), but it's not showing up in my feed or activity history. I've already force-quit and restarted the app twice. This was a really important long run for my training cycle and I need it to log properly. Can you help me track it down?"
+  },
+  {
+    "title": "How do I report a user making inappropriate comments?",
+    "body": "Hi, I posted a recovery walk yesterday and someone left a comment that made me really uncomfortable. They also seem to be using my route data to figure out where I live, which is honestly creeping me out. I'm not sure if there's a block or report feature I'm missing, but I'd like to prevent them from seeing my activities or at least report them. Can you help me with this?"
+  },
+  {
+    "title": "Elevation data completely wrong on today's ride",
+    "body": "Just finished a 1200m climb in the Western Ghats and the app recorded basically zero elevation gain. I've got a premium watch, GPS is locked in fine, but something's clearly off with how you're calculating it. Pretty sure it's a barometer calibration issue—happened once before. Can you check the raw data or let me know how to recalibrate?"
+  },
+  {
+    "title": "Elevation gain way off on yesterday's ride",
+    "body": "Hey, did my Sunset Spin yesterday and climbed around 1200m in the Boulder foothills, but the app is only showing 350m of elevation gain. I'm using a watch with a barometer so I'm pretty confident in the numbers. Is this a calibration issue on my end or something with how the app's processing the data? I'm on premium so figured I'd check before I start troubleshooting."
+  },
+  {
+    "title": "Power zones for cycling workouts please",
+    "body": "Hey! I've been using the app for a few months now and I'm really loving it, but I'd love to see power zone tracking added for cycling. I'm training for a race and it'd be huge to be able to see my FTP zones during rides and get breakdowns of how much time I spent in each zone. I know some other apps have this—would be amazing to get it here!"
+  },
+  {
+    "title": "Too many push notifications, can't find settings",
+    "body": "Hey, I'm getting bombarded with notifications every time someone gives me a kudo or I get a follow request. I've looked through the settings a few times but can't figure out where to actually turn these down. I like the app but the constant alerts are getting annoying. Can someone walk me through where the notification controls are?"
+  },
+  {
+    "title": "Power zones feature for cycling please",
+    "body": "Hey! I've been using the app for a couple months now and loving it, but I'm getting more serious about training and I really need power zone tracking. Right now I can see my watts but there's no way to know if I'm training in the right zone for my workouts. Most other apps have this built in and it would be huge for structured training. Can you add this feature?"
+  },
+  {
+    "title": "App keeps crashing when I open the feed",
+    "body": "Hey, just started using this yesterday and I'm really enjoying tracking my walks, but the app keeps crashing whenever I try to check the feed or look at my activity from earlier today. I've restarted my phone (iPhone 15 Pro) a couple times already but it's still doing it. Is there something wrong on your end or should I try reinstalling?"
+  },
+  {
+    "title": "Delete my account and all data please",
+    "body": "Hi, I've decided this app isn't really for me. I only signed up a few weeks ago and haven't really gotten into the habit of tracking my walks consistently. Could you please permanently delete my account and remove all my data? Thanks"
+  },
+  {
+    "title": "Power zones for cycling workouts please",
+    "body": "Hey, I've been away from the app for a bit but just logged back in to check things out. I'm getting more serious about structured cycling training and I really need power zone tracking — like FTP-based zones so I can see if I'm hitting the right intensity during intervals. Strava has it and it would honestly get me using the app way more consistently. Any chance this is on the roadmap?"
+  },
+  {
+    "title": "Garmin Forerunner 265 workout disappeared from feed",
+    "body": "Hey, I did a really solid interval session on my Garmin Forerunner 265 yesterday morning and synced it to the app, but it's just... not showing up anywhere in my feed? I've force-quit and reopened the app like three times. The workout definitely recorded (I can see it on the watch), so I'm not sure where it went. It was a meaningful run for me and I'd like to see it tracked. Can you help me figure this out?"
+  },
+  {
+    "title": "Kudos from my friend disappeared?",
+    "body": "Hey, my friend Marco said he gave me kudos on my recovery roll from last Friday but I don't see it in my activity. The count showed up for like an hour then vanished. Not a huge deal but kinda weird—did something glitch or am I missing something obvious?"
+  },
+  {
+    "title": "App keeps crashing when I open the feed",
+    "body": "Hey, I've been trying to check my feed this morning but the app just crashes instantly whenever I tap on it. I'm on an iPhone 15 Pro and already tried restarting both the app and my phone but nothing's changed. This is frustrating because I wanted to see my ride from yesterday and check out what my friends have been up to. Can you help me fix this?"
+  },
+  {
+    "title": "Dark mode for night running sessions",
+    "body": "Hey! I've been using the app for a few weeks now and I'm loving it, but I'm doing a lot of evening runs around Berlin and the bright white interface is killing my eyes in the dark. Would be super helpful to have a dark mode option, especially when I'm checking my stats after a nighttime run. Keep up the great work!"
+  },
+  {
+    "title": "GPS track went through a building, lost 1.5km",
+    "body": "I ran my Tempo Tuesday route yesterday and the GPS completely botched it—the map shows me cutting straight through a building on 5th Ave when I clearly ran around it on the street. My actual distance was about 8.5km but the app recorded 7km. This is exactly why I'm cancelling. I can't trust the data anymore and the leaderboard times are useless if the distances are this broken."
+  },
+  {
+    "title": "Marathon run not counting toward distance challenge",
+    "body": "Hey, I just finished a marathon pace run yesterday (April 21st) and it's not showing up toward my distance challenge progress. The activity is definitely logged in my feed, but the challenge tracker still shows the same number as before. The deadline's coming up soon so I really need this to count - can you manually sync it or let me know what's going on?"
+  },
+  {
+    "title": "App keeps crashing when I open the feed",
+    "body": "Hey, I'm on iPhone 15 Pro and the app just crashes every time I try to view my feed or tap on an activity. I've restarted my phone already but it's still doing it. My solo gravel ride from yesterday won't even load. Really frustrating since I was trying to check my performance metrics from the weekend. Can you help?"
+  },
+  {
+    "title": "Twin Peaks segment not recorded on my run",
+    "body": "I ran the Twin Peaks loop yesterday morning and my watch tracked the whole thing, but the app didn't register it as a segment effort even though my time would've been in the top 20. The activity uploaded fine and shows on my profile, but there's no segment data attached. Any idea why that might've happened or if there's a way to manually link it?"
+  },
+  {
+    "title": "Password reset email never arrived",
+    "body": "Hey, I tried to reset my password but I haven't received any email yet. It's been like 20 mins. I really want to get back into my account to log my walks. Can you help me out or resend the link? My email is the one associated with my account."
+  },
+  {
+    "title": "Group ride not counting toward challenge",
+    "body": "Hey, I completed a group ride on April 21st and it shows up in my activity log, but it's not incrementing my distance challenge progress. The deadline is coming up fast and I need this to count. Can you manually sync it or let me know if there's a bug with group activities? Premium member here so I'm not sure what's going on."
+  },
+  {
+    "title": "Seymour Mountain segment not recorded on tempo run",
+    "body": "Hi, I completed a tempo run on Tuesday that took me up Seymour Mountain and I'm pretty sure I crushed my personal pace for that segment. The activity uploaded fine but I'm not seeing any segment effort recorded—my time would've been top 20 easily. Did the segment matching fail or is there a sync issue I'm not catching? Let me know what's going on."
+  },
+  {
+    "title": "My interval workout from yesterday vanished",
+    "body": "Hey, I did a track intervals session on my Garmin Forerunner 265 yesterday morning around 7am and it synced to my phone, but it's still not showing up in my feed. I've force-quit the app and restarted everything. It was a solid workout and I'm pretty frustrated it's just gone—can you help me figure out what happened?"
+  },
+  {
+    "title": "App keeps crashing when I open the feed",
+    "body": "Hey, I've been trying to check out my feed this morning but the app just immediately crashes whenever I tap on it. I'm on an iPhone 15 Pro and I've already tried restarting the phone but it's still doing the same thing. Really frustrating because I wanted to share my summit push from last week. Any ideas what's going on?"
+  },
+  {
+    "title": "Elevation gain way off on today's hike",
+    "body": "Just finished a climb with 800m of elevation in the Tanzawa range, but the app is showing only 120m. I know the barometer on my watch can be off sometimes, but this is way too far off. Is there a way to manually adjust or recalibrate? It's throwing off my weekly stats."
+  },
+  {
+    "title": "Challenge progress not updating after climb activity",
+    "body": "Hey, I just finished my 'Climbing day' ride yesterday (April 21st) and it should've counted toward the elevation challenge I'm in, but my progress bar hasn't moved at all. I gained like 1,200m on that ride and the deadline's coming up in a few days. Can you check what's going on? The activity uploaded fine and shows up in my feed, so I'm not sure why the challenge isn't picking it up."
+  },
+  {
+    "title": "Password reset email never arrived",
+    "body": "Hey, I've been trying to reset my password for like 20 minutes now. I requested the reset link but nothing showed up in my inbox or spam folder. I'm pretty new to the app and just want to get back in to log my walks. Can you help me out or resend that email? Thanks"
+  },
+  {
+    "title": "Power zones for cycling workouts please",
+    "body": "Hey, I've been using the app for a while but honestly I miss having proper power zone tracking like I had with my old setup. I'm back into cycling seriously and it'd be amazing to see my efforts broken down by zone during rides—would really help me train smarter. Lots of other apps have this and it'd definitely get me back in here more often. Cheers!"
+  },
+  {
+    "title": "GPS tracked me through a building wtf",
+    "body": "Hey, just finished what I thought was a solid 12km run around Shibuya this morning, but the map shows my route cutting straight through a building near the station and I'm coming up 800m short. The actual distance should be like 12.8km but it's showing 12.0. Pretty annoyed since I was hoping to post this one. Any idea why the GPS gets so wonky in the city? This happen to anyone else or is it just me?"
+  },
+  {
+    "title": "App keeps crashing when I open the feed",
+    "body": "Hey, I've been getting constant crashes whenever I try to look at my feed or click into any of my activities. I restarted my phone (iPhone 15 Pro) and even deleted and reinstalled the app, but it's still happening. I just logged my hill repeats from this morning and now I can't even view them. This is pretty frustrating since I pay for premium. Can you help?"
+  },
+  {
+    "title": "GPS track went straight through building on lunchtime run",
+    "body": "Hey, my lunchtime loop from yesterday shows the GPS cutting directly through a building on Avenida Paulista—I obviously didn't run through a wall lol. The total distance is showing 2.1km short of what I actually did (my watch had 12.4km, app shows 10.3km). This is pretty frustrating since I was trying to beat my previous time on that route. Can you guys look into why the signal was so off? It's been solid usually but this one was really weird."
+  },
+  {
+    "title": "Kudos from friend disappeared after ride",
+    "body": "Hey, my friend told me they gave me kudos on my easy shakeout ride from Sunday, but I don't see it in my activity feed. The count went up to like 3 for a sec then dropped back down to 2. Did their kudos get deleted or is there a sync issue or something? Just want to make sure I'm not missing anything lol"
+  },
+  {
+    "title": "Password reset email never arrived",
+    "body": "Hey, I requested a password reset like 20 minutes ago but I haven't gotten any email yet. Checked spam too and nothing. Really want to get back into my account and log my run from this morning before I forget the details. Can you resend it or help me get back in?"
+  },
+  {
+    "title": "Can't find where to cancel premium",
+    "body": "Hey, I'm trying to downgrade from premium but I literally cannot find the cancellation option anywhere in my account settings. I've been looking for like 10 minutes and it's driving me crazy. I don't want to get charged next month if this doesn't work, so please let me know how to do this or if there's something I'm missing."
+  },
+  {
+    "title": "Can we get power zones for running?",
+    "body": "Hey, I've been using the app for about 8 months now and I'm really digging the cycling power data integration. Since I run on gravel routes a lot and do some trail work, I'd love to see power zone tracking for running too — especially since more runners are getting power meters these days. I know it's probably niche, but it would help me dial in my training way better. Would this be something on the roadmap?"
+  },
+  {
+    "title": "Kudos from friend disappeared after run",
+    "body": "Hey, my buddy Marco said he gave me kudos on my track intervals workout from Saturday but I don't see it in my activity feed. The count went up to like 3 or 4 for a second and then dropped back down to 2. Is this a sync issue or did something glitch? Pretty weird lol"
+  },
+  {
+    "title": "Nandi Hills segment not recorded on my run",
+    "body": "Hey, just finished a long run this morning that included the classic Nandi Hills climb route, but I didn't get a segment effort recorded even though I crushed my usual pace on that stretch. Pretty sure I would've landed in the top 20 for the week based on my time, so something seems off with the segment detection. Can you check what happened with that activity from today?"
+  },
+  {
+    "title": "Too many notifications, can't find settings",
+    "body": "Hey, I'm getting bombarded with push notifications lately—every time someone gives me a kudo, when people follow me, challenge reminders, it's like every 10 minutes. I've looked through the settings a few times but can't seem to find where to dial these down. Is there a master notification toggle or do I have to turn them off one by one? Just want to keep using the app without my phone blowing up constantly."
+  },
+  {
+    "title": "Refund request for accidental premium charge",
+    "body": "Hi, I think I accidentally got charged for a premium subscription last month when I was just clicking through the app. I'm on the free plan and only do casual lunch walks, so I don't really need the premium features. Could I get a refund for that charge? Thanks!"
+  },
+  {
+    "title": "Challenge progress not updating after long run",
+    "body": "Hey, I just finished a long run on the 18th and uploaded it to the app, but my distance challenge still shows the same total as before. The activity is there in my feed and everything, so I'm not sure why it's not counting toward the challenge. I've got a deadline coming up and really need this to register. Can you guys look into this?"
+  },
+  {
+    "title": "Password reset email never arrived",
+    "body": "I've been locked out of my account for like 20 minutes now. Clicked the password reset link and it says it's expired or broken? I never even got an email to begin with. I just want to log back in and check my running stats from last week. Can someone either send me a working reset link or just get me back into my account? This is frustrating."
+  }
+]
