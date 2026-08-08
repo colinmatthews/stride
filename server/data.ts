@@ -1,6 +1,15 @@
 import { randomUUID } from "node:crypto";
-import { and, asc, desc, eq, gt, inArray, lt, min, sum, type SQL } from "drizzle-orm";
+import { and, asc, desc, eq, gt, gte, inArray, lt, min, sum, type SQL } from "drizzle-orm";
 import { db } from "./db.js";
+import {
+  MOMENTUM_WINDOW_DAYS,
+  isElevationMetric,
+  momentumWindowStart,
+  pickMomentumChallenge,
+  rankBoard,
+  selectVisibleRows,
+  type BoardInput,
+} from "./momentum.js";
 import {
   activities as activitiesTable,
   activityComments,
@@ -656,5 +665,152 @@ export async function toggleChallengeEntry(userId: string, challengeId: string) 
   return {
     joined: existing.length === 0,
     participants,
+  };
+}
+
+function daysUntil(endsAt: string, now: Date) {
+  const end = new Date(`${endsAt}T23:59:59.999Z`);
+
+  return Math.ceil((end.getTime() - now.getTime()) / 86_400_000);
+}
+
+/**
+ * Everything the post-run nudge needs for a single activity: the challenge
+ * worth pitching, how much of it the athlete has already covered, and the
+ * rank they would hold if they opted in.
+ *
+ * Returns null when there is nothing honest to offer — the activity isn't
+ * theirs, or no challenge matches the sport they just logged.
+ *
+ * Standings are computed from activities in the rolling window rather than
+ * from challenge_entries, because an entry row only records that someone
+ * pressed join; the distance that ranks them lives in their activities.
+ */
+export async function getPostRunMomentum(userId: string, activityId: string) {
+  const activityRows = await db
+    .select()
+    .from(activitiesTable)
+    .where(eq(activitiesTable.id, activityId))
+    .limit(1);
+  const activity = activityRows[0];
+
+  if (!activity || activity.athleteId !== userId) {
+    return null;
+  }
+
+  const now = new Date();
+  const windowStart = momentumWindowStart(now);
+
+  const [challengeRows, myEntries, totalsRows, athleteRows, followsResult] = await Promise.all([
+    db.select().from(challengesTable),
+    db
+      .select({ challengeId: challengeEntries.challengeId })
+      .from(challengeEntries)
+      .where(eq(challengeEntries.userId, userId)),
+    db
+      .select({
+        athleteId: activitiesTable.athleteId,
+        distanceKm: sum(activitiesTable.distanceKm),
+        elevationM: sum(activitiesTable.elevationM),
+      })
+      .from(activitiesTable)
+      .where(and(eq(activitiesTable.sport, activity.sport), gte(activitiesTable.date, windowStart)))
+      .groupBy(activitiesTable.athleteId),
+    db.select().from(users),
+    db
+      .select({ followedId: follows.followedId })
+      .from(follows)
+      .where(eq(follows.followerId, userId)),
+  ]);
+
+  const joinedChallengeIds = new Set(myEntries.map((row) => row.challengeId));
+  const followedIds = new Set(followsResult.map((row) => row.followedId));
+
+  const distanceByAthlete = new Map<string, number>();
+  const elevationByAthlete = new Map<string, number>();
+
+  for (const row of totalsRows) {
+    distanceByAthlete.set(row.athleteId, Number(row.distanceKm ?? 0));
+    elevationByAthlete.set(row.athleteId, Number(row.elevationM ?? 0));
+  }
+
+  const totalsFor = (metricType: string) =>
+    isElevationMetric(metricType) ? elevationByAthlete : distanceByAthlete;
+
+  const candidates = challengeRows.map((row) => ({
+    id: row.id,
+    name: row.name,
+    sport: row.sport,
+    goalKm: Number(row.goalKm),
+    participants: row.participants,
+    endsAt: row.endsAt,
+    badge: row.badge,
+    metricType: row.metricType,
+    joined: joinedChallengeIds.has(row.id),
+  }));
+
+  const challenge = pickMomentumChallenge(
+    candidates,
+    activity.sport,
+    (candidate) => totalsFor(candidate.metricType).get(userId) ?? 0,
+  );
+
+  if (!challenge) {
+    return null;
+  }
+
+  const elevation = isElevationMetric(challenge.metricType);
+  const totals = totalsFor(challenge.metricType);
+  const carriedTotal = totals.get(userId) ?? 0;
+  const fromThisActivity = elevation ? activity.elevationM : Number(activity.distanceKm);
+  const athletesById = new Map(athleteRows.map((row) => [row.id, row]));
+  const boardInput: BoardInput[] = [];
+
+  for (const [athleteId, value] of totals) {
+    const athlete = athletesById.get(athleteId);
+
+    if (!athlete || value <= 0) {
+      continue;
+    }
+
+    boardInput.push({
+      athleteId: aliasUserId(athleteId, userId),
+      name: athleteId === userId ? "You" : athlete.name,
+      avatar: athlete.avatarUrl,
+      value: Number(value.toFixed(1)),
+      isMe: athleteId === userId,
+      isFollowing: followedIds.has(athleteId),
+    });
+  }
+
+  const ranked = rankBoard(boardInput);
+  const myIndex = ranked.findIndex((entry) => entry.isMe);
+  const ahead = myIndex > 0 ? ranked[myIndex - 1] : undefined;
+
+  return {
+    activityId: activity.id,
+    windowDays: MOMENTUM_WINDOW_DAYS,
+    challenge: {
+      id: challenge.id,
+      name: challenge.name,
+      sport: challenge.sport,
+      badge: challenge.badge,
+      goalKm: challenge.goalKm,
+      endsAt: challenge.endsAt,
+      participants: challenge.participants,
+      joined: challenge.joined,
+      unit: elevation ? "m" : "km",
+      daysLeft: daysUntil(challenge.endsAt, now),
+    },
+    carried: {
+      total: Number(carriedTotal.toFixed(1)),
+      prior: Number(Math.max(0, carriedTotal - fromThisActivity).toFixed(1)),
+      fromThisActivity: Number(fromThisActivity.toFixed(1)),
+    },
+    myRank: myIndex >= 0 ? myIndex + 1 : ranked.length + 1,
+    gapToNext: ahead ? Number((ahead.value - carriedTotal).toFixed(1)) : 0,
+    aheadName: ahead?.name ?? null,
+    followedCount: ranked.filter((entry) => entry.isFollowing).length,
+    board: selectVisibleRows(ranked),
   };
 }

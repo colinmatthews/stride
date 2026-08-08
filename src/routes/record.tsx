@@ -201,7 +201,11 @@ function ManualForm({ sport }: { sport: Sport }) {
         elevation_m: Number(elevation) || 0,
         entry_mode: "manual",
       });
-      router.navigate({ to: "/activity/$id", params: { id: activity.id } });
+      router.navigate({
+        to: "/activity/$id",
+        params: { id: activity.id },
+        search: { saved: true },
+      });
     } catch (err) {
       posthog.captureException(err);
       setError("Couldn't save activity. Try again.");
@@ -544,7 +548,11 @@ function TimerMode({ sport }: { sport: Sport }) {
         elevation_m: Math.floor(distance * 12),
         entry_mode: "timer",
       });
-      router.navigate({ to: "/activity/$id", params: { id: activity.id } });
+      router.navigate({
+        to: "/activity/$id",
+        params: { id: activity.id },
+        search: { saved: true },
+      });
     } catch (err) {
       posthog.captureException(err);
       setSaving(false);
