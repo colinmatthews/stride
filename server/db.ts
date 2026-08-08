@@ -1,5 +1,9 @@
 import { Pool } from "pg";
-import { drizzle } from "drizzle-orm/node-postgres";
+import { drizzle, type NodePgDatabase } from "drizzle-orm/node-postgres";
+import { Pool as NeonPool, neonConfig } from "@neondatabase/serverless";
+import { drizzle as drizzleNeon } from "drizzle-orm/neon-serverless";
+import WebSocket from "ws";
+import { HttpsProxyAgent } from "https-proxy-agent";
 import * as schema from "./db/schema.js";
 import {
   SEEDED_ATHLETES,
@@ -15,11 +19,42 @@ if (!dbUrl) {
   throw new Error("DB_URL is required");
 }
 
-export const pool = new Pool({
-  connectionString: dbUrl,
-});
+// Some corporate networks block all direct outbound TCP to the internet
+// (including Postgres's port 5432), only permitting HTTP(S) traffic through
+// a proxy. When such a proxy is configured, fall back to connecting to Neon
+// over a WebSocket (wss://, port 443) tunneled through it instead of a raw
+// TCP socket. This still supports full transactions (unlike Neon's plain
+// HTTP driver), so it's a drop-in replacement for local/dev use.
+const proxyUrl =
+  process.env.HTTPS_PROXY ??
+  process.env.https_proxy ??
+  process.env.HTTP_PROXY ??
+  process.env.http_proxy;
 
-export const db = drizzle(pool, { schema });
+function createPool() {
+  if (!proxyUrl) {
+    return { pool: new Pool({ connectionString: dbUrl }), viaProxy: false as const };
+  }
+
+  console.log(`[db] Detected HTTP(S) proxy (${proxyUrl}); connecting to Neon via WebSocket over the proxy.`);
+  const agent = new HttpsProxyAgent(proxyUrl);
+  class ProxiedWebSocket extends WebSocket {
+    constructor(address: string | URL, protocols?: string | string[]) {
+      super(address, protocols, { agent });
+    }
+  }
+  neonConfig.webSocketConstructor = ProxiedWebSocket as unknown as typeof WebSocket;
+
+  return { pool: new NeonPool({ connectionString: dbUrl }), viaProxy: true as const };
+}
+
+const { pool: dbPool, viaProxy } = createPool();
+
+export const pool = dbPool;
+
+export const db = (
+  viaProxy ? drizzleNeon(dbPool as NeonPool, { schema }) : drizzle(dbPool as Pool, { schema })
+) as NodePgDatabase<typeof schema>;
 
 export async function initializeDatabase() {
   await seedDatabase();
@@ -106,8 +141,20 @@ async function seedDatabase() {
           endsAt: challenge.endsAt,
           badge: challenge.badge,
           metricType: challenge.metricType,
+          tier: challenge.tier,
+          firstStepLabel: challenge.firstStep.activityLabel,
+          firstStepDistanceKm: String(challenge.firstStep.suggestedDistanceKm),
+          firstStepElevationM: challenge.firstStep.suggestedElevationM ?? null,
         })
-        .onConflictDoNothing();
+        .onConflictDoUpdate({
+          target: schema.challenges.id,
+          set: {
+            tier: challenge.tier,
+            firstStepLabel: challenge.firstStep.activityLabel,
+            firstStepDistanceKm: String(challenge.firstStep.suggestedDistanceKm),
+            firstStepElevationM: challenge.firstStep.suggestedElevationM ?? null,
+          },
+        });
     }
 
     const activities = generateSeedActivities();
