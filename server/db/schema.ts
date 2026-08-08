@@ -159,6 +159,14 @@ export const challenges = pgTable("challenges", {
   endsAt: date("ends_at").notNull(),
   badge: text("badge").notNull(),
   metricType: text("metric_type").notNull(),
+  /** "approachable" | "aspirational" — drives which tab/section a challenge surfaces in. */
+  tier: text("tier").notNull().default("approachable"),
+  /** The specific, small first activity we nudge a new joiner toward within their first 48 hours. */
+  firstStepLabel: text("first_step_label").notNull().default(""),
+  firstStepDistanceKm: numeric("first_step_distance_km", { precision: 10, scale: 2 })
+    .notNull()
+    .default("0"),
+  firstStepElevationM: integer("first_step_elevation_m"),
 });
 
 export const challengeEntries = pgTable(

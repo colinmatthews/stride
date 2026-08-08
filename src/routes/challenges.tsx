@@ -1,10 +1,12 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { useState } from "react";
-import { CHALLENGES } from "@/lib/mock-data";
+import { toast } from "sonner";
+import { CHALLENGES, type Challenge } from "@/lib/mock-data";
 import { AppShell } from "@/components/AppShell";
 import { Trophy, Users, Calendar, Check } from "lucide-react";
 import { toggleChallengeJoin } from "@/lib/api";
 import { usePostHog } from "@posthog/react";
+import { createActivationNudge, setActivationNudge } from "@/lib/nudges";
 
 export const Route = createFileRoute("/challenges")({
   head: () => ({
@@ -26,6 +28,25 @@ function ChallengesPage() {
   );
 
   const joinedCount = Object.values(joined).filter(Boolean).length;
+
+  async function handleToggleJoin(challenge: Challenge) {
+    const result = await toggleChallengeJoin(challenge.id);
+    setJoined((state) => ({ ...state, [challenge.id]: result.joined }));
+    setParticipants((state) => ({ ...state, [challenge.id]: result.participants }));
+    posthog.capture(result.joined ? "challenge_joined" : "challenge_left", {
+      challenge_id: challenge.id,
+      challenge_name: challenge.name,
+      sport: challenge.sport,
+      goal_km: challenge.goalKm,
+    });
+
+    if (result.joined) {
+      setActivationNudge(createActivationNudge(challenge));
+      toast.success(`You're in on ${challenge.name}`, {
+        description: challenge.firstStep.activityLabel,
+      });
+    }
+  }
 
   return (
     <AppShell>
@@ -147,17 +168,7 @@ function ChallengesPage() {
                 </div>
 
                 <button
-                  onClick={async () => {
-                    const result = await toggleChallengeJoin(c.id);
-                    setJoined((state) => ({ ...state, [c.id]: result.joined }));
-                    setParticipants((state) => ({ ...state, [c.id]: result.participants }));
-                    posthog.capture(result.joined ? "challenge_joined" : "challenge_left", {
-                      challenge_id: c.id,
-                      challenge_name: c.name,
-                      sport: c.sport,
-                      goal_km: c.goalKm,
-                    });
-                  }}
+                  onClick={() => handleToggleJoin(c)}
                   className={`mt-6 inline-flex h-11 w-full items-center justify-center gap-2 text-sm font-medium transition-opacity hover:opacity-95 ${
                     isJoined
                       ? "border border-border bg-surface text-foreground"

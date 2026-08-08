@@ -69,6 +69,13 @@ export interface SeedChallenge {
   endsAt: string;
   badge: string;
   metricType: MetricType;
+  tier: "approachable" | "aspirational";
+  /** The specific, small first activity we nudge a new joiner toward within their first 48 hours. */
+  firstStep: {
+    activityLabel: string;
+    suggestedDistanceKm: number;
+    suggestedElevationM?: number;
+  };
 }
 
 const ATHLETE_PHOTOS = [
@@ -343,6 +350,11 @@ export const SEEDED_CHALLENGES: SeedChallenge[] = [
     endsAt: "2026-04-30",
     badge: "RUN",
     metricType: "distance_km",
+    tier: "approachable",
+    firstStep: {
+      activityLabel: "Log a 5K today toward your April Distance Run goal.",
+      suggestedDistanceKm: 5,
+    },
   },
   {
     id: "ch2",
@@ -353,6 +365,12 @@ export const SEEDED_CHALLENGES: SeedChallenge[] = [
     endsAt: "2026-04-30",
     badge: "CLIMB",
     metricType: "elevation_m",
+    tier: "aspirational",
+    firstStep: {
+      activityLabel: "Log a short climbing ride today toward your Climb 5,000m goal.",
+      suggestedDistanceKm: 12,
+      suggestedElevationM: 300,
+    },
   },
   {
     id: "ch3",
@@ -363,6 +381,11 @@ export const SEEDED_CHALLENGES: SeedChallenge[] = [
     endsAt: "2026-05-15",
     badge: "GF",
     metricType: "distance_km",
+    tier: "aspirational",
+    firstStep: {
+      activityLabel: "Log a 15K ride today toward your Gran Fondo 100K goal.",
+      suggestedDistanceKm: 15,
+    },
   },
   {
     id: "ch4",
@@ -373,6 +396,11 @@ export const SEEDED_CHALLENGES: SeedChallenge[] = [
     endsAt: "2026-05-31",
     badge: "10K",
     metricType: "distance_km",
+    tier: "approachable",
+    firstStep: {
+      activityLabel: "Log a 2K today toward your 10K Race Ready goal.",
+      suggestedDistanceKm: 2,
+    },
   },
   {
     id: "ch5",
@@ -383,6 +411,11 @@ export const SEEDED_CHALLENGES: SeedChallenge[] = [
     endsAt: "2026-04-30",
     badge: "SWIM",
     metricType: "distance_km",
+    tier: "approachable",
+    firstStep: {
+      activityLabel: "Log a 1K swim today toward your Swim 20K goal.",
+      suggestedDistanceKm: 1,
+    },
   },
 ];
 
