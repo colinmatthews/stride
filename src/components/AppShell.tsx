@@ -103,7 +103,13 @@ export function AppShell({ children }: { children: ReactNode }) {
                 <div className="text-sm font-medium truncate">{ME.name}</div>
                 <div className="text-xs text-muted-foreground truncate">@{ME.handle}</div>
               </div>
-              <Settings className="h-4 w-4 text-muted-foreground" />
+            </Link>
+            <Link
+              to="/settings/notifications"
+              aria-label="Notification settings"
+              className="rounded-md p-2 text-muted-foreground hover:bg-muted hover:text-foreground"
+            >
+              <Settings className="h-4 w-4" />
             </Link>
             <button
               onClick={handleLogout}

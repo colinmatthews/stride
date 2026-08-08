@@ -183,6 +183,21 @@ export async function toggleClubJoin(clubId: string) {
   return payload;
 }
 
+export type NotificationType = "kudos" | "follow" | "challenge";
+export type NotificationFrequency = "instant" | "daily" | "weekly" | "off";
+export type NotificationPreferences = Record<NotificationType, NotificationFrequency>;
+
+export async function fetchNotificationPreferences() {
+  return apiFetch<NotificationPreferences>("/api/settings/notifications");
+}
+
+export async function saveNotificationPreferences(updates: Partial<NotificationPreferences>) {
+  return apiFetch<NotificationPreferences>("/api/settings/notifications", {
+    method: "PUT",
+    body: JSON.stringify(updates),
+  });
+}
+
 export async function toggleChallengeJoin(challengeId: string) {
   const payload = await apiFetch<{ joined: boolean; participants: number }>(
     `/api/challenges/${challengeId}/join`,

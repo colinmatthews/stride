@@ -8,11 +8,13 @@ import {
   createUser,
   findUserForAuth,
   getActivityById,
+  getNotificationPreferences,
   listActivities,
   toggleChallengeEntry,
   toggleClubMembership,
   toggleFollow,
   toggleKudo,
+  updateNotificationPreferences,
 } from "./data.js";
 import {
   createSession,
@@ -21,6 +23,7 @@ import {
   requireAuth,
   verifyPassword,
 } from "./auth.js";
+import { parseNotificationUpdates } from "./notification-preferences.js";
 
 export function createApp() {
   const app = express();
@@ -212,6 +215,29 @@ export function createApp() {
   app.post("/api/challenges/:id/join", requireAuth, async (request, response, next) => {
     try {
       response.json(await toggleChallengeEntry(request.userId!, String(request.params.id)));
+    } catch (error) {
+      next(error);
+    }
+  });
+
+  app.get("/api/settings/notifications", requireAuth, async (request, response, next) => {
+    try {
+      response.json(await getNotificationPreferences(request.userId!));
+    } catch (error) {
+      next(error);
+    }
+  });
+
+  app.put("/api/settings/notifications", requireAuth, async (request, response, next) => {
+    try {
+      const parsed = parseNotificationUpdates(request.body);
+
+      if (!parsed.ok) {
+        response.status(400).json({ error: parsed.error });
+        return;
+      }
+
+      response.json(await updateNotificationPreferences(request.userId!, parsed.updates));
     } catch (error) {
       next(error);
     }

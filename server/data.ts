@@ -12,10 +12,16 @@ import {
   clubMemberships,
   clubs as clubsTable,
   follows,
+  notificationPreferences,
   segments as segmentsTable,
   users,
 } from "./db/schema.js";
 import { USER_AVATARS } from "./seed.js";
+import {
+  DEFAULT_NOTIFICATION_PREFERENCES,
+  type NotificationFrequency,
+  type NotificationPreferences,
+} from "./notification-preferences.js";
 
 const BOOTSTRAP_ACTIVITY_LIMIT = 40;
 const MAX_ACTIVITY_PAGE_LIMIT = 100;
@@ -657,4 +663,45 @@ export async function toggleChallengeEntry(userId: string, challengeId: string) 
     joined: existing.length === 0,
     participants,
   };
+}
+
+export async function getNotificationPreferences(userId: string): Promise<NotificationPreferences> {
+  const rows = await db
+    .select({
+      kudos: notificationPreferences.kudos,
+      follow: notificationPreferences.follow,
+      challenge: notificationPreferences.challenge,
+    })
+    .from(notificationPreferences)
+    .where(eq(notificationPreferences.userId, userId))
+    .limit(1);
+  const row = rows[0];
+
+  if (!row) {
+    return { ...DEFAULT_NOTIFICATION_PREFERENCES };
+  }
+
+  return {
+    kudos: row.kudos as NotificationFrequency,
+    follow: row.follow as NotificationFrequency,
+    challenge: row.challenge as NotificationFrequency,
+  };
+}
+
+export async function updateNotificationPreferences(
+  userId: string,
+  updates: Partial<NotificationPreferences>,
+): Promise<NotificationPreferences> {
+  const current = await getNotificationPreferences(userId);
+  const merged = { ...current, ...updates };
+
+  await db
+    .insert(notificationPreferences)
+    .values({ userId, ...merged })
+    .onConflictDoUpdate({
+      target: notificationPreferences.userId,
+      set: { ...merged, updatedAt: new Date() },
+    });
+
+  return merged;
 }
