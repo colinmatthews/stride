@@ -14,6 +14,7 @@ import {
 import { ME, clearAppData } from "@/lib/mock-data";
 import { FormEvent, ReactNode, useState } from "react";
 import { logout } from "@/lib/api";
+import { ActivationNudgeCard } from "@/components/ActivationNudgeCard";
 
 const NAV = [
   { to: "/", label: "Feed", icon: Home },
@@ -147,7 +148,10 @@ export function AppShell({ children }: { children: ReactNode }) {
             </div>
           </div>
         </header>
-        <main className="max-w-[1280px] mx-auto px-8 py-8">{children}</main>
+        <main className="max-w-[1280px] mx-auto px-8 py-8">
+          <ActivationNudgeCard />
+          {children}
+        </main>
       </div>
     </div>
   );
