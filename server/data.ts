@@ -16,11 +16,13 @@ import {
   users,
 } from "./db/schema.js";
 import { USER_AVATARS } from "./seed.js";
+import { GPS_SPORTS, CROSS_TRAINING_SPORTS, isCrossTraining, type ActivityKind } from "./sport.js";
+
+export { GPS_SPORTS, CROSS_TRAINING_SPORTS, isCrossTraining };
+export type { ActivityKind };
 
 const BOOTSTRAP_ACTIVITY_LIMIT = 40;
 const MAX_ACTIVITY_PAGE_LIMIT = 100;
-
-type Sport = "Run" | "Ride" | "Swim" | "Hike" | "Walk";
 
 type ActivityRow = typeof activitiesTable.$inferSelect;
 type AthleteRow = typeof users.$inferSelect;
@@ -28,7 +30,7 @@ type AthleteRow = typeof users.$inferSelect;
 type ActivityDto = {
   id: string;
   athleteId: string;
-  sport: Sport;
+  sport: ActivityKind;
   title: string;
   description?: string;
   date: string;
@@ -192,7 +194,7 @@ async function hydrateActivities(rows: ActivityRow[], userId: string): Promise<A
   return rows.map((row) => ({
     id: row.id,
     athleteId: aliasUserId(row.athleteId, userId),
-    sport: row.sport as Sport,
+    sport: row.sport as ActivityKind,
     title: row.title,
     description: row.description ?? undefined,
     date: row.date.toISOString(),
@@ -444,7 +446,7 @@ export async function buildBootstrap(userId: string) {
 
 export async function createActivity(input: {
   userId: string;
-  sport: Sport;
+  sport: ActivityKind;
   title: string;
   description?: string;
   distanceKm: number;

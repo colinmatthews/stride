@@ -6,6 +6,7 @@ import {
   fmtTimeAgo,
   getAthlete,
   initializeAppData,
+  isCrossTraining,
   type Athlete,
   type AppData,
 } from "./mock-data";
@@ -81,6 +82,19 @@ describe("fmtTimeAgo", () => {
   it("returns days ago within a week", () => {
     expect(fmtTimeAgo("2025-05-29T12:00:00.000Z")).toBe("3d ago");
   });
+});
+
+describe("isCrossTraining", () => {
+  it.each(["Strength", "Yoga", "Stretching"] as const)("returns true for %s", (sport) => {
+    expect(isCrossTraining(sport)).toBe(true);
+  });
+
+  it.each(["Run", "Ride", "Swim", "Hike", "Walk"] as const)(
+    "returns false for GPS sport %s",
+    (sport) => {
+      expect(isCrossTraining(sport)).toBe(false);
+    },
+  );
 });
 
 describe("getAthlete", () => {

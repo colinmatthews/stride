@@ -1,6 +1,13 @@
 import { createFileRoute, useRouter } from "@tanstack/react-router";
 import { useEffect, useRef, useState } from "react";
-import { fmtDuration, fmtPace, type Sport } from "@/lib/mock-data";
+import {
+  fmtDuration,
+  fmtPace,
+  isCrossTraining,
+  CROSS_TRAINING_SPORTS,
+  type ActivityKind,
+  type Sport,
+} from "@/lib/mock-data";
 import { AppShell } from "@/components/AppShell";
 import { usePostHog } from "@posthog/react";
 import {
@@ -20,18 +27,21 @@ export const Route = createFileRoute("/record")({
   head: () => ({
     meta: [
       { title: "Record — Stride" },
-      { name: "description", content: "Log a run, ride or swim — manual or live." },
+      {
+        name: "description",
+        content: "Log a run, ride, swim, or a strength/yoga/stretching session — manual or live.",
+      },
     ],
   }),
   component: Record,
 });
 
-const SPORTS: Sport[] = ["Run", "Ride", "Swim", "Hike", "Walk"];
+const GPS_SPORTS: Sport[] = ["Run", "Ride", "Swim", "Hike", "Walk"];
 type Mode = "manual" | "timer";
 
 function Record() {
   const [mode, setMode] = useState<Mode>("manual");
-  const [sport, setSport] = useState<Sport>("Run");
+  const [sport, setSport] = useState<ActivityKind | null>(null);
 
   return (
     <AppShell>
@@ -69,7 +79,22 @@ function Record() {
 
         <SportPicker sport={sport} setSport={setSport} />
 
-        {mode === "manual" ? <ManualForm sport={sport} /> : <TimerMode sport={sport} />}
+        {sport ? (
+          mode === "manual" ? (
+            <ManualForm sport={sport} />
+          ) : (
+            <TimerMode sport={sport} />
+          )
+        ) : (
+          <div className="mt-8 flex flex-col items-center gap-2 border border-dashed border-border bg-surface px-6 py-16 text-center">
+            <div className="font-mono text-[10px] uppercase tracking-[0.22em] text-muted-foreground">
+              Pick a sport
+            </div>
+            <p className="max-w-sm text-sm text-muted-foreground">
+              Choose an activity above to start logging.
+            </p>
+          </div>
+        )}
       </div>
     </AppShell>
   );
@@ -118,34 +143,63 @@ function ModeTab({
   );
 }
 
-function SportPicker({ sport, setSport }: { sport: Sport; setSport: (s: Sport) => void }) {
+function SportPicker({
+  sport,
+  setSport,
+}: {
+  sport: ActivityKind | null;
+  setSport: (s: ActivityKind) => void;
+}) {
   return (
-    <div className="mt-8">
-      <div className="font-mono text-[10px] uppercase tracking-[0.22em] text-muted-foreground">
-        Sport
+    <div className="mt-8 space-y-5">
+      <div>
+        <div className="font-mono text-[10px] uppercase tracking-[0.22em] text-muted-foreground">
+          Endurance
+        </div>
+        <div className="mt-3 grid grid-cols-5 gap-2">
+          {GPS_SPORTS.map((s) => (
+            <button
+              key={s}
+              onClick={() => setSport(s)}
+              className={`h-11 px-3 text-sm font-medium transition-colors ${
+                sport === s
+                  ? "bg-secondary text-secondary-foreground"
+                  : "border border-border bg-surface text-foreground hover:border-foreground/50"
+              }`}
+            >
+              {s}
+            </button>
+          ))}
+        </div>
       </div>
-      <div className="mt-3 grid grid-cols-5 gap-2">
-        {SPORTS.map((s) => (
-          <button
-            key={s}
-            onClick={() => setSport(s)}
-            className={`h-11 px-3 text-sm font-medium transition-colors ${
-              sport === s
-                ? "bg-secondary text-secondary-foreground"
-                : "border border-border bg-surface text-foreground hover:border-foreground/50"
-            }`}
-          >
-            {s}
-          </button>
-        ))}
+      <div>
+        <div className="font-mono text-[10px] uppercase tracking-[0.22em] text-muted-foreground">
+          Strength & recovery
+        </div>
+        <div className="mt-3 grid grid-cols-3 gap-2">
+          {CROSS_TRAINING_SPORTS.map((s) => (
+            <button
+              key={s}
+              onClick={() => setSport(s)}
+              className={`h-11 px-3 text-sm font-medium transition-colors ${
+                sport === s
+                  ? "bg-secondary text-secondary-foreground"
+                  : "border border-border bg-surface text-foreground hover:border-foreground/50"
+              }`}
+            >
+              {s}
+            </button>
+          ))}
+        </div>
       </div>
     </div>
   );
 }
 
-function ManualForm({ sport }: { sport: Sport }) {
+function ManualForm({ sport }: { sport: ActivityKind }) {
   const posthog = usePostHog();
   const router = useRouter();
+  const crossTraining = isCrossTraining(sport);
   const [title, setTitle] = useState("");
   const [description, setDescription] = useState("");
   const [distance, setDistance] = useState("");
@@ -160,46 +214,52 @@ function ManualForm({ sport }: { sport: Sport }) {
   const distanceKm = Number(distance) || 0;
   const totalSeconds =
     (Number(hours) || 0) * 3600 + (Number(minutes) || 0) * 60 + (Number(seconds) || 0);
-  const isValid = distanceKm > 0 && totalSeconds > 0;
+  const isValid = crossTraining ? totalSeconds > 0 : distanceKm > 0 && totalSeconds > 0;
 
   const derivedPace =
-    sport === "Ride"
-      ? distanceKm > 0 && totalSeconds > 0
+    !crossTraining && distanceKm > 0 && totalSeconds > 0
+      ? sport === "Ride"
         ? `${(distanceKm / (totalSeconds / 3600)).toFixed(1)} km/h`
-        : "—"
-      : distanceKm > 0 && totalSeconds > 0
-        ? fmtPace(totalSeconds / distanceKm)
-        : "—";
+        : fmtPace(totalSeconds / distanceKm)
+      : "—";
 
   async function save() {
     if (!isValid) {
-      setError("Enter a distance and duration before saving.");
+      setError(
+        crossTraining
+          ? "Enter a duration before saving."
+          : "Enter a distance and duration before saving.",
+      );
       return;
     }
     setError("");
     setBusy(true);
     try {
-      const paceSecPerKm = sport === "Ride" ? undefined : Math.round(totalSeconds / distanceKm);
+      const paceSecPerKm =
+        crossTraining || sport === "Ride" ? undefined : Math.round(totalSeconds / distanceKm);
       const speedKmh =
-        sport === "Ride" ? Math.round((distanceKm / (totalSeconds / 3600)) * 10) / 10 : undefined;
+        !crossTraining && sport === "Ride"
+          ? Math.round((distanceKm / (totalSeconds / 3600)) * 10) / 10
+          : undefined;
       const activity = await saveActivity({
         sport,
         title: title.trim() || defaultTitle(sport, new Date()),
         description: description.trim() || undefined,
-        distanceKm: Math.round(distanceKm * 100) / 100,
+        distanceKm: crossTraining ? 0 : Math.round(distanceKm * 100) / 100,
         movingSeconds: totalSeconds,
-        elevationM: Number(elevation) || 0,
-        avgHr: avgHr ? Number(avgHr) : undefined,
+        elevationM: crossTraining ? 0 : Number(elevation) || 0,
+        avgHr: crossTraining ? undefined : avgHr ? Number(avgHr) : undefined,
         avgPaceSecPerKm: paceSecPerKm,
         avgSpeedKmh: speedKmh,
         routeSeed: Math.floor(Math.random() * 1000),
       });
       posthog.capture("activity_saved", {
         sport,
-        distance_km: Math.round(distanceKm * 100) / 100,
+        distance_km: crossTraining ? 0 : Math.round(distanceKm * 100) / 100,
         moving_seconds: totalSeconds,
-        elevation_m: Number(elevation) || 0,
+        elevation_m: crossTraining ? 0 : Number(elevation) || 0,
         entry_mode: "manual",
+        cross_training: crossTraining,
       });
       router.navigate({ to: "/activity/$id", params: { id: activity.id } });
     } catch (err) {
@@ -215,15 +275,17 @@ function ManualForm({ sport }: { sport: Sport }) {
         <div className="font-mono text-[10px] uppercase tracking-[0.22em] text-muted-foreground">
           The essentials
         </div>
-        <div className="mt-4 grid gap-6 sm:grid-cols-2">
-          <NumberField
-            label={sport === "Swim" ? "Distance (km)" : "Distance"}
-            unit="km"
-            value={distance}
-            onChange={setDistance}
-            placeholder="10.0"
-            step="0.01"
-          />
+        <div className={`mt-4 grid gap-6 ${crossTraining ? "sm:grid-cols-1" : "sm:grid-cols-2"}`}>
+          {!crossTraining && (
+            <NumberField
+              label={sport === "Swim" ? "Distance (km)" : "Distance"}
+              unit="km"
+              value={distance}
+              onChange={setDistance}
+              placeholder="10.0"
+              step="0.01"
+            />
+          )}
           <DurationField
             hours={hours}
             minutes={minutes}
@@ -234,12 +296,14 @@ function ManualForm({ sport }: { sport: Sport }) {
           />
         </div>
 
-        <div className="mt-6 flex items-center justify-between border-t border-border pt-4">
-          <div className="font-mono text-[10px] uppercase tracking-[0.22em] text-muted-foreground">
-            {sport === "Ride" ? "Avg speed" : "Avg pace"}
+        {!crossTraining && (
+          <div className="mt-6 flex items-center justify-between border-t border-border pt-4">
+            <div className="font-mono text-[10px] uppercase tracking-[0.22em] text-muted-foreground">
+              {sport === "Ride" ? "Avg speed" : "Avg pace"}
+            </div>
+            <div className="stat-num text-lg font-semibold">{derivedPace}</div>
           </div>
-          <div className="stat-num text-lg font-semibold">{derivedPace}</div>
-        </div>
+        )}
       </div>
 
       <div className="border-b border-border p-6">
@@ -255,42 +319,48 @@ function ManualForm({ sport }: { sport: Sport }) {
           />
           <label className="block">
             <div className="mb-2 font-mono text-[10px] uppercase tracking-[0.22em] text-muted-foreground">
-              Description
+              {crossTraining ? "Notes" : "Description"}
             </div>
             <textarea
               value={description}
               onChange={(event) => setDescription(event.target.value)}
               rows={3}
-              placeholder="How did it feel? Any notes for future-you?"
+              placeholder={
+                crossTraining
+                  ? "What did the session cover? Any notes for future-you?"
+                  : "How did it feel? Any notes for future-you?"
+              }
               className="w-full resize-none border border-border bg-background px-3 py-2 text-sm outline-none transition-colors focus:border-foreground"
             />
           </label>
         </div>
       </div>
 
-      <div className="border-b border-border p-6">
-        <div className="font-mono text-[10px] uppercase tracking-[0.22em] text-muted-foreground">
-          Optional
+      {!crossTraining && (
+        <div className="border-b border-border p-6">
+          <div className="font-mono text-[10px] uppercase tracking-[0.22em] text-muted-foreground">
+            Optional
+          </div>
+          <div className="mt-4 grid gap-4 sm:grid-cols-2">
+            <NumberField
+              label="Elevation gain"
+              unit="m"
+              value={elevation}
+              onChange={setElevation}
+              placeholder="120"
+              step="1"
+            />
+            <NumberField
+              label="Average heart rate"
+              unit="bpm"
+              value={avgHr}
+              onChange={setAvgHr}
+              placeholder="148"
+              step="1"
+            />
+          </div>
         </div>
-        <div className="mt-4 grid gap-4 sm:grid-cols-2">
-          <NumberField
-            label="Elevation gain"
-            unit="m"
-            value={elevation}
-            onChange={setElevation}
-            placeholder="120"
-            step="1"
-          />
-          <NumberField
-            label="Average heart rate"
-            unit="bpm"
-            value={avgHr}
-            onChange={setAvgHr}
-            placeholder="148"
-            step="1"
-          />
-        </div>
-      </div>
+      )}
 
       {error && (
         <div className="border-b border-destructive/30 bg-destructive/8 px-6 py-3 text-sm text-destructive">
@@ -300,7 +370,11 @@ function ManualForm({ sport }: { sport: Sport }) {
 
       <div className="flex items-center justify-between gap-4 p-6">
         <div className="font-mono text-[10px] uppercase tracking-[0.22em] text-muted-foreground">
-          {isValid ? "Ready to log" : "Fill distance and time"}
+          {isValid
+            ? "Ready to log"
+            : crossTraining
+              ? "Fill in a duration"
+              : "Fill distance and time"}
         </div>
         <button
           onClick={save}
@@ -450,7 +524,18 @@ function DurationCell({
   );
 }
 
-function defaultTitle(sport: Sport, date: Date) {
+const ACTIVITY_NOUNS: Record<ActivityKind, string> = {
+  Run: "run",
+  Ride: "ride",
+  Swim: "swim",
+  Hike: "hike",
+  Walk: "walk",
+  Strength: "strength session",
+  Yoga: "yoga session",
+  Stretching: "stretch session",
+};
+
+function defaultTitle(sport: ActivityKind, date: Date) {
   const hour = date.getHours();
   const window =
     hour < 6
@@ -462,25 +547,16 @@ function defaultTitle(sport: Sport, date: Date) {
           : hour < 18
             ? "Afternoon"
             : "Evening";
-  const noun =
-    sport === "Ride"
-      ? "ride"
-      : sport === "Swim"
-        ? "swim"
-        : sport === "Hike"
-          ? "hike"
-          : sport === "Walk"
-            ? "walk"
-            : "run";
-  return `${window} ${noun}`;
+  return `${window} ${ACTIVITY_NOUNS[sport]}`;
 }
 
 /* -----------------------------------------------------------------------
  *   Timer mode — existing live-tracking flow, restyled to match aesthetic
  * ---------------------------------------------------------------------*/
-function TimerMode({ sport }: { sport: Sport }) {
+function TimerMode({ sport }: { sport: ActivityKind }) {
   const posthog = usePostHog();
   const router = useRouter();
+  const crossTraining = isCrossTraining(sport);
   const [running, setRunning] = useState(false);
   const [paused, setPaused] = useState(false);
   const [elapsed, setElapsed] = useState(0);
@@ -494,13 +570,15 @@ function TimerMode({ sport }: { sport: Sport }) {
     if (running && !paused) {
       ref.current = window.setInterval(() => {
         setElapsed((e) => e + 1);
-        setDistance((d) => d + (sport === "Ride" ? 0.0083 : sport === "Swim" ? 0.0007 : 0.0042));
+        if (!crossTraining) {
+          setDistance((d) => d + (sport === "Ride" ? 0.0083 : sport === "Swim" ? 0.0007 : 0.0042));
+        }
       }, 1000);
     }
     return () => {
       if (ref.current) window.clearInterval(ref.current);
     };
-  }, [running, paused, sport]);
+  }, [running, paused, sport, crossTraining]);
 
   const start = () => {
     setRunning(true);
@@ -522,27 +600,32 @@ function TimerMode({ sport }: { sport: Sport }) {
     setSaving(true);
     try {
       const pace =
-        sport === "Ride" ? undefined : Math.max(180, Math.floor(elapsed / Math.max(0.1, distance)));
+        crossTraining || sport === "Ride"
+          ? undefined
+          : Math.max(180, Math.floor(elapsed / Math.max(0.1, distance)));
       const speed =
-        sport === "Ride" ? Math.round((distance / (elapsed / 3600)) * 10) / 10 : undefined;
+        !crossTraining && sport === "Ride"
+          ? Math.round((distance / (elapsed / 3600)) * 10) / 10
+          : undefined;
       const activity = await saveActivity({
         sport,
         title: title || defaultTitle(sport, new Date()),
         description: description || undefined,
-        distanceKm: Math.round(distance * 100) / 100,
+        distanceKm: crossTraining ? 0 : Math.round(distance * 100) / 100,
         movingSeconds: elapsed,
-        elevationM: Math.floor(distance * 12),
-        avgHr: 150,
+        elevationM: crossTraining ? 0 : Math.floor(distance * 12),
+        avgHr: crossTraining ? undefined : 150,
         avgPaceSecPerKm: pace,
         avgSpeedKmh: speed,
         routeSeed: Math.floor(Math.random() * 1000),
       });
       posthog.capture("activity_saved", {
         sport,
-        distance_km: Math.round(distance * 100) / 100,
+        distance_km: crossTraining ? 0 : Math.round(distance * 100) / 100,
         moving_seconds: elapsed,
-        elevation_m: Math.floor(distance * 12),
+        elevation_m: crossTraining ? 0 : Math.floor(distance * 12),
         entry_mode: "timer",
+        cross_training: crossTraining,
       });
       router.navigate({ to: "/activity/$id", params: { id: activity.id } });
     } catch (err) {
@@ -570,11 +653,17 @@ function TimerMode({ sport }: { sport: Sport }) {
           {running && !paused && <span className="h-2 w-2 rounded-full bg-primary animate-pulse" />}
         </div>
         <div className="stat-num mt-4 text-7xl text-primary">{fmtDuration(elapsed)}</div>
-        <div className="mt-8 grid grid-cols-3 gap-6">
-          <TimerStat label="Distance" value={`${distance.toFixed(2)} km`} />
-          <TimerStat label={sport === "Ride" ? "Speed" : "Pace"} value={pace} />
-          <TimerStat label="Calories" value={`${Math.round((elapsed / 60) * 10)}`} />
-        </div>
+        {crossTraining ? (
+          <div className="mt-8 grid grid-cols-1 gap-6">
+            <TimerStat label="Calories" value={`${Math.round((elapsed / 60) * 10)}`} />
+          </div>
+        ) : (
+          <div className="mt-8 grid grid-cols-3 gap-6">
+            <TimerStat label="Distance" value={`${distance.toFixed(2)} km`} />
+            <TimerStat label={sport === "Ride" ? "Speed" : "Pace"} value={pace} />
+            <TimerStat label="Calories" value={`${Math.round((elapsed / 60) * 10)}`} />
+          </div>
+        )}
 
         <div className="mt-8 flex items-center justify-center gap-4">
           {!running ? (
@@ -607,7 +696,15 @@ function TimerMode({ sport }: { sport: Sport }) {
           )}
         </div>
         <div className="mt-4 inline-flex items-center gap-1 font-mono text-[10px] uppercase tracking-[0.22em] text-secondary-foreground/70">
-          <MapPin className="h-3 w-3" /> GPS simulated
+          {crossTraining ? (
+            <>
+              <TimerIcon className="h-3 w-3" /> Manual timer
+            </>
+          ) : (
+            <>
+              <MapPin className="h-3 w-3" /> GPS simulated
+            </>
+          )}
         </div>
       </div>
 

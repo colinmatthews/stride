@@ -1,6 +1,6 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { useMemo, useState } from "react";
-import { fmtDuration, type Activity, type Sport } from "@/lib/mock-data";
+import { fmtDuration, type Activity, type ActivityKind } from "@/lib/mock-data";
 import { fetchActivities } from "@/lib/api";
 import { AppShell } from "@/components/AppShell";
 import {
@@ -29,12 +29,15 @@ export const Route = createFileRoute("/training")({
   component: Training,
 });
 
-const SPORT_COLORS: Record<Sport, string> = {
+const SPORT_COLORS: Record<ActivityKind, string> = {
   Run: "var(--primary)",
   Ride: "var(--accent)",
   Swim: "oklch(0.6 0.18 230)",
   Hike: "oklch(0.55 0.15 145)",
   Walk: "oklch(0.7 0.05 80)",
+  Strength: "oklch(0.5 0.15 300)",
+  Yoga: "oklch(0.75 0.08 350)",
+  Stretching: "oklch(0.68 0.06 200)",
 };
 
 function Training() {
@@ -43,14 +46,18 @@ function Training() {
   const [nextCursor, setNextCursor] = useState(initialPage.nextCursor);
   const [loadingMore, setLoadingMore] = useState(false);
   const weeks = useMemo(() => weeklyStatsForActivities(my), [my]);
-  const [sport, setSport] = useState<"All" | Sport>("All");
+  const [sport, setSport] = useState<"All" | ActivityKind>("All");
 
+  // Time spent is the one metric every activity kind has — GPS sports and
+  // duration-only cross-training sessions alike — so it's what the mix uses.
   const sportBreakdown = useMemo(() => {
-    const map = new Map<Sport, number>();
-    my.forEach((a) => map.set(a.sport, (map.get(a.sport) ?? 0) + a.distanceKm));
-    return Array.from(map.entries()).map(([s, km]) => ({
+    const map = new Map<ActivityKind, number>();
+    my.forEach((a) => {
+      map.set(a.sport, (map.get(a.sport) ?? 0) + a.movingSeconds / 60);
+    });
+    return Array.from(map.entries()).map(([s, minutes]) => ({
       name: s,
-      value: Math.round(km * 10) / 10,
+      value: Math.round(minutes * 10) / 10,
     }));
   }, [my]);
 
@@ -123,7 +130,7 @@ function Training() {
           </div>
         </section>
         <section className="bg-surface border border-border rounded-xl p-5">
-          <h2 className="text-base font-display font-semibold mb-4">Sport breakdown</h2>
+          <h2 className="text-base font-display font-semibold mb-4">Sport breakdown (time)</h2>
           <div className="h-64">
             <ResponsiveContainer width="100%" height="100%">
               <PieChart>
@@ -136,7 +143,7 @@ function Training() {
                   paddingAngle={3}
                 >
                   {sportBreakdown.map((entry) => (
-                    <Cell key={entry.name} fill={SPORT_COLORS[entry.name as Sport]} />
+                    <Cell key={entry.name} fill={SPORT_COLORS[entry.name]} />
                   ))}
                 </Pie>
                 <Tooltip
@@ -156,8 +163,20 @@ function Training() {
 
       <div className="flex items-center justify-between mb-4">
         <h2 className="text-lg font-display font-semibold">All activities</h2>
-        <div className="flex gap-1 bg-surface-2 rounded-md p-1">
-          {(["All", "Run", "Ride", "Swim", "Hike", "Walk"] as const).map((s) => (
+        <div className="flex flex-wrap justify-end gap-1 bg-surface-2 rounded-md p-1">
+          {(
+            [
+              "All",
+              "Run",
+              "Ride",
+              "Swim",
+              "Hike",
+              "Walk",
+              "Strength",
+              "Yoga",
+              "Stretching",
+            ] as const
+          ).map((s) => (
             <button
               key={s}
               onClick={() => setSport(s)}

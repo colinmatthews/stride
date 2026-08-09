@@ -1,5 +1,16 @@
 export type Sport = "Run" | "Ride" | "Swim" | "Hike" | "Walk";
 
+export const CROSS_TRAINING_SPORTS = ["Strength", "Yoga", "Stretching"] as const;
+export type CrossTrainingSport = (typeof CROSS_TRAINING_SPORTS)[number];
+
+// The kind of effort an activity records. GPS sports carry distance/pace/
+// elevation; cross-training entries are duration-only (no route, no splits).
+export type ActivityKind = Sport | CrossTrainingSport;
+
+export function isCrossTraining(sport: ActivityKind): sport is CrossTrainingSport {
+  return (CROSS_TRAINING_SPORTS as readonly string[]).includes(sport);
+}
+
 export interface Athlete {
   id: string;
   name: string;
@@ -16,7 +27,7 @@ export interface Athlete {
 export interface Activity {
   id: string;
   athleteId: string;
-  sport: Sport;
+  sport: ActivityKind;
   title: string;
   description?: string;
   date: string;
