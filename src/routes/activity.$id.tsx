@@ -28,6 +28,7 @@ import {
 import {
   ACTIVITIES,
   fmtDate,
+  fmtDistanceRange,
   fmtDuration,
   fmtPace,
   getActivity,
@@ -40,6 +41,7 @@ import { AppShell } from "@/components/AppShell";
 import { RouteMap } from "@/components/RouteMap";
 import { SportBadge } from "@/components/SportBadge";
 import { Stat } from "@/components/Stat";
+import { GpsConfidenceBadge } from "@/components/GpsConfidenceBadge";
 import { addActivityComment, fetchActivity, toggleActivityKudo } from "@/lib/api";
 
 export const Route = createFileRoute("/activity/$id")({
@@ -161,7 +163,21 @@ function ActivityDetail() {
 
           {/* Hero stats */}
           <div className="grid grid-cols-4 gap-6 my-8 pb-8 border-b border-border">
-            <Stat label="Distance" value={activity.distanceKm.toFixed(2)} unit="km" emphasis />
+            <div>
+              <Stat
+                label="Distance"
+                value={
+                  activity.distanceRangeKm
+                    ? fmtDistanceRange(activity.distanceRangeKm)
+                    : activity.distanceKm.toFixed(2)
+                }
+                unit="km"
+                emphasis
+              />
+              {activity.distanceRangeKm && (
+                <GpsConfidenceBadge rangeKm={activity.distanceRangeKm} className="mt-2" />
+              )}
+            </div>
             <Stat label="Time" value={fmtDuration(activity.movingSeconds)} />
             {activity.sport === "Ride" ? (
               <Stat label="Avg speed" value={activity.avgSpeedKmh?.toFixed(1) ?? "—"} unit="km/h" />
@@ -187,8 +203,17 @@ function ActivityDetail() {
               height={420}
               className="w-full h-[380px]"
               distanceKm={activity.distanceKm}
+              distanceRangeKm={activity.distanceRangeKm}
+              confidence={activity.routeConfidence}
             />
           </section>
+          {activity.routeConfidence && (
+            <p className="mt-3 flex items-center gap-2 text-xs text-muted-foreground">
+              <GpsConfidenceBadge rangeKm={activity.distanceRangeKm} />
+              The dashed stretch on the map had weak GPS signal — treat that section's distance as
+              an estimate, not exact.
+            </p>
+          )}
           {activity.photo && (
             <img
               src={getActivityPhoto(activity)}

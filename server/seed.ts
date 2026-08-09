@@ -1,6 +1,13 @@
 export type Sport = "Run" | "Ride" | "Swim" | "Hike" | "Walk";
 export type MetricType = "distance_km" | "elevation_m";
 
+// A stretch of the route the app isn't confident about (e.g. GPS multipath in
+// an urban canyon) — startT/endT are fractions (0-1) along the route path.
+export interface RouteConfidenceSegment {
+  startT: number;
+  endT: number;
+}
+
 export interface SeedAthlete {
   id: string;
   name: string;
@@ -33,6 +40,9 @@ export interface SeedActivity {
   routeSeed: number;
   splits?: { km: number; paceSec: number; hr: number; elev: number }[];
   segments?: { id: string; rank: number; effortSeconds: number }[];
+  // Present only when part of the recorded track had weak/bounced GPS signal.
+  routeConfidence?: RouteConfidenceSegment[];
+  distanceRangeKm?: [number, number];
 }
 
 export interface SeedSegment {
@@ -417,6 +427,48 @@ function rnd(seed: number) {
   };
 }
 
+// Dense-highrise cities where GPS multipath (signal bouncing off buildings
+// before reaching the phone) is more likely. This only raises the odds of a
+// localized low-confidence stretch — it never marks a whole run uncertain,
+// since most urban runs still track fine and over-flagging erodes trust.
+const URBAN_CANYON_CITIES = new Set(["Tokyo", "Barcelona", "Berlin"]);
+
+// Decides whether a recorded track had a weak-GPS stretch, and if so, how
+// much that stretch bends the reported distance. Pure and seeded by the
+// caller's `random` so activity generation stays deterministic.
+export function computeGpsConfidence(params: {
+  sport: Sport;
+  city: string;
+  distanceKm: number;
+  random: () => number;
+}): { routeConfidence?: RouteConfidenceSegment[]; distanceRangeKm?: [number, number] } {
+  const { sport, city, distanceKm, random } = params;
+
+  // GPS tracks only, and only on foot/wheels — pool swims have no outdoor
+  // signal to lose.
+  const gpsTracked = sport !== "Swim";
+  const urban = URBAN_CANYON_CITIES.has(city);
+  const gpsIssueRoll = random();
+  const hasGpsIssue = gpsTracked && gpsIssueRoll > (urban ? 0.62 : 0.93);
+
+  if (!hasGpsIssue) {
+    return {};
+  }
+
+  const startT = 0.12 + random() * 0.55;
+  const segLen = 0.06 + random() * 0.16;
+  const routeConfidence: RouteConfidenceSegment[] = [
+    { startT, endT: Math.min(0.94, startT + segLen) },
+  ];
+  const errorPct = 0.04 + random() * 0.07;
+  const distanceRangeKm: [number, number] = [
+    Math.max(0.1, Math.round(distanceKm * (1 - errorPct) * 100) / 100),
+    Math.round(distanceKm * (1 + errorPct) * 100) / 100,
+  ];
+
+  return { routeConfidence, distanceRangeKm };
+}
+
 export function generateSeedActivities(): SeedActivity[] {
   const sports: Sport[] = ["Run", "Ride", "Swim", "Hike", "Walk"];
   const now = Date.now();
@@ -459,6 +511,13 @@ export function generateSeedActivities(): SeedActivity[] {
       (sport === "Run" || sport === "Ride") && segmentCandidates.length > 0
         ? segmentCandidates[index % segmentCandidates.length]
         : undefined;
+    const distanceKmRounded = Math.round(distance * 100) / 100;
+    const { routeConfidence, distanceRangeKm } = computeGpsConfidence({
+      sport,
+      city: athlete.city,
+      distanceKm: distanceKmRounded,
+      random,
+    });
 
     activities.push({
       id: `act-${index + 1}`,
@@ -468,7 +527,7 @@ export function generateSeedActivities(): SeedActivity[] {
       description:
         random() > 0.6 ? "Felt strong today. Legs finally coming back after the race." : undefined,
       date,
-      distanceKm: Math.round(distance * 100) / 100,
+      distanceKm: distanceKmRounded,
       movingSeconds: Math.floor(moving),
       elevationM: elevation,
       avgHr: sport === "Swim" ? undefined : Math.floor(140 + random() * 30),
@@ -507,6 +566,8 @@ export function generateSeedActivities(): SeedActivity[] {
             },
           ]
         : undefined,
+      routeConfidence,
+      distanceRangeKm,
     });
   }
 
