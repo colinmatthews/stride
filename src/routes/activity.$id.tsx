@@ -35,6 +35,7 @@ import {
   getAthlete,
   getSegment,
   elevationProfile,
+  isCrossTraining,
 } from "@/lib/mock-data";
 import { AppShell } from "@/components/AppShell";
 import { RouteMap } from "@/components/RouteMap";
@@ -82,6 +83,7 @@ function ActivityDetail() {
   const posthog = usePostHog();
   const router = useRouter();
   const ath = getAthlete(activity.athleteId);
+  const crossTraining = isCrossTraining(activity.sport);
   const [kudoed, setKudoed] = useState(activity.kudoed ?? false);
   const [kudosCount, setKudosCount] = useState(activity.kudos);
   const [comment, setComment] = useState("");
@@ -160,90 +162,105 @@ function ActivityDetail() {
           )}
 
           {/* Hero stats */}
-          <div className="grid grid-cols-4 gap-6 my-8 pb-8 border-b border-border">
-            <Stat label="Distance" value={activity.distanceKm.toFixed(2)} unit="km" emphasis />
-            <Stat label="Time" value={fmtDuration(activity.movingSeconds)} />
-            {activity.sport === "Ride" ? (
-              <Stat label="Avg speed" value={activity.avgSpeedKmh?.toFixed(1) ?? "—"} unit="km/h" />
-            ) : (
-              <Stat
-                label="Pace"
-                value={
-                  activity.avgPaceSecPerKm
-                    ? fmtPace(activity.avgPaceSecPerKm).replace("/km", "")
-                    : "—"
-                }
-                unit="/km"
-              />
-            )}
-            <Stat label="Elevation" value={activity.elevationM} unit="m" />
-          </div>
-
-          {/* Map + photo */}
-          <section className="rounded-xl overflow-hidden border border-border">
-            <RouteMap
-              seed={activity.routeSeed}
-              width={1000}
-              height={420}
-              className="w-full h-[380px]"
-              distanceKm={activity.distanceKm}
-            />
-          </section>
-          {activity.photo && (
-            <img
-              src={getActivityPhoto(activity)}
-              alt={activity.title}
-              className="w-full h-[380px] object-cover border border-border mt-4"
-            />
+          {crossTraining ? (
+            <div className="grid grid-cols-2 gap-6 my-8 pb-8 border-b border-border">
+              <Stat label="Duration" value={fmtDuration(activity.movingSeconds)} emphasis />
+              <Stat label="Type" value={activity.sport} />
+            </div>
+          ) : (
+            <div className="grid grid-cols-4 gap-6 my-8 pb-8 border-b border-border">
+              <Stat label="Distance" value={activity.distanceKm.toFixed(2)} unit="km" emphasis />
+              <Stat label="Time" value={fmtDuration(activity.movingSeconds)} />
+              {activity.sport === "Ride" ? (
+                <Stat
+                  label="Avg speed"
+                  value={activity.avgSpeedKmh?.toFixed(1) ?? "—"}
+                  unit="km/h"
+                />
+              ) : (
+                <Stat
+                  label="Pace"
+                  value={
+                    activity.avgPaceSecPerKm
+                      ? fmtPace(activity.avgPaceSecPerKm).replace("/km", "")
+                      : "—"
+                  }
+                  unit="/km"
+                />
+              )}
+              <Stat label="Elevation" value={activity.elevationM} unit="m" />
+            </div>
           )}
 
-          {/* Elevation */}
-          <section className="mt-8">
-            <h2 className="text-lg font-display font-semibold mb-3 flex items-center gap-2">
-              <Mountain className="h-4 w-4 text-primary" /> Elevation
-            </h2>
-            <div className="bg-surface rounded-xl border border-border p-4">
-              <div className="h-52">
-                <ResponsiveContainer width="100%" height="100%">
-                  <AreaChart data={elev}>
-                    <defs>
-                      <linearGradient id="elevGrad" x1="0" y1="0" x2="0" y2="1">
-                        <stop offset="0%" stopColor="var(--primary)" stopOpacity={0.4} />
-                        <stop offset="100%" stopColor="var(--primary)" stopOpacity={0} />
-                      </linearGradient>
-                    </defs>
-                    <CartesianGrid stroke="var(--border)" vertical={false} />
-                    <XAxis
-                      dataKey="x"
-                      tick={{ fontSize: 11, fill: "var(--muted-foreground)" }}
-                      axisLine={false}
-                      tickLine={false}
-                    />
-                    <YAxis
-                      tick={{ fontSize: 11, fill: "var(--muted-foreground)" }}
-                      axisLine={false}
-                      tickLine={false}
-                      width={32}
-                    />
-                    <Tooltip
-                      contentStyle={{
-                        background: "var(--surface)",
-                        border: "1px solid var(--border)",
-                        borderRadius: 8,
-                        fontSize: 12,
-                      }}
-                    />
-                    <Area
-                      dataKey="elev"
-                      stroke="var(--primary)"
-                      strokeWidth={2}
-                      fill="url(#elevGrad)"
-                    />
-                  </AreaChart>
-                </ResponsiveContainer>
-              </div>
-            </div>
-          </section>
+          {!crossTraining && (
+            <>
+              {/* Map + photo */}
+              <section className="rounded-xl overflow-hidden border border-border">
+                <RouteMap
+                  seed={activity.routeSeed}
+                  width={1000}
+                  height={420}
+                  className="w-full h-[380px]"
+                  distanceKm={activity.distanceKm}
+                />
+              </section>
+              {activity.photo && (
+                <img
+                  src={getActivityPhoto(activity)}
+                  alt={activity.title}
+                  className="w-full h-[380px] object-cover border border-border mt-4"
+                />
+              )}
+
+              {/* Elevation */}
+              <section className="mt-8">
+                <h2 className="text-lg font-display font-semibold mb-3 flex items-center gap-2">
+                  <Mountain className="h-4 w-4 text-primary" /> Elevation
+                </h2>
+                <div className="bg-surface rounded-xl border border-border p-4">
+                  <div className="h-52">
+                    <ResponsiveContainer width="100%" height="100%">
+                      <AreaChart data={elev}>
+                        <defs>
+                          <linearGradient id="elevGrad" x1="0" y1="0" x2="0" y2="1">
+                            <stop offset="0%" stopColor="var(--primary)" stopOpacity={0.4} />
+                            <stop offset="100%" stopColor="var(--primary)" stopOpacity={0} />
+                          </linearGradient>
+                        </defs>
+                        <CartesianGrid stroke="var(--border)" vertical={false} />
+                        <XAxis
+                          dataKey="x"
+                          tick={{ fontSize: 11, fill: "var(--muted-foreground)" }}
+                          axisLine={false}
+                          tickLine={false}
+                        />
+                        <YAxis
+                          tick={{ fontSize: 11, fill: "var(--muted-foreground)" }}
+                          axisLine={false}
+                          tickLine={false}
+                          width={32}
+                        />
+                        <Tooltip
+                          contentStyle={{
+                            background: "var(--surface)",
+                            border: "1px solid var(--border)",
+                            borderRadius: 8,
+                            fontSize: 12,
+                          }}
+                        />
+                        <Area
+                          dataKey="elev"
+                          stroke="var(--primary)"
+                          strokeWidth={2}
+                          fill="url(#elevGrad)"
+                        />
+                      </AreaChart>
+                    </ResponsiveContainer>
+                  </div>
+                </div>
+              </section>
+            </>
+          )}
 
           {/* Splits */}
           {splits.length > 0 && (

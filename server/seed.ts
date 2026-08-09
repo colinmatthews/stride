@@ -1,4 +1,8 @@
 export type Sport = "Run" | "Ride" | "Swim" | "Hike" | "Walk";
+export type CrossTrainingSport = "Strength" | "Yoga" | "Stretching";
+// Segments/clubs/challenges are GPS-route or multisport concepts only —
+// cross-training sports never apply there, so only SeedActivity widens.
+export type ActivityKind = Sport | CrossTrainingSport;
 export type MetricType = "distance_km" | "elevation_m";
 
 export interface SeedAthlete {
@@ -16,7 +20,7 @@ export interface SeedAthlete {
 export interface SeedActivity {
   id: string;
   athleteId: string;
-  sport: Sport;
+  sport: ActivityKind;
   title: string;
   description?: string;
   date: string;
@@ -510,5 +514,74 @@ export function generateSeedActivities(): SeedActivity[] {
     });
   }
 
+  activities.push(...generateSeedCrossTrainingActivities());
+
   return activities.sort((left, right) => +new Date(right.date) - +new Date(left.date));
+}
+
+// Hand-authored, duration-only entries — no distance/pace/elevation, so they
+// skip the GPS-generation loop above entirely.
+function generateSeedCrossTrainingActivities(): SeedActivity[] {
+  const now = Date.now();
+  const seeds: Array<{
+    athleteId: string;
+    sport: CrossTrainingSport;
+    title: string;
+    description?: string;
+    movingSeconds: number;
+    daysAgo: number;
+    kudos: number;
+  }> = [
+    {
+      athleteId: "a1",
+      sport: "Strength",
+      title: "Full body strength",
+      description: "Squats, deadlifts, and accessory work. Legs are toast.",
+      movingSeconds: 48 * 60,
+      daysAgo: 1,
+      kudos: 21,
+    },
+    {
+      athleteId: "a1",
+      sport: "Stretching",
+      title: "Post-ride mobility",
+      description: "10 minutes on the foam roller, then hips and hamstrings.",
+      movingSeconds: 18 * 60,
+      daysAgo: 2,
+      kudos: 9,
+    },
+    {
+      athleteId: "a2",
+      sport: "Yoga",
+      title: "Recovery flow",
+      description: "Slow vinyasa to loosen up after the weekend long run.",
+      movingSeconds: 25 * 60,
+      daysAgo: 3,
+      kudos: 14,
+    },
+    {
+      athleteId: "a3",
+      sport: "Strength",
+      title: "Leg day",
+      movingSeconds: 55 * 60,
+      daysAgo: 6,
+      kudos: 17,
+    },
+  ];
+
+  return seeds.map((seed, index) => ({
+    id: `act-xt-${index + 1}`,
+    athleteId: seed.athleteId,
+    sport: seed.sport,
+    title: seed.title,
+    description: seed.description,
+    date: new Date(now - seed.daysAgo * 86400000).toISOString(),
+    distanceKm: 0,
+    movingSeconds: seed.movingSeconds,
+    elevationM: 0,
+    kudos: seed.kudos,
+    comments: [],
+    achievements: 0,
+    routeSeed: index + 1,
+  }));
 }

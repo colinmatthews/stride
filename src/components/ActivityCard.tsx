@@ -2,7 +2,14 @@ import { Link } from "@tanstack/react-router";
 import { useState } from "react";
 import { Heart, MessageCircle, Trophy, MapPin, Clock } from "lucide-react";
 import type { Activity } from "@/lib/mock-data";
-import { fmtDuration, fmtPace, fmtTimeAgo, getActivityPhoto, getAthlete } from "@/lib/mock-data";
+import {
+  fmtDuration,
+  fmtPace,
+  fmtTimeAgo,
+  getActivityPhoto,
+  getAthlete,
+  isCrossTraining,
+} from "@/lib/mock-data";
 import { toggleActivityKudo } from "@/lib/api";
 import { RouteMap } from "./RouteMap";
 import { SportBadge } from "./SportBadge";
@@ -14,6 +21,7 @@ export function ActivityCard({ activity }: Props) {
   const ath = getAthlete(activity.athleteId);
   const [kudoed, setKudoed] = useState(activity.kudoed ?? false);
   const [count, setCount] = useState(activity.kudos);
+  const crossTraining = isCrossTraining(activity.sport);
 
   const toggle = async () => {
     const result = await toggleActivityKudo(activity.id);
@@ -66,58 +74,69 @@ export function ActivityCard({ activity }: Props) {
         )}
       </Link>
 
-      <div className="grid grid-cols-3 gap-0 border-y border-border/70 mx-5 mt-4">
-        <CardStat label="Distance" value={activity.distanceKm.toFixed(2)} unit="km" />
-        {activity.sport === "Ride" ? (
-          <CardStat
-            label="Avg speed"
-            value={activity.avgSpeedKmh?.toFixed(1) ?? "—"}
-            unit="km/h"
-            border
-          />
-        ) : activity.sport === "Swim" ? (
-          <CardStat label="Time" value={fmtDuration(activity.movingSeconds)} border />
-        ) : (
-          <CardStat
-            label="Pace"
-            value={
-              activity.avgPaceSecPerKm ? fmtPace(activity.avgPaceSecPerKm).replace("/km", "") : "—"
-            }
-            unit="/km"
-            border
-          />
-        )}
-        <CardStat label="Elev" value={activity.elevationM} unit="m" border />
-      </div>
-
-      <Link to="/activity/$id" params={{ id: activity.id }} className="mt-5 block">
-        <div className="relative overflow-hidden">
-          {activity.photo ? (
-            <div className="grid grid-cols-2 gap-px bg-border">
-              <img
-                src={getActivityPhoto(activity)}
-                alt={activity.title}
-                className="h-44 w-full object-cover transition-transform duration-500 group-hover/card:scale-[1.02]"
-              />
-              <RouteMap
-                seed={activity.routeSeed}
-                width={400}
-                height={200}
-                className="h-44 w-full"
-                distanceKm={activity.distanceKm}
-              />
-            </div>
+      {crossTraining ? (
+        <div className="grid grid-cols-2 gap-0 border-y border-border/70 mx-5 mt-4 mb-1">
+          <CardStat label="Duration" value={fmtDuration(activity.movingSeconds)} />
+          <CardStat label="Type" value={activity.sport} border />
+        </div>
+      ) : (
+        <div className="grid grid-cols-3 gap-0 border-y border-border/70 mx-5 mt-4">
+          <CardStat label="Distance" value={activity.distanceKm.toFixed(2)} unit="km" />
+          {activity.sport === "Ride" ? (
+            <CardStat
+              label="Avg speed"
+              value={activity.avgSpeedKmh?.toFixed(1) ?? "—"}
+              unit="km/h"
+              border
+            />
+          ) : activity.sport === "Swim" ? (
+            <CardStat label="Time" value={fmtDuration(activity.movingSeconds)} border />
           ) : (
-            <RouteMap
-              seed={activity.routeSeed}
-              width={800}
-              height={260}
-              className="h-52 w-full"
-              distanceKm={activity.distanceKm}
+            <CardStat
+              label="Pace"
+              value={
+                activity.avgPaceSecPerKm
+                  ? fmtPace(activity.avgPaceSecPerKm).replace("/km", "")
+                  : "—"
+              }
+              unit="/km"
+              border
             />
           )}
+          <CardStat label="Elev" value={activity.elevationM} unit="m" border />
         </div>
-      </Link>
+      )}
+
+      {!crossTraining && (
+        <Link to="/activity/$id" params={{ id: activity.id }} className="mt-5 block">
+          <div className="relative overflow-hidden">
+            {activity.photo ? (
+              <div className="grid grid-cols-2 gap-px bg-border">
+                <img
+                  src={getActivityPhoto(activity)}
+                  alt={activity.title}
+                  className="h-44 w-full object-cover transition-transform duration-500 group-hover/card:scale-[1.02]"
+                />
+                <RouteMap
+                  seed={activity.routeSeed}
+                  width={400}
+                  height={200}
+                  className="h-44 w-full"
+                  distanceKm={activity.distanceKm}
+                />
+              </div>
+            ) : (
+              <RouteMap
+                seed={activity.routeSeed}
+                width={800}
+                height={260}
+                className="h-52 w-full"
+                distanceKm={activity.distanceKm}
+              />
+            )}
+          </div>
+        </Link>
+      )}
 
       <footer className="flex items-center gap-1 border-t border-border px-3 py-2.5">
         <button
