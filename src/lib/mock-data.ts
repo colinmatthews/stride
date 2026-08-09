@@ -75,6 +75,25 @@ export interface Challenge {
   joined?: boolean;
 }
 
+export interface BadgeProgress {
+  current: number;
+  target: number;
+  unit: string;
+}
+
+export interface Badge {
+  id: string;
+  name: string;
+  tone: string;
+  /** Lucide component key, resolved to an icon via badge-icons.ts. */
+  icon: string;
+  howTo: string;
+  earned: boolean;
+  earnedDate?: string;
+  isNew?: boolean;
+  progress?: BadgeProgress;
+}
+
 export interface AppData {
   me: Athlete;
   athletes: Athlete[];
@@ -82,6 +101,7 @@ export interface AppData {
   segments: Segment[];
   clubs: Club[];
   challenges: Challenge[];
+  badges: Badge[];
 }
 
 const EMPTY_ATHLETE: Athlete = {
@@ -102,6 +122,7 @@ export let ACTIVITIES: Activity[] = [];
 export let SEGMENTS: Segment[] = [];
 export let CLUBS: Club[] = [];
 export let CHALLENGES: Challenge[] = [];
+export let BADGES: Badge[] = [];
 
 export function initializeAppData(data: AppData) {
   ME = data.me;
@@ -110,6 +131,11 @@ export function initializeAppData(data: AppData) {
   SEGMENTS = data.segments;
   CLUBS = data.clubs;
   CHALLENGES = data.challenges;
+  BADGES = data.badges;
+}
+
+export function setBadges(badges: Badge[]) {
+  BADGES = badges;
 }
 
 export function mergeActivities(activities: Activity[]) {
@@ -131,6 +157,7 @@ export function clearAppData() {
   SEGMENTS = [];
   CLUBS = [];
   CHALLENGES = [];
+  BADGES = [];
 }
 
 function pad(value: number) {

@@ -8,7 +8,9 @@ import {
   createUser,
   findUserForAuth,
   getActivityById,
+  getBadgesForUser,
   listActivities,
+  markBadgesSeen,
   toggleChallengeEntry,
   toggleClubMembership,
   toggleFollow,
@@ -212,6 +214,23 @@ export function createApp() {
   app.post("/api/challenges/:id/join", requireAuth, async (request, response, next) => {
     try {
       response.json(await toggleChallengeEntry(request.userId!, String(request.params.id)));
+    } catch (error) {
+      next(error);
+    }
+  });
+
+  app.get("/api/badges", requireAuth, async (request, response, next) => {
+    try {
+      response.json(await getBadgesForUser(request.userId!));
+    } catch (error) {
+      next(error);
+    }
+  });
+
+  app.post("/api/badges/mark-seen", requireAuth, async (request, response, next) => {
+    try {
+      await markBadgesSeen(request.userId!);
+      response.status(204).end();
     } catch (error) {
       next(error);
     }

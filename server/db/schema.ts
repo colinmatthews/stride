@@ -192,3 +192,36 @@ export const activityKudos = pgTable(
     pk: primaryKey({ columns: [table.userId, table.activityId] }),
   }),
 );
+
+// Milestone badge catalog. Display metadata only — the earn/progress rules live
+// in code (BADGE_RULES in server/data.ts). `target`/`unit` drive the progress
+// UI for locked badges; `icon` is a Lucide component key resolved client-side.
+export const badges = pgTable("badges", {
+  id: text("id").primaryKey(),
+  name: text("name").notNull(),
+  tone: text("tone").notNull(),
+  icon: text("icon").notNull(),
+  howTo: text("how_to").notNull(),
+  target: numeric("target", { precision: 12, scale: 2 }),
+  unit: text("unit"),
+  sortOrder: integer("sort_order").notNull().default(0),
+});
+
+// Which badges a user has unlocked. `seenAt IS NULL` marks a badge as "new" so
+// the client can play its celebration exactly once, then stamp it seen.
+export const userBadges = pgTable(
+  "user_badges",
+  {
+    userId: text("user_id")
+      .notNull()
+      .references(() => users.id, { onDelete: "cascade" }),
+    badgeId: text("badge_id")
+      .notNull()
+      .references(() => badges.id, { onDelete: "cascade" }),
+    unlockedAt: timestamp("unlocked_at", { withTimezone: true }).notNull().defaultNow(),
+    seenAt: timestamp("seen_at", { withTimezone: true }),
+  },
+  (table) => ({
+    pk: primaryKey({ columns: [table.userId, table.badgeId] }),
+  }),
+);
