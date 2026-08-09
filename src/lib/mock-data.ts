@@ -75,6 +75,11 @@ export interface Challenge {
   joined?: boolean;
 }
 
+export interface ChallengeStreak {
+  athleteId: string;
+  months: number;
+}
+
 export interface AppData {
   me: Athlete;
   athletes: Athlete[];
@@ -82,6 +87,8 @@ export interface AppData {
   segments: Segment[];
   clubs: Club[];
   challenges: Challenge[];
+  featuredChallengeId: string | null;
+  challengeStreaks: ChallengeStreak[];
 }
 
 const EMPTY_ATHLETE: Athlete = {
@@ -102,6 +109,8 @@ export let ACTIVITIES: Activity[] = [];
 export let SEGMENTS: Segment[] = [];
 export let CLUBS: Club[] = [];
 export let CHALLENGES: Challenge[] = [];
+export let FEATURED_CHALLENGE_ID: string | null = null;
+export let CHALLENGE_STREAKS: ChallengeStreak[] = [];
 
 export function initializeAppData(data: AppData) {
   ME = data.me;
@@ -110,6 +119,8 @@ export function initializeAppData(data: AppData) {
   SEGMENTS = data.segments;
   CLUBS = data.clubs;
   CHALLENGES = data.challenges;
+  FEATURED_CHALLENGE_ID = data.featuredChallengeId;
+  CHALLENGE_STREAKS = data.challengeStreaks;
 }
 
 export function mergeActivities(activities: Activity[]) {
@@ -131,6 +142,8 @@ export function clearAppData() {
   SEGMENTS = [];
   CLUBS = [];
   CHALLENGES = [];
+  FEATURED_CHALLENGE_ID = null;
+  CHALLENGE_STREAKS = [];
 }
 
 function pad(value: number) {

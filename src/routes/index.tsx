@@ -14,6 +14,7 @@ import { ACTIVITIES, ATHLETES, CHALLENGES, ME, fmtDuration, getAthlete } from "@
 import { AppShell } from "@/components/AppShell";
 import { ActivityCard } from "@/components/ActivityCard";
 import { FollowButton } from "@/components/FollowButton";
+import { ChallengeNudgeModal } from "@/components/ChallengeNudgeModal";
 
 export const Route = createFileRoute("/")({
   head: () => ({
@@ -69,6 +70,7 @@ function FeedPage() {
 
   return (
     <AppShell>
+      <ChallengeNudgeModal />
       <div className="grid grid-cols-[1fr_320px] gap-8">
         <div className="min-w-0">
           <div className="mb-6 flex items-end justify-between">

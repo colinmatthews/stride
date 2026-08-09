@@ -16,6 +16,8 @@ import {
   users,
 } from "./db/schema.js";
 import { USER_AVATARS } from "./seed.js";
+import { pickFeaturedChallenge } from "./challenge.js";
+import { computeMonthlyStreak } from "./streak.js";
 
 const BOOTSTRAP_ACTIVITY_LIMIT = 40;
 const MAX_ACTIVITY_PAGE_LIMIT = 100;
@@ -317,6 +319,36 @@ export async function getActivityById(userId: string, activityId: string) {
   return activities[0] ?? null;
 }
 
+async function computeChallengeStreaks(
+  userId: string,
+  followedIds: string[],
+  sport: Sport,
+  asOf: Date,
+) {
+  const athleteIds = Array.from(new Set([userId, ...followedIds]));
+
+  if (athleteIds.length === 0) {
+    return [];
+  }
+
+  const rows = await db
+    .select({ athleteId: activitiesTable.athleteId, date: activitiesTable.date })
+    .from(activitiesTable)
+    .where(and(inArray(activitiesTable.athleteId, athleteIds), eq(activitiesTable.sport, sport)));
+
+  const datesByAthlete = new Map<string, Date[]>();
+  for (const row of rows) {
+    const existing = datesByAthlete.get(row.athleteId) ?? [];
+    existing.push(row.date);
+    datesByAthlete.set(row.athleteId, existing);
+  }
+
+  return athleteIds.map((id) => ({
+    athleteId: aliasUserId(id, userId),
+    months: computeMonthlyStreak(datesByAthlete.get(id) ?? [], asOf),
+  }));
+}
+
 export async function buildBootstrap(userId: string) {
   const [
     usersResult,
@@ -431,6 +463,15 @@ export async function buildBootstrap(userId: string) {
     joined: joinedChallengeIds.has(row.id),
   }));
 
+  const now = new Date();
+  const featured = pickFeaturedChallenge(
+    challengesResult.map((row) => ({ id: row.id, endsAt: row.endsAt, sport: row.sport })),
+    now,
+  );
+  const challengeStreaks = featured
+    ? await computeChallengeStreaks(userId, [...followedIds], featured.sport as Sport, now)
+    : [];
+
   return {
     me,
     athletes: [me, ...athletes.filter((athlete) => athlete.id !== "me")],
@@ -439,6 +480,8 @@ export async function buildBootstrap(userId: string) {
     segments,
     clubs,
     challenges,
+    featuredChallengeId: featured?.id ?? null,
+    challengeStreaks,
   };
 }
 
