@@ -368,17 +368,33 @@ async function computeUserBadgeMetrics(userId: string): Promise<BadgeMetrics> {
 }
 
 async function persistEarnedBadges(userId: string, metrics: BadgeMetrics) {
-  for (const badgeId of earnedBadgeIds(metrics)) {
-    // onConflictDoNothing preserves the original unlockedAt/seenAt for badges
-    // already earned, so re-running evaluation never resets the "new" flag.
-    await db.insert(userBadges).values({ userId, badgeId }).onConflictDoNothing();
+  const earned = earnedBadgeIds(metrics);
+
+  if (earned.length === 0) {
+    return;
   }
+
+  // Single batched insert. onConflictDoNothing preserves the original
+  // unlockedAt/seenAt for badges already earned, so re-running evaluation never
+  // resets the "new" flag.
+  await db
+    .insert(userBadges)
+    .values(earned.map((badgeId) => ({ userId, badgeId })))
+    .onConflictDoNothing();
 }
 
-/** Recompute and persist any newly-earned badges for a user. Idempotent. */
+/**
+ * Recompute and persist any newly-earned badges for a user. Idempotent, and
+ * best-effort: badge bookkeeping must never fail the primary write it hangs off
+ * of (logging an activity, joining a challenge).
+ */
 export async function evaluateBadges(userId: string) {
-  const metrics = await computeUserBadgeMetrics(userId);
-  await persistEarnedBadges(userId, metrics);
+  try {
+    const metrics = await computeUserBadgeMetrics(userId);
+    await persistEarnedBadges(userId, metrics);
+  } catch (error) {
+    console.error(`Badge evaluation failed for user ${userId}`, error);
+  }
 }
 
 /**

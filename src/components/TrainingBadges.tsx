@@ -98,6 +98,15 @@ export function TrainingBadges() {
 
   const nextLocked = badges.find((b) => !b.earned);
 
+  const openBadge = (badge: Badge) => {
+    posthog.capture("badge_detail_viewed", {
+      badge_id: badge.id,
+      badge_name: badge.name,
+      earned: badge.earned,
+    });
+    setOpen(badge);
+  };
+
   const dismissToast = useCallback((id: number) => {
     setToasts((list) => list.filter((t) => t.id !== id));
   }, []);
@@ -194,7 +203,7 @@ export function TrainingBadges() {
             <CarouselContent className="py-5">
               {orderedBadges.map((badge) => (
                 <CarouselItem key={badge.id} className="basis-1/4 sm:basis-1/6 lg:basis-[12.5%]">
-                  <BadgeTile badge={badge} onOpen={() => setOpen(badge)} />
+                  <BadgeTile badge={badge} onOpen={() => openBadge(badge)} />
                 </CarouselItem>
               ))}
             </CarouselContent>
