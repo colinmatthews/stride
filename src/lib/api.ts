@@ -8,6 +8,14 @@ import {
   type Activity,
   type AppData,
 } from "./mock-data";
+import {
+  clearHabitState,
+  setHabitState,
+  type CommitHabitInput,
+  type HabitState,
+} from "./habit";
+
+export type { CommitHabitInput };
 
 class ApiError extends Error {
   status: number;
@@ -41,7 +49,40 @@ async function apiFetch<T>(input: string, init?: RequestInit): Promise<T> {
 }
 
 export async function fetchBootstrap() {
-  return apiFetch<AppData>("/api/bootstrap");
+  const data = await apiFetch<AppData>("/api/bootstrap");
+  setHabitState(data.habit ?? null);
+  return data;
+}
+
+export async function fetchHabit() {
+  const habit = await apiFetch<HabitState>("/api/habits");
+  setHabitState(habit);
+  return habit;
+}
+
+export async function commitWeekZeroHabit(input: CommitHabitInput) {
+  const habit = await apiFetch<HabitState>("/api/habits", {
+    method: "POST",
+    body: JSON.stringify(input),
+  });
+  setHabitState(habit);
+  return habit;
+}
+
+export async function dismissHabitCommitPrompt() {
+  const habit = await apiFetch<HabitState>("/api/habits/dismiss-prompt", {
+    method: "POST",
+  });
+  setHabitState(habit);
+  return habit;
+}
+
+export async function dismissHabitReminder() {
+  const habit = await apiFetch<HabitState>("/api/habits/dismiss-reminder", {
+    method: "POST",
+  });
+  setHabitState(habit);
+  return habit;
 }
 
 export async function fetchActivities(
@@ -91,6 +132,7 @@ export async function logout() {
   await apiFetch("/api/auth/logout", {
     method: "POST",
   });
+  clearHabitState();
 }
 
 export async function saveActivity(payload: {
@@ -105,13 +147,14 @@ export async function saveActivity(payload: {
   avgSpeedKmh?: number;
   routeSeed: number;
 }) {
-  const activity = await apiFetch<Activity>("/api/activities", {
+  const result = await apiFetch<{ activity: Activity; habit: HabitState }>("/api/activities", {
     method: "POST",
     body: JSON.stringify(payload),
   });
 
-  mergeActivities([activity]);
-  return activity;
+  mergeActivities([result.activity]);
+  setHabitState(result.habit);
+  return result.activity;
 }
 
 export async function toggleActivityKudo(activityId: string) {

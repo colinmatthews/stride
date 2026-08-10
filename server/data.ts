@@ -16,6 +16,7 @@ import {
   users,
 } from "./db/schema.js";
 import { USER_AVATARS } from "./seed.js";
+import { getHabitState } from "./habit.js";
 
 const BOOTSTRAP_ACTIVITY_LIMIT = 40;
 const MAX_ACTIVITY_PAGE_LIMIT = 100;
@@ -329,6 +330,7 @@ export async function buildBootstrap(userId: string) {
     challengesResult,
     challengeEntriesResult,
     challengeProgressResult,
+    habit,
   ] = await Promise.all([
     db.select().from(users).orderBy(asc(users.createdAt)),
     db
@@ -365,6 +367,7 @@ export async function buildBootstrap(userId: string) {
       .from(activitiesTable)
       .where(eq(activitiesTable.athleteId, userId))
       .groupBy(activitiesTable.sport),
+    getHabitState(userId),
   ]);
 
   const followedIds = new Set(followsResult.map((row) => row.followedId));
@@ -439,6 +442,7 @@ export async function buildBootstrap(userId: string) {
     segments,
     clubs,
     challenges,
+    habit,
   };
 }
 

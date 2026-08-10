@@ -1,5 +1,5 @@
-import { createFileRoute, Link } from "@tanstack/react-router";
-import { useMemo, useState } from "react";
+import { createFileRoute, Link, useRouterState } from "@tanstack/react-router";
+import { useEffect, useMemo, useState } from "react";
 import { usePostHog } from "@posthog/react";
 import {
   ArrowRight,
@@ -14,6 +14,11 @@ import { ACTIVITIES, ATHLETES, CHALLENGES, ME, fmtDuration, getAthlete } from "@
 import { AppShell } from "@/components/AppShell";
 import { ActivityCard } from "@/components/ActivityCard";
 import { FollowButton } from "@/components/FollowButton";
+import { HabitProgressCard } from "@/components/HabitProgressCard";
+import { HabitCommitDialog } from "@/components/HabitCommitDialog";
+import { MissedDayReminder } from "@/components/MissedDayReminder";
+import { HABIT_HASH, shouldShowMissedReminder } from "@/lib/habit";
+import { useHabitState } from "@/hooks/use-habit";
 
 export const Route = createFileRoute("/")({
   head: () => ({
@@ -42,8 +47,19 @@ function Index() {
 
 function FeedPage() {
   const posthog = usePostHog();
+  const hash = useRouterState({ select: (s) => s.location.hash.replace(/^#/, "") });
+  const habitSectionOpen = hash === HABIT_HASH;
+  const habit = useHabitState();
+  const [commitOpen, setCommitOpen] = useState(false);
   const [filter, setFilter] = useState<Filter>("Following");
   const [feedRevision, setFeedRevision] = useState(0);
+
+  useEffect(() => {
+    if (!habitSectionOpen) return;
+    const el = document.getElementById(HABIT_HASH);
+    el?.scrollIntoView({ behavior: "smooth", block: "start" });
+  }, [habitSectionOpen]);
+
   const visible = useMemo(() => {
     if (filter === "You") return ACTIVITIES.filter((activity) => activity.athleteId === "me");
     if (filter === "Clubs")
@@ -67,9 +83,30 @@ function FeedPage() {
   const suggested = ATHLETES.filter((athlete) => athlete.id !== "me").slice(0, 4);
   const myChallenges = CHALLENGES.filter((challenge) => challenge.joined);
 
+  const showReminder =
+    habitSectionOpen && shouldShowMissedReminder(habit) && habit.commitment !== null;
+
   return (
     <AppShell>
-      <div className="grid grid-cols-[1fr_320px] gap-8">
+      <HabitCommitDialog
+        open={commitOpen}
+        onOpenChange={setCommitOpen}
+        initialSport={habit.commitment?.sport ?? "Run"}
+        initialDistanceKm={habit.commitment?.distanceKm ?? 5}
+        onCommitted={(input) => {
+          posthog.capture("habit_commitment_set", {
+            sport: input.sport,
+            distance_km: input.distanceKm,
+            has_buddy: Boolean(input.buddyId),
+            source: "feed",
+          });
+        }}
+        onSkipped={() => {
+          posthog.capture("habit_commit_skipped", { source: "feed" });
+        }}
+      />
+
+      <div className="grid grid-cols-1 gap-8 xl:grid-cols-[1fr_320px]">
         <div className="min-w-0">
           <div className="mb-6 flex items-end justify-between">
             <div>
@@ -85,7 +122,7 @@ function FeedPage() {
                     posthog.capture("feed_filter_changed", { filter: filterName });
                   }}
                   className={`rounded px-3 py-1.5 text-sm transition-colors ${
-                    filter === filterName
+                    filterName === filter
                       ? "bg-surface text-foreground shadow-sm"
                       : "text-muted-foreground hover:text-foreground"
                   }`}
@@ -96,6 +133,28 @@ function FeedPage() {
             </div>
           </div>
 
+          {habitSectionOpen && (
+            <section id={HABIT_HASH} className="mb-6 scroll-mt-24 space-y-4">
+              {showReminder && habit.commitment && (
+                <MissedDayReminder
+                  commitment={habit.commitment}
+                  onDismiss={() =>
+                    posthog.capture("habit_reminder_dismissed", { channel: "in_app" })
+                  }
+                />
+              )}
+              <HabitProgressCard
+                state={habit}
+                onSetNextAction={() => {
+                  setCommitOpen(true);
+                  posthog.capture("habit_commit_opened", { source: "feed_habit_section" });
+                }}
+              />
+            </section>
+          )}
+
+          {!habitSectionOpen && <div id={HABIT_HASH} className="scroll-mt-24" />}
+
           <div className="space-y-5">
             {visible.length > 0 ? (
               visible.map((activity) => <ActivityCard key={activity.id} activity={activity} />)
@@ -105,7 +164,17 @@ function FeedPage() {
           </div>
         </div>
 
-        <aside className="space-y-6">
+        <aside className="hidden space-y-6 xl:block">
+          {(habit.commitment || habit.commitPromptPending) && (
+            <HabitProgressCard
+              state={habit}
+              onSetNextAction={() => {
+                setCommitOpen(true);
+                posthog.capture("habit_commit_opened", { source: "feed_aside" });
+              }}
+            />
+          )}
+
           <section className="rounded-xl bg-secondary p-5 text-secondary-foreground">
             <div className="flex items-center gap-2 text-xs uppercase tracking-[0.14em] opacity-70">
               <TrendingUp className="h-3.5 w-3.5" /> Your week

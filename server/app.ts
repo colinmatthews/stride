@@ -21,6 +21,14 @@ import {
   requireAuth,
   verifyPassword,
 } from "./auth.js";
+import {
+  commitWeekZeroHabit,
+  dismissHabitCommitPrompt,
+  dismissHabitReminder,
+  getHabitState,
+  syncHabitAfterActivity,
+  type Sport,
+} from "./habit.js";
 
 export function createApp() {
   const app = express();
@@ -161,9 +169,63 @@ export function createApp() {
         routeSeed: Number(request.body.routeSeed ?? 1),
       });
 
-      const activity = await getActivityById(request.userId!, activityId);
+      const [activity, habit] = await Promise.all([
+        getActivityById(request.userId!, activityId),
+        syncHabitAfterActivity(request.userId!),
+      ]);
 
-      response.status(201).json(activity);
+      response.status(201).json({ activity, habit });
+    } catch (error) {
+      next(error);
+    }
+  });
+
+  app.get("/api/habits", requireAuth, async (request, response, next) => {
+    try {
+      response.json(await getHabitState(request.userId!));
+    } catch (error) {
+      next(error);
+    }
+  });
+
+  app.post("/api/habits", requireAuth, async (request, response, next) => {
+    try {
+      const sport = String(request.body.sport ?? "") as Sport;
+      const distanceKm = Number(request.body.distanceKm ?? 0);
+      const buddyId =
+        request.body.buddyId === null || request.body.buddyId === undefined
+          ? null
+          : String(request.body.buddyId);
+      const allowed: Sport[] = ["Run", "Ride", "Swim", "Hike", "Walk"];
+
+      if (!allowed.includes(sport) || !Number.isFinite(distanceKm) || distanceKm <= 0) {
+        response.status(400).json({ error: "sport and a positive distanceKm are required" });
+        return;
+      }
+
+      response.status(201).json(
+        await commitWeekZeroHabit(request.userId!, {
+          sport,
+          distanceKm,
+          buddyId,
+        }),
+      );
+    } catch (error) {
+      next(error);
+    }
+  });
+
+  app.post("/api/habits/dismiss-prompt", requireAuth, async (request, response, next) => {
+    try {
+      response.json(await dismissHabitCommitPrompt(request.userId!));
+    } catch (error) {
+      next(error);
+    }
+  });
+
+  app.post("/api/habits/dismiss-reminder", requireAuth, async (request, response, next) => {
+    try {
+      response.json(await dismissHabitReminder(request.userId!));
     } catch (error) {
       next(error);
     }
