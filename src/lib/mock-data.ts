@@ -82,6 +82,7 @@ export interface AppData {
   segments: Segment[];
   clubs: Club[];
   challenges: Challenge[];
+  habit?: import("./habit").HabitState | null;
 }
 
 const EMPTY_ATHLETE: Athlete = {
@@ -110,6 +111,7 @@ export function initializeAppData(data: AppData) {
   SEGMENTS = data.segments;
   CLUBS = data.clubs;
   CHALLENGES = data.challenges;
+  // Habit store is hydrated from bootstrap in api/main callers via setHabitState
 }
 
 export function mergeActivities(activities: Activity[]) {

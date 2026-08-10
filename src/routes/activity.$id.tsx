@@ -1,5 +1,5 @@
 import { createFileRoute, Link, useRouter, notFound } from "@tanstack/react-router";
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { usePostHog } from "@posthog/react";
 import {
   ResponsiveContainer,
@@ -40,7 +40,10 @@ import { AppShell } from "@/components/AppShell";
 import { RouteMap } from "@/components/RouteMap";
 import { SportBadge } from "@/components/SportBadge";
 import { Stat } from "@/components/Stat";
+import { HabitProgressCard } from "@/components/HabitProgressCard";
+import { HabitCommitDialog } from "@/components/HabitCommitDialog";
 import { addActivityComment, fetchActivity, toggleActivityKudo } from "@/lib/api";
+import { useHabitState } from "@/hooks/use-habit";
 
 export const Route = createFileRoute("/activity/$id")({
   loader: async ({ params }) => {
@@ -81,12 +84,20 @@ function ActivityDetail() {
   const { activity } = Route.useLoaderData() as { activity: import("@/lib/mock-data").Activity };
   const posthog = usePostHog();
   const router = useRouter();
+  const habit = useHabitState();
+  const [commitOpen, setCommitOpen] = useState(false);
   const ath = getAthlete(activity.athleteId);
   const [kudoed, setKudoed] = useState(activity.kudoed ?? false);
   const [kudosCount, setKudosCount] = useState(activity.kudos);
   const [comment, setComment] = useState("");
   type Comment = { id: string; athleteId: string; text: string };
   const [comments, setComments] = useState<Comment[]>(activity.comments);
+
+  useEffect(() => {
+    if (habit.commitPromptPending && activity.athleteId === "me") {
+      setCommitOpen(true);
+    }
+  }, [habit.commitPromptPending, activity.athleteId]);
 
   const elev = elevationProfile(activity.routeSeed);
   const splits = activity.splits ?? [];
@@ -117,6 +128,24 @@ function ActivityDetail() {
 
   return (
     <AppShell>
+      <HabitCommitDialog
+        open={commitOpen}
+        onOpenChange={setCommitOpen}
+        initialSport={activity.sport}
+        initialDistanceKm={Math.max(3, Math.round(activity.distanceKm))}
+        onCommitted={(input) => {
+          posthog.capture("habit_commitment_set", {
+            sport: input.sport,
+            distance_km: input.distanceKm,
+            has_buddy: Boolean(input.buddyId),
+            source: "activity_detail",
+          });
+        }}
+        onSkipped={() => {
+          posthog.capture("habit_commit_skipped", { source: "activity_detail" });
+        }}
+      />
+
       <div className="grid grid-cols-[1fr_360px] gap-8">
         <div className="min-w-0">
           {/* Header */}
@@ -451,6 +480,15 @@ function ActivityDetail() {
 
         {/* Right rail */}
         <aside className="space-y-5">
+          {activity.athleteId === "me" && (habit.commitment || habit.commitPromptPending) && (
+            <HabitProgressCard
+              state={habit}
+              onSetNextAction={() => {
+                setCommitOpen(true);
+                posthog.capture("habit_commit_opened", { source: "activity_detail" });
+              }}
+            />
+          )}
           <div className="bg-surface rounded-xl border border-border p-5">
             <h3 className="text-xs uppercase tracking-[0.14em] text-muted-foreground mb-3">
               Effort

@@ -4,6 +4,7 @@ import { RouterProvider } from "@tanstack/react-router";
 import { getRouter } from "./router";
 import { clearAppData, initializeAppData } from "./lib/mock-data";
 import { fetchBootstrap } from "./lib/api";
+import { clearHabitState } from "./lib/habit";
 import "./styles.css";
 
 async function bootstrap() {
@@ -20,6 +21,7 @@ async function bootstrap() {
     }
   } catch (error) {
     clearAppData();
+    clearHabitState();
     if (!isPublicRoute) {
       const next = `${pathname}${window.location.search}${window.location.hash}`;
       const authUrl = `/auth?next=${encodeURIComponent(next)}`;

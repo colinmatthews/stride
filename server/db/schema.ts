@@ -192,3 +192,22 @@ export const activityKudos = pgTable(
     pk: primaryKey({ columns: [table.userId, table.activityId] }),
   }),
 );
+
+/** Week 0 habit commitment — one row per user (created on lock or prompt dismiss). */
+export const habitCommitments = pgTable("habit_commitments", {
+  userId: text("user_id")
+    .primaryKey()
+    .references(() => users.id, { onDelete: "cascade" }),
+  sport: text("sport"),
+  distanceKm: numeric("distance_km", { precision: 10, scale: 2 }),
+  buddyId: text("buddy_id").references(() => users.id, { onDelete: "set null" }),
+  startedAt: timestamp("started_at", { withTimezone: true }),
+  promptDismissedAt: timestamp("prompt_dismissed_at", { withTimezone: true }),
+  reminderChannel: text("reminder_channel"),
+  reminderMissedDate: text("reminder_missed_date"),
+  reminderSentAt: timestamp("reminder_sent_at", { withTimezone: true }),
+  reminderDismissed: integer("reminder_dismissed").notNull().default(0),
+  completedAt: timestamp("completed_at", { withTimezone: true }),
+  createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+  updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow(),
+});

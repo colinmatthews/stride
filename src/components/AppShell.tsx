@@ -10,10 +10,15 @@ import {
   Search,
   Bell,
   Settings,
+  Flame,
+  Check,
 } from "lucide-react";
 import { ME, clearAppData } from "@/lib/mock-data";
 import { FormEvent, ReactNode, useState } from "react";
 import { logout } from "@/lib/api";
+import { clearHabitState } from "@/lib/habit";
+import { useHabitState } from "@/hooks/use-habit";
+import { HABIT_HASH, habitProgress, habitWindowDays } from "@/lib/habit";
 
 const NAV = [
   { to: "/", label: "Feed", icon: Home },
@@ -23,6 +28,63 @@ const NAV = [
   { to: "/challenges", label: "Challenges", icon: Trophy },
   { to: "/clubs", label: "Clubs", icon: Users },
 ] as const;
+
+function NavHabitCard() {
+  const habit = useHabitState();
+  const { location } = useRouterState();
+  const commitment = habit.commitment;
+  if (!commitment) return null;
+
+  const { done, target } = habitProgress(commitment);
+  const days = habitWindowDays(commitment);
+  const won = Boolean(commitment.completedAt);
+  const active =
+    location.pathname === "/" && location.hash.replace(/^#/, "") === HABIT_HASH;
+
+  return (
+    <Link
+      to="/"
+      hash={HABIT_HASH}
+      className={`mx-2 mt-4 block rounded-md border p-3 transition-colors ${
+        active
+          ? "border-primary/40 bg-primary/5"
+          : "border-border bg-background hover:border-foreground/25"
+      }`}
+    >
+      <div className="flex items-center justify-between gap-2">
+        <div className="font-mono text-[10px] uppercase tracking-[0.18em] text-muted-foreground">
+          Week 0 habit
+        </div>
+        <div className="stat-num text-sm font-bold">
+          {done}
+          <span className="text-muted-foreground">/{target}</span>
+        </div>
+      </div>
+      <div className="mt-1 flex items-center gap-1.5 text-xs font-medium">
+        <Flame className={`h-3.5 w-3.5 ${won ? "text-pr" : "text-primary"}`} />
+        {won ? "Streak locked" : "Keep the streak going"}
+      </div>
+      <div className="mt-2.5 grid grid-cols-3 gap-1">
+        {days.map((day, index) => {
+          const hit = commitment.activeDays.includes(day);
+          return (
+            <div
+              key={day}
+              className={`grid h-7 place-items-center rounded border text-[10px] font-mono ${
+                hit
+                  ? "border-primary/40 bg-primary/10 text-foreground"
+                  : "border-border text-muted-foreground"
+              }`}
+              title={day}
+            >
+              {hit ? <Check className="h-3 w-3 text-primary" /> : index + 1}
+            </div>
+          );
+        })}
+      </div>
+    </Link>
+  );
+}
 
 export function AppShell({ children }: { children: ReactNode }) {
   const { location } = useRouterState();
@@ -42,6 +104,7 @@ export function AppShell({ children }: { children: ReactNode }) {
       // server may already have cleared the session — clear client state anyway
     }
     clearAppData();
+    clearHabitState();
     window.location.href = "/auth";
   }
 
@@ -89,6 +152,7 @@ export function AppShell({ children }: { children: ReactNode }) {
               <Plus className="h-4 w-4" />
               Record activity
             </Link>
+            <NavHabitCard />
           </div>
         </nav>
         <div className="p-3 border-t border-border">
