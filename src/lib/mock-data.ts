@@ -75,6 +75,25 @@ export interface Challenge {
   joined?: boolean;
 }
 
+export type StarterWeekStatus = "not_enrolled" | "active" | "completed" | "expired";
+
+export interface StarterWeekState {
+  status: StarterWeekStatus;
+  challengeId: string;
+  goal: number;
+  progress: number;
+  daysLeft: number;
+  startedAt?: string;
+  expiresAt?: string;
+  completedAt?: string;
+  attempt: number;
+  needsNudge: boolean;
+  celebrationPending: boolean;
+  dismissed: boolean;
+  qualifyingActivities: { id: string; sport: Sport; distanceKm: number; date: string }[];
+  totals: { activities: number; distanceKm: number; movingSeconds: number };
+}
+
 export interface AppData {
   me: Athlete;
   athletes: Athlete[];
@@ -82,6 +101,7 @@ export interface AppData {
   segments: Segment[];
   clubs: Club[];
   challenges: Challenge[];
+  starterWeek?: StarterWeekState;
 }
 
 const EMPTY_ATHLETE: Athlete = {
@@ -96,12 +116,27 @@ const EMPTY_ATHLETE: Athlete = {
   bio: "",
 };
 
+const EMPTY_STARTER_WEEK: StarterWeekState = {
+  status: "not_enrolled",
+  challengeId: "starter-week",
+  goal: 3,
+  progress: 0,
+  daysLeft: 7,
+  attempt: 0,
+  needsNudge: false,
+  celebrationPending: false,
+  dismissed: false,
+  qualifyingActivities: [],
+  totals: { activities: 0, distanceKm: 0, movingSeconds: 0 },
+};
+
 export let ME: Athlete = EMPTY_ATHLETE;
 export let ATHLETES: Athlete[] = [];
 export let ACTIVITIES: Activity[] = [];
 export let SEGMENTS: Segment[] = [];
 export let CLUBS: Club[] = [];
 export let CHALLENGES: Challenge[] = [];
+export let STARTER_WEEK: StarterWeekState = EMPTY_STARTER_WEEK;
 
 export function initializeAppData(data: AppData) {
   ME = data.me;
@@ -110,6 +145,11 @@ export function initializeAppData(data: AppData) {
   SEGMENTS = data.segments;
   CLUBS = data.clubs;
   CHALLENGES = data.challenges;
+  STARTER_WEEK = data.starterWeek ?? EMPTY_STARTER_WEEK;
+}
+
+export function setStarterWeek(state: StarterWeekState) {
+  STARTER_WEEK = state;
 }
 
 export function mergeActivities(activities: Activity[]) {
@@ -131,6 +171,7 @@ export function clearAppData() {
   SEGMENTS = [];
   CLUBS = [];
   CHALLENGES = [];
+  STARTER_WEEK = EMPTY_STARTER_WEEK;
 }
 
 function pad(value: number) {

@@ -1,4 +1,15 @@
-import { date, integer, numeric, pgTable, primaryKey, text, timestamp } from "drizzle-orm/pg-core";
+import { sql } from "drizzle-orm";
+import {
+  boolean,
+  date,
+  integer,
+  numeric,
+  pgTable,
+  primaryKey,
+  text,
+  timestamp,
+  uniqueIndex,
+} from "drizzle-orm/pg-core";
 
 export const users = pgTable("users", {
   id: text("id").primaryKey(),
@@ -158,22 +169,46 @@ export const challenges = pgTable("challenges", {
   participants: integer("participants").notNull(),
   endsAt: date("ends_at").notNull(),
   badge: text("badge").notNull(),
+  /** "distance_km" | "elevation_m" | "activity_count" */
   metricType: text("metric_type").notNull(),
+  /** Target for activity_count challenges (Starter Week = 3). */
+  goalCount: integer("goal_count"),
+  /** Rolling per-user window length; when set, endsAt is ignored in favour of the entry window. */
+  durationDays: integer("duration_days"),
+  /** Enrol the user automatically on their first saved activity. */
+  autoEnroll: boolean("auto_enroll").notNull().default(false),
+  description: text("description"),
 });
 
 export const challengeEntries = pgTable(
   "challenge_entries",
   {
+    id: text("id").primaryKey(),
     userId: text("user_id")
       .notNull()
       .references(() => users.id, { onDelete: "cascade" }),
     challengeId: text("challenge_id")
       .notNull()
       .references(() => challenges.id, { onDelete: "cascade" }),
+    /** 1 on first enrolment, incremented each time the user retries. */
+    attempt: integer("attempt").notNull().default(1),
+    startedAt: timestamp("started_at", { withTimezone: true }).notNull().defaultNow(),
+    /** End of the rolling window; null for open-ended challenges. */
+    expiresAt: timestamp("expires_at", { withTimezone: true }),
+    /** "active" | "completed" | "expired" */
+    status: text("status").notNull().default("active"),
+    completedAt: timestamp("completed_at", { withTimezone: true }),
+    /** Set once the celebration has been shown, so it only fires once. */
+    celebrationSeenAt: timestamp("celebration_seen_at", { withTimezone: true }),
+    /** Set when a user dismisses the progress card / nudge. */
+    dismissedAt: timestamp("dismissed_at", { withTimezone: true }),
     createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
   },
   (table) => ({
-    pk: primaryKey({ columns: [table.userId, table.challengeId] }),
+    // A user can retry a challenge, but only ever has one live entry per challenge.
+    oneActivePerChallenge: uniqueIndex("challenge_entries_one_active")
+      .on(table.userId, table.challengeId)
+      .where(sql`${table.status} = 'active'`),
   }),
 );
 

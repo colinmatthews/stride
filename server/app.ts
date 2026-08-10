@@ -21,6 +21,13 @@ import {
   requireAuth,
   verifyPassword,
 } from "./auth.js";
+import {
+  dismissStarterWeek,
+  enrollOnFirstActivity,
+  getStarterWeekState,
+  markCelebrationSeen,
+  retryStarterWeek,
+} from "./starter-week.js";
 
 export function createApp() {
   const app = express();
@@ -162,8 +169,14 @@ export function createApp() {
       });
 
       const activity = await getActivityById(request.userId!, activityId);
+      // Auto-enrolment happens inline on save so the post-save screen can render the
+      // progress card immediately, with no discovery step and no second round trip.
+      const { enrolled, state } = await enrollOnFirstActivity(
+        request.userId!,
+        new Date(activity!.date),
+      );
 
-      response.status(201).json(activity);
+      response.status(201).json({ activity, starterWeek: state, justEnrolled: enrolled });
     } catch (error) {
       next(error);
     }
@@ -204,6 +217,42 @@ export function createApp() {
   app.post("/api/clubs/:id/join", requireAuth, async (request, response, next) => {
     try {
       response.json(await toggleClubMembership(request.userId!, String(request.params.id)));
+    } catch (error) {
+      next(error);
+    }
+  });
+
+  app.get("/api/challenges/starter-week", requireAuth, async (request, response, next) => {
+    try {
+      response.json(await getStarterWeekState(request.userId!));
+    } catch (error) {
+      next(error);
+    }
+  });
+
+  app.post("/api/challenges/starter-week/retry", requireAuth, async (request, response, next) => {
+    try {
+      response.json(await retryStarterWeek(request.userId!));
+    } catch (error) {
+      next(error);
+    }
+  });
+
+  app.post(
+    "/api/challenges/starter-week/celebration-seen",
+    requireAuth,
+    async (request, response, next) => {
+      try {
+        response.json(await markCelebrationSeen(request.userId!));
+      } catch (error) {
+        next(error);
+      }
+    },
+  );
+
+  app.post("/api/challenges/starter-week/dismiss", requireAuth, async (request, response, next) => {
+    try {
+      response.json(await dismissStarterWeek(request.userId!));
     } catch (error) {
       next(error);
     }

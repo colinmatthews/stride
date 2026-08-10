@@ -1,4 +1,4 @@
-import { createFileRoute, useRouter } from "@tanstack/react-router";
+import { createFileRoute, Link } from "@tanstack/react-router";
 import { useEffect, useRef, useState } from "react";
 import { fmtDuration, fmtPace, type Sport } from "@/lib/mock-data";
 import { AppShell } from "@/components/AppShell";
@@ -12,9 +12,13 @@ import {
   PencilLine,
   Timer as TimerIcon,
   ArrowRight,
+  Check,
   LoaderCircle,
+  Sparkles,
 } from "lucide-react";
 import { saveActivity } from "@/lib/api";
+import { SportBadge } from "@/components/SportBadge";
+import { StarterWeekCard, StarterWeekCelebration } from "@/components/StarterWeek";
 
 export const Route = createFileRoute("/record")({
   head: () => ({
@@ -32,6 +36,17 @@ type Mode = "manual" | "timer";
 function Record() {
   const [mode, setMode] = useState<Mode>("manual");
   const [sport, setSport] = useState<Sport>("Run");
+  const [saved, setSaved] = useState<SaveResult | null>(null);
+
+  if (saved) {
+    return (
+      <AppShell>
+        <div className="mx-auto max-w-3xl">
+          <PostSaveScreen result={saved} />
+        </div>
+      </AppShell>
+    );
+  }
 
   return (
     <AppShell>
@@ -69,9 +84,82 @@ function Record() {
 
         <SportPicker sport={sport} setSport={setSport} />
 
-        {mode === "manual" ? <ManualForm sport={sport} /> : <TimerMode sport={sport} />}
+        {mode === "manual" ? (
+          <ManualForm sport={sport} onSaved={setSaved} />
+        ) : (
+          <TimerMode sport={sport} onSaved={setSaved} />
+        )}
       </div>
     </AppShell>
+  );
+}
+
+type SaveResult = Awaited<ReturnType<typeof saveActivity>>;
+
+/**
+ * Post-save confirmation. This is the surface the PRD calls the "post-activity save
+ * screen": it doubles as the auto-enrolment moment, so the athlete sees Starter Week
+ * without ever navigating to the challenges tab.
+ */
+function PostSaveScreen({ result }: { result: SaveResult }) {
+  const posthog = usePostHog();
+  const { activity, starterWeek, justEnrolled } = result;
+
+  useEffect(() => {
+    if (justEnrolled) {
+      posthog.capture("starter_week_auto_enrolled", {
+        activity_id: activity.id,
+        sport: activity.sport,
+      });
+    }
+  }, [justEnrolled, activity.id, activity.sport, posthog]);
+
+  const enrolled = starterWeek.status !== "not_enrolled";
+
+  return (
+    <div className="mt-8 space-y-4">
+      <section className="border border-border bg-surface p-8 text-center">
+        <div className="mx-auto flex h-12 w-12 items-center justify-center rounded-full bg-primary/15">
+          <Check className="h-6 w-6 text-primary" />
+        </div>
+        <h1 className="mt-4 font-display text-2xl font-bold tracking-[-0.02em]">Activity saved</h1>
+        <div className="mt-3 flex items-center justify-center gap-3 text-sm text-muted-foreground">
+          <SportBadge sport={activity.sport} />
+          <span>{activity.distanceKm.toFixed(1)} km</span>
+          <span className="text-border">·</span>
+          <span>{fmtDuration(activity.movingSeconds)}</span>
+        </div>
+      </section>
+
+      {enrolled && starterWeek.status !== "completed" && (
+        <div>
+          {justEnrolled && (
+            <div className="mb-2 flex items-center gap-2 font-mono text-[10px] uppercase tracking-[0.22em] text-primary">
+              <Sparkles className="h-3.5 w-3.5" /> You&apos;re enrolled in Starter Week
+            </div>
+          )}
+          <StarterWeekCard state={starterWeek} />
+        </div>
+      )}
+
+      {starterWeek.status === "completed" && <StarterWeekCelebration state={starterWeek} />}
+
+      <div className="flex gap-3">
+        <Link
+          to="/activity/$id"
+          params={{ id: activity.id }}
+          className="border border-border bg-surface px-5 py-3 text-sm font-semibold transition-colors hover:border-foreground/50"
+        >
+          View activity
+        </Link>
+        <Link
+          to="/"
+          className="border border-border bg-surface px-5 py-3 text-sm font-semibold transition-colors hover:border-foreground/50"
+        >
+          Back to feed
+        </Link>
+      </div>
+    </div>
   );
 }
 
@@ -143,9 +231,8 @@ function SportPicker({ sport, setSport }: { sport: Sport; setSport: (s: Sport) =
   );
 }
 
-function ManualForm({ sport }: { sport: Sport }) {
+function ManualForm({ sport, onSaved }: { sport: Sport; onSaved: (result: SaveResult) => void }) {
   const posthog = usePostHog();
-  const router = useRouter();
   const [title, setTitle] = useState("");
   const [description, setDescription] = useState("");
   const [distance, setDistance] = useState("");
@@ -182,7 +269,7 @@ function ManualForm({ sport }: { sport: Sport }) {
       const paceSecPerKm = sport === "Ride" ? undefined : Math.round(totalSeconds / distanceKm);
       const speedKmh =
         sport === "Ride" ? Math.round((distanceKm / (totalSeconds / 3600)) * 10) / 10 : undefined;
-      const activity = await saveActivity({
+      const result = await saveActivity({
         sport,
         title: title.trim() || defaultTitle(sport, new Date()),
         description: description.trim() || undefined,
@@ -200,8 +287,10 @@ function ManualForm({ sport }: { sport: Sport }) {
         moving_seconds: totalSeconds,
         elevation_m: Number(elevation) || 0,
         entry_mode: "manual",
+        starter_week_status: result.starterWeek.status,
+        starter_week_progress: result.starterWeek.progress,
       });
-      router.navigate({ to: "/activity/$id", params: { id: activity.id } });
+      onSaved(result);
     } catch (err) {
       posthog.captureException(err);
       setError("Couldn't save activity. Try again.");
@@ -478,9 +567,8 @@ function defaultTitle(sport: Sport, date: Date) {
 /* -----------------------------------------------------------------------
  *   Timer mode — existing live-tracking flow, restyled to match aesthetic
  * ---------------------------------------------------------------------*/
-function TimerMode({ sport }: { sport: Sport }) {
+function TimerMode({ sport, onSaved }: { sport: Sport; onSaved: (result: SaveResult) => void }) {
   const posthog = usePostHog();
-  const router = useRouter();
   const [running, setRunning] = useState(false);
   const [paused, setPaused] = useState(false);
   const [elapsed, setElapsed] = useState(0);
@@ -525,7 +613,7 @@ function TimerMode({ sport }: { sport: Sport }) {
         sport === "Ride" ? undefined : Math.max(180, Math.floor(elapsed / Math.max(0.1, distance)));
       const speed =
         sport === "Ride" ? Math.round((distance / (elapsed / 3600)) * 10) / 10 : undefined;
-      const activity = await saveActivity({
+      const result = await saveActivity({
         sport,
         title: title || defaultTitle(sport, new Date()),
         description: description || undefined,
@@ -543,8 +631,10 @@ function TimerMode({ sport }: { sport: Sport }) {
         moving_seconds: elapsed,
         elevation_m: Math.floor(distance * 12),
         entry_mode: "timer",
+        starter_week_status: result.starterWeek.status,
+        starter_week_progress: result.starterWeek.progress,
       });
-      router.navigate({ to: "/activity/$id", params: { id: activity.id } });
+      onSaved(result);
     } catch (err) {
       posthog.captureException(err);
       setSaving(false);

@@ -1,5 +1,5 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { usePostHog } from "@posthog/react";
 import {
   ArrowRight,
@@ -10,10 +10,25 @@ import {
   TrendingUp,
   Users,
 } from "lucide-react";
-import { ACTIVITIES, ATHLETES, CHALLENGES, ME, fmtDuration, getAthlete } from "@/lib/mock-data";
+import {
+  ACTIVITIES,
+  ATHLETES,
+  CHALLENGES,
+  ME,
+  STARTER_WEEK,
+  fmtDuration,
+  getAthlete,
+} from "@/lib/mock-data";
+import { markStarterWeekCelebrationSeen } from "@/lib/api";
 import { AppShell } from "@/components/AppShell";
 import { ActivityCard } from "@/components/ActivityCard";
 import { FollowButton } from "@/components/FollowButton";
+import {
+  NextChallengeCard,
+  StarterWeekCard,
+  StarterWeekCelebration,
+  StarterWeekGetStarted,
+} from "@/components/StarterWeek";
 
 export const Route = createFileRoute("/")({
   head: () => ({
@@ -31,6 +46,71 @@ export const Route = createFileRoute("/")({
 
 const FILTERS = ["Following", "Clubs", "You"] as const;
 type Filter = (typeof FILTERS)[number];
+
+/**
+ * Top-of-feed Starter Week surface. Which card shows is driven entirely by the
+ * server-derived state, so the feed and the post-save screen can never disagree.
+ */
+function StarterWeekFeedSlot() {
+  const posthog = usePostHog();
+  const [state, setState] = useState(STARTER_WEEK);
+  const seenRef = useRef<string>("");
+
+  const hasLoggedActivity = ACTIVITIES.some((activity) => activity.athleteId === "me");
+
+  useEffect(() => {
+    // One impression per distinct surface, not per render.
+    const surface =
+      state.status === "not_enrolled" && !hasLoggedActivity
+        ? "get_started"
+        : state.status === "completed" && state.celebrationPending
+          ? "celebration"
+          : state.status === "active" && state.needsNudge
+            ? "nudge"
+            : state.status;
+
+    if (surface === "not_enrolled" || seenRef.current === surface) return;
+    seenRef.current = surface;
+
+    posthog.capture("starter_week_card_viewed", {
+      surface,
+      progress: state.progress,
+      goal: state.goal,
+      days_left: state.daysLeft,
+      attempt: state.attempt,
+    });
+
+    if (surface === "celebration") {
+      // Fire and forget: the celebration should not block the feed if this fails.
+      void markStarterWeekCelebrationSeen().catch(() => {});
+    }
+  }, [state, hasLoggedActivity, posthog]);
+
+  if (state.dismissed) return null;
+
+  if (state.status === "not_enrolled") {
+    return hasLoggedActivity ? null : (
+      <div className="mb-6">
+        <StarterWeekGetStarted />
+      </div>
+    );
+  }
+
+  if (state.status === "completed") {
+    return state.celebrationPending ? (
+      <div className="mb-6">
+        <StarterWeekCelebration state={state} />
+      </div>
+    ) : null;
+  }
+
+  return (
+    <div className="mb-6 space-y-4">
+      <StarterWeekCard state={state} onRetry={setState} />
+      {state.status === "expired" && <NextChallengeCard state={state} />}
+    </div>
+  );
+}
 
 function Index() {
   if (!ME.id) {
@@ -95,6 +175,8 @@ function FeedPage() {
               ))}
             </div>
           </div>
+
+          <StarterWeekFeedSlot />
 
           <div className="space-y-5">
             {visible.length > 0 ? (

@@ -106,6 +106,10 @@ async function seedDatabase() {
           endsAt: challenge.endsAt,
           badge: challenge.badge,
           metricType: challenge.metricType,
+          goalCount: challenge.goalCount ?? null,
+          durationDays: challenge.durationDays ?? null,
+          autoEnroll: challenge.autoEnroll ?? false,
+          description: challenge.description ?? null,
         })
         .onConflictDoNothing();
     }
