@@ -12,6 +12,7 @@ import {
   lte,
   max,
   min,
+  or,
   sql,
   sum,
   type SQL,
@@ -55,6 +56,19 @@ const MAX_ACTIVITY_PAGE_LIMIT = 100;
  * bootstrap payload shouldn't, so it ships a rolling year.
  */
 const BOOTSTRAP_HISTORY_MONTHS = 12;
+/**
+ * Hard ceiling on challenges in one bootstrap payload. Public challenges are
+ * visible to everyone, so this is what stops the shelf growing without bound as
+ * the app gains athletes.
+ */
+const BOOTSTRAP_CHALLENGE_LIMIT = 120;
+/**
+ * How many challenges one athlete may have running or upcoming at once. A cap
+ * is needed because a public challenge lands on every other athlete's shelf,
+ * so bulk creation is a way to spam everyone. It doubles as a sane product
+ * limit — nobody is meaningfully chasing 25 targets in a month.
+ */
+const MAX_OPEN_CHALLENGES_PER_ATHLETE = 25;
 
 type Sport = "Run" | "Ride" | "Swim" | "Hike" | "Walk";
 
@@ -451,13 +465,79 @@ async function listEffortBuckets(userId: string) {
 }
 
 /**
- * How many athletes have joined each challenge. Counted from the join table
- * rather than kept as a column, so it can't drift.
+ * SQL for "this viewer is allowed to see this challenge" — the same rule as
+ * `canView`, expressed as a WHERE clause.
+ *
+ * This has to be enforced in the query rather than by filtering rows in JS:
+ * a private challenge should never leave the database in the first place, so
+ * that no future refactor can drop the filter and start serving them.
  */
-async function listParticipantCounts() {
+function visibleToViewer(viewerId: string) {
+  return or(
+    eq(challengesTable.visibility, "public"),
+    eq(challengesTable.createdBy, viewerId),
+    and(
+      eq(challengesTable.visibility, "friends"),
+      inArray(
+        challengesTable.createdBy,
+        db
+          .select({ followedId: follows.followedId })
+          .from(follows)
+          .where(eq(follows.followerId, viewerId)),
+      ),
+    ),
+  )!;
+}
+
+/**
+ * The challenges to put in front of this viewer.
+ *
+ * Bounded on purpose. Public challenges from every athlete are visible to
+ * everyone, so without a cap one account creating challenges in bulk would
+ * inflate every other athlete's bootstrap payload permanently. The viewer's
+ * own and joined challenges sort first so the cap never hides their shelf —
+ * it only limits how much of other people's it carries.
+ */
+async function listVisibleChallenges(userId: string, currentMonthIdx: number) {
+  const mineOrJoined = sql<boolean>`(${challengesTable.createdBy} = ${userId} OR ${challengeEntries.userId} IS NOT NULL)`;
+
+  return db
+    .select({
+      challenge: challengesTable,
+      joined: sql<boolean>`${challengeEntries.userId} IS NOT NULL`,
+    })
+    .from(challengesTable)
+    .leftJoin(
+      challengeEntries,
+      and(
+        eq(challengeEntries.challengeId, challengesTable.id),
+        eq(challengeEntries.userId, userId),
+      ),
+    )
+    .where(
+      and(
+        gte(challengesTable.monthIdx, currentMonthIdx - BOOTSTRAP_HISTORY_MONTHS),
+        visibleToViewer(userId),
+      ),
+    )
+    .orderBy(desc(mineOrJoined), desc(challengesTable.monthIdx), asc(challengesTable.name))
+    .limit(BOOTSTRAP_CHALLENGE_LIMIT);
+}
+
+/**
+ * How many athletes have joined each of the given challenges. Counted from the
+ * join table rather than kept as a column, so it can't drift — and scoped to
+ * the challenges actually being returned rather than grouping the whole table.
+ */
+async function listParticipantCounts(challengeIds: string[]) {
+  if (challengeIds.length === 0) {
+    return new Map<string, number>();
+  }
+
   const rows = await db
     .select({ challengeId: challengeEntries.challengeId, participants: count() })
     .from(challengeEntries)
+    .where(inArray(challengeEntries.challengeId, challengeIds))
     .groupBy(challengeEntries.challengeId);
 
   return new Map(rows.map((row) => [row.challengeId, Number(row.participants)]));
@@ -476,8 +556,6 @@ export async function buildBootstrap(userId: string) {
     clubsResult,
     clubMembershipsResult,
     challengesResult,
-    challengeEntriesResult,
-    participantCounts,
     effortBuckets,
   ] = await Promise.all([
     db.select().from(users).orderBy(asc(users.createdAt)),
@@ -501,22 +579,16 @@ export async function buildBootstrap(userId: string) {
       .select({ clubId: clubMemberships.clubId })
       .from(clubMemberships)
       .where(eq(clubMemberships.userId, userId)),
-    db
-      .select()
-      .from(challengesTable)
-      .where(gte(challengesTable.monthIdx, currentMonthIdx - BOOTSTRAP_HISTORY_MONTHS))
-      .orderBy(desc(challengesTable.monthIdx), asc(challengesTable.name)),
-    db
-      .select({ challengeId: challengeEntries.challengeId })
-      .from(challengeEntries)
-      .where(eq(challengeEntries.userId, userId)),
-    listParticipantCounts(),
+    listVisibleChallenges(userId, currentMonthIdx),
     listEffortBuckets(userId),
   ]);
 
+  const participantCounts = await listParticipantCounts(
+    challengesResult.map((row) => row.challenge.id),
+  );
+
   const followedIds = new Set(followsResult.map((row) => row.followedId));
   const joinedClubIds = new Set(clubMembershipsResult.map((row) => row.clubId));
-  const joinedChallengeIds = new Set(challengeEntriesResult.map((row) => row.challengeId));
   const myBestBySegment = new Map(
     mySegmentBests.map((row) => [row.segmentId, row.effortSeconds ?? undefined]),
   );
@@ -557,28 +629,28 @@ export async function buildBootstrap(userId: string) {
 
   const athletesById = new Map(usersResult.map((row) => [row.id, row]));
 
-  const challenges = challengesResult
-    .filter((row) => canView(row, userId, followedIds))
-    .flatMap((row) => {
-      const author = athletesById.get(row.createdBy);
+  // Visibility is already applied in SQL by `listVisibleChallenges`, so every
+  // row here is one this viewer is allowed to see.
+  const challenges = challengesResult.flatMap(({ challenge, joined }) => {
+    const author = athletesById.get(challenge.createdBy);
 
-      // The author FK cascades on user delete, so a row without one shouldn't
-      // exist. Skip rather than throw: one orphan shouldn't blank the app.
-      if (!author) {
-        return [];
-      }
+    // The author FK cascades on user delete, so a row without one shouldn't
+    // exist. Skip rather than throw: one orphan shouldn't blank the app.
+    if (!author) {
+      return [];
+    }
 
-      return [
-        mapChallenge(row, {
-          userId,
-          today,
-          joined: joinedChallengeIds.has(row.id),
-          participants: participantCounts.get(row.id) ?? 0,
-          buckets: effortBuckets,
-          author,
-        }),
-      ];
-    });
+    return [
+      mapChallenge(challenge, {
+        userId,
+        today,
+        joined,
+        participants: participantCounts.get(challenge.id) ?? 0,
+        buckets: effortBuckets,
+        author,
+      }),
+    ];
+  });
 
   return {
     me,
@@ -850,6 +922,23 @@ export async function createChallenge(
   }
 
   const { draft } = parsed;
+
+  const [openCount] = await db
+    .select({ open: count() })
+    .from(challengesTable)
+    .where(
+      and(
+        eq(challengesTable.createdBy, userId),
+        gte(challengesTable.monthIdx, monthIndexOf(today)),
+      ),
+    );
+
+  if (Number(openCount.open) >= MAX_OPEN_CHALLENGES_PER_ATHLETE) {
+    throw new ValidationError(
+      `You can have ${MAX_OPEN_CHALLENGES_PER_ATHLETE} challenges running or upcoming at once. Wait for one to finish, or delete one first.`,
+    );
+  }
+
   const id = `challenge-${randomUUID()}`;
 
   const [row] = await db

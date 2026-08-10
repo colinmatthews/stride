@@ -12,29 +12,8 @@
     {
       "idx": 1,
       "version": "7",
-      "when": 1786359298048,
-      "tag": "0001_drop_legacy_challenges",
-      "breakpoints": true
-    },
-    {
-      "idx": 2,
-      "version": "7",
-      "when": 1786359308727,
-      "tag": "0002_challenge_engine",
-      "breakpoints": true
-    },
-    {
-      "idx": 3,
-      "version": "7",
-      "when": 1786373266386,
-      "tag": "0003_drop_challenge_engine",
-      "breakpoints": true
-    },
-    {
-      "idx": 4,
-      "version": "7",
-      "when": 1786373278476,
-      "tag": "0004_athlete_challenges",
+      "when": 1776733832868,
+      "tag": "0001_athlete_challenges",
       "breakpoints": true
     }
   ]

@@ -1,3 +1,9 @@
+-- Replaces the legacy hand-seeded challenge model with athlete-authored
+-- challenges. The old rows were demo fixtures reseeded on boot, so they are
+-- dropped rather than migrated; challenge_entries goes with them because its
+-- foreign key moves to the new table.
+DROP TABLE "challenge_entries" CASCADE;--> statement-breakpoint
+DROP TABLE "challenges" CASCADE;--> statement-breakpoint
 CREATE TABLE "challenge_entries" (
 	"user_id" text NOT NULL,
 	"challenge_id" text NOT NULL,

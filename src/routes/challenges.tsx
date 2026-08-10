@@ -108,6 +108,14 @@ function ChallengesPage() {
     [challenges, status],
   );
 
+  function selectStatus(next: ChallengeStatus) {
+    setStatus(next);
+
+    // Mirrors `feed_filter_changed` on the home feed — without it there's no
+    // way to tell whether anyone uses Upcoming or Past.
+    posthog.capture("challenge_filter_changed", { filter: next, results: counts[next] });
+  }
+
   async function toggleJoin(challenge: Challenge) {
     const result = await toggleChallengeJoin(challenge.id);
 
@@ -159,7 +167,7 @@ function ChallengesPage() {
             return (
               <button
                 key={tab.key}
-                onClick={() => setStatus(tab.key)}
+                onClick={() => selectStatus(tab.key)}
                 aria-pressed={selected}
                 className={`inline-flex h-10 items-center gap-2 px-5 text-sm transition-colors ${
                   selected
