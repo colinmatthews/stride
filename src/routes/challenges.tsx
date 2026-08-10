@@ -1,6 +1,6 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { useMemo, useState } from "react";
-import { Calendar, Check, Clock, Lock, Plus, Sparkles, Trophy, Users } from "lucide-react";
+import { Calendar, Check, Clock, Globe, Lock, Plus, Sparkles, Trophy, Users } from "lucide-react";
 import { usePostHog } from "@posthog/react";
 import {
   CHALLENGES,
@@ -31,8 +31,8 @@ import {
 } from "@/components/ui/select";
 import { ApiError, createChallenge, toggleChallengeJoin } from "@/lib/api";
 import {
-  daysBetween,
   dayOfMonth,
+  daysBetween,
   fmtGoal,
   fmtProgress,
   monthIndexOf,
@@ -42,35 +42,34 @@ import {
   windowLabel,
 } from "@/lib/challenge-format";
 
-const SPORT_FILTERS: (Sport | "All")[] = ["All", "Run", "Ride", "Walk", "Swim", "Hike"];
-
 const STATUS_TABS: { key: ChallengeStatus; label: string }[] = [
   { key: "active", label: "Active" },
   { key: "upcoming", label: "Upcoming" },
   { key: "past", label: "Past" },
 ];
 
+const VISIBILITY_LABEL: Record<Visibility, string> = {
+  private: "Just you",
+  friends: "People you follow",
+  public: "Anyone on Stride",
+};
+
 export const Route = createFileRoute("/challenges")({
   head: () => ({
     meta: [
       { title: "Challenges — Stride" },
-      { name: "description", content: "Join monthly distance and climbing challenges." },
+      { name: "description", content: "Set your own monthly distance and climbing challenges." },
     ],
   }),
   component: ChallengesPage,
 });
 
 /**
- * Only athlete-made challenges get a byline. Yours reads "Created by you";
- * anyone else's — which is only ever visible when they made it public or
- * you follow them — is credited by name, so a shelf full of community
- * challenges has authors on it rather than reading like more machine output.
+ * Yours reads "Created by you"; anyone else's — which you only ever see when
+ * they made it public or you follow them — is credited by name, so the shelf
+ * reads as a set of things people made rather than anonymous rows.
  */
 function bylineFor(challenge: Challenge) {
-  if (!challenge.createdBy) {
-    return null;
-  }
-
   return challenge.createdBy.isMe ? "Created by you" : `Created by ${challenge.createdBy.name}`;
 }
 
@@ -82,7 +81,6 @@ function ChallengesPage() {
   // would land it in this list twice.
   const [challenges, setChallenges] = useState<Challenge[]>(() => [...CHALLENGES]);
   const [status, setStatus] = useState<ChallengeStatus>("active");
-  const [sport, setSport] = useState<Sport | "All">("All");
   const [creating, setCreating] = useState(false);
 
   const today = todayISO();
@@ -102,13 +100,12 @@ function ChallengesPage() {
     () =>
       challenges
         .filter((challenge) => challenge.status === status)
-        .filter((challenge) => sport === "All" || challenge.sport === sport)
         .sort((a, b) => {
           if (a.monthIdx !== b.monthIdx) return b.monthIdx - a.monthIdx;
-          if (a.source !== b.source) return a.source === "mine" ? -1 : 1;
+          if (a.createdBy.isMe !== b.createdBy.isMe) return a.createdBy.isMe ? -1 : 1;
           return Number(b.joined) - Number(a.joined);
         }),
-    [challenges, status, sport],
+    [challenges, status],
   );
 
   async function toggleJoin(challenge: Challenge) {
@@ -124,9 +121,9 @@ function ChallengesPage() {
 
     posthog.capture(result.joined ? "challenge_joined" : "challenge_left", {
       challenge_id: challenge.id,
-      series_id: challenge.seriesId,
-      source: challenge.source,
+      sport: challenge.sport,
       status: challenge.status,
+      mine: challenge.createdBy.isMe,
     });
   }
 
@@ -138,7 +135,7 @@ function ChallengesPage() {
       <div className="flex items-end justify-between gap-6 border-b border-border pb-8">
         <div>
           <div className="font-mono text-[10px] uppercase tracking-[0.22em] text-muted-foreground">
-            {monthLabel(currentMonth)} · {counts.active} open now
+            {monthLabel(currentMonth)} · {counts.active} running now
           </div>
           <h1 className="mt-3 font-display text-4xl font-bold leading-tight tracking-[-0.02em]">
             Challenges
@@ -150,10 +147,10 @@ function ChallengesPage() {
       </div>
 
       {/* ---------------------------------------------------------------- */}
-      {/* Filters                                                           */}
+      {/* Filter                                                            */}
       {/*                                                                   */}
       {/* Past deliberately carries no count — history only grows, and a    */}
-      {/* four-figure number next to a tab reads as noise, not information. */}
+      {/* rising number next to a tab reads as noise, not information.      */}
       {/* ---------------------------------------------------------------- */}
       <div className="mt-8 flex flex-wrap items-center justify-between gap-4">
         <div className="flex border border-border">
@@ -163,6 +160,7 @@ function ChallengesPage() {
               <button
                 key={tab.key}
                 onClick={() => setStatus(tab.key)}
+                aria-pressed={selected}
                 className={`inline-flex h-10 items-center gap-2 px-5 text-sm transition-colors ${
                   selected
                     ? "bg-secondary font-medium text-secondary-foreground"
@@ -183,32 +181,12 @@ function ChallengesPage() {
             );
           })}
         </div>
-
-        <div className="flex flex-wrap items-center gap-2">
-          {SPORT_FILTERS.map((option) => {
-            const selected = sport === option;
-            return (
-              <button
-                key={option}
-                onClick={() => setSport(option)}
-                className={`h-8 border px-3 font-mono text-[10px] uppercase tracking-[0.22em] transition-colors ${
-                  selected
-                    ? "border-foreground bg-foreground text-background"
-                    : "border-border text-muted-foreground hover:border-foreground/40 hover:text-foreground"
-                }`}
-              >
-                {option}
-              </button>
-            );
-          })}
-        </div>
       </div>
 
-      {status === "upcoming" && (
+      {status === "upcoming" && visible.length > 0 && (
         <p className="mt-4 flex items-center gap-2 border border-dashed border-border px-4 py-3 text-xs text-muted-foreground">
           <Clock className="h-3.5 w-3.5 shrink-0" />
-          Showing {monthLabel(currentMonth + 1)} only. Join early and it starts counting at midnight
-          on the 1st.
+          Starts on the 1st. Anything you join now begins counting at midnight.
         </p>
       )}
 
@@ -216,7 +194,11 @@ function ChallengesPage() {
       {/* Shelf                                                             */}
       {/* ---------------------------------------------------------------- */}
       {visible.length === 0 ? (
-        <EmptyShelf sport={sport} status={status} onClear={() => setSport("All")} />
+        <EmptyShelf
+          status={status}
+          firstRun={challenges.length === 0}
+          onCreate={() => setCreating(true)}
+        />
       ) : status === "past" ? (
         <PastList challenges={visible} />
       ) : (
@@ -239,12 +221,13 @@ function ChallengesPage() {
         onCreated={(challenge) => {
           setChallenges((state) => [challenge, ...state]);
           setStatus(challenge.status);
-          setSport("All");
           posthog.capture("challenge_created", {
             challenge_id: challenge.id,
             sport: challenge.sport,
+            metric: challenge.metric,
             goal: challenge.goal,
             visibility: challenge.visibility,
+            starts_next_month: challenge.status === "upcoming",
           });
         }}
       />
@@ -263,20 +246,23 @@ function ChallengeCard({
 }: {
   challenge: Challenge;
   today: string;
-  onToggle: () => void;
+  onToggle: () => Promise<void>;
 }) {
   const [pending, setPending] = useState(false);
+  const [error, setError] = useState<string | null>(null);
   const upcoming = challenge.status === "upcoming";
   const { progress } = challenge;
-  const mine = Boolean(challenge.createdBy?.isMe);
-  const byline = bylineFor(challenge);
+  const mine = challenge.createdBy.isMe;
   const daysLeft = Math.max(0, daysBetween(today, challenge.endsAt));
 
   async function handleToggle() {
     setPending(true);
+    setError(null);
 
     try {
       await onToggle();
+    } catch (cause) {
+      setError(cause instanceof ApiError ? cause.message : "Something went wrong. Try again.");
     } finally {
       setPending(false);
     }
@@ -300,18 +286,20 @@ function ChallengeCard({
 
         <div className="relative flex items-start justify-between gap-3">
           <div className="flex flex-wrap items-center gap-2 font-mono text-[10px] uppercase tracking-[0.22em]">
-            {byline ? (
-              <span className="inline-flex items-center gap-1.5 bg-accent px-2 py-1 text-accent-foreground">
-                <Sparkles className="h-3 w-3" /> {byline}
-              </span>
-            ) : (
-              // Engine-minted challenges carry no marker at all — as far as
-              // the athlete is concerned they're just this month's challenges.
-              <span className="text-secondary-foreground/60">{challenge.sport} · monthly</span>
-            )}
-            {mine && challenge.visibility === "private" && (
+            <span className="inline-flex items-center gap-1.5 bg-accent px-2 py-1 text-accent-foreground">
+              <Sparkles className="h-3 w-3" /> {bylineFor(challenge)}
+            </span>
+            <span className="text-secondary-foreground/60">{challenge.sport}</span>
+            {/* Who can see it is the only sharing control left, so it's worth
+                showing the author rather than burying it in the create form. */}
+            {mine && (
               <span className="inline-flex items-center gap-1 text-secondary-foreground/45">
-                <Lock className="h-3 w-3" /> Private
+                {challenge.visibility === "private" ? (
+                  <Lock className="h-3 w-3" />
+                ) : (
+                  <Globe className="h-3 w-3" />
+                )}
+                {VISIBILITY_LABEL[challenge.visibility]}
               </span>
             )}
           </div>
@@ -351,7 +339,8 @@ function ChallengeCard({
         <div className="flex items-center justify-between text-xs text-muted-foreground">
           <span className="inline-flex items-center gap-1.5">
             <Users className="h-3.5 w-3.5" />
-            {challenge.participants.toLocaleString()} {upcoming ? "pre-joined" : "athletes"}
+            {challenge.participants.toLocaleString()}{" "}
+            {challenge.participants === 1 ? "athlete" : "athletes"}
           </span>
           <span className="inline-flex items-center gap-1.5">
             <Calendar className="h-3.5 w-3.5" />
@@ -418,6 +407,8 @@ function ChallengeCard({
             </>
           )}
         </button>
+
+        {error && <p className="mt-2 text-xs text-destructive">{error}</p>}
       </div>
     </article>
   );
@@ -448,7 +439,8 @@ function PastList({ challenges }: { challenges: Challenge[] }) {
                 {monthLabel(idx)}
               </h2>
               <span className="font-mono text-[10px] uppercase tracking-[0.22em] text-muted-foreground">
-                {rows.length} challenges · {finished} completed
+                {rows.length} {rows.length === 1 ? "challenge" : "challenges"} · {finished}{" "}
+                completed
               </span>
             </div>
 
@@ -462,7 +454,7 @@ function PastList({ challenges }: { challenges: Challenge[] }) {
                   <div className="min-w-0 flex-1">
                     <div className="truncate text-sm font-medium">{challenge.name}</div>
                     <div className="mt-0.5 font-mono text-[10px] uppercase tracking-[0.22em] text-muted-foreground">
-                      {bylineFor(challenge) ?? `${challenge.sport} · monthly`} ·{" "}
+                      {bylineFor(challenge)} · {challenge.sport} ·{" "}
                       {windowLabel(challenge.startsAt, challenge.endsAt)}
                     </div>
                   </div>
@@ -505,26 +497,54 @@ function PastList({ challenges }: { challenges: Challenge[] }) {
 }
 
 /* ------------------------------------------------------------------ */
-/* Empty state — only reachable via the sport filter now.              */
+/* Empty states                                                        */
+/*                                                                     */
+/* Without a system seeding the shelf, empty is the state every new     */
+/* athlete starts in — so it has to ask for the one action that fixes   */
+/* it rather than just reporting that there's nothing here.             */
 /* ------------------------------------------------------------------ */
 
+const EMPTY_COPY: Record<ChallengeStatus, { title: string; body: string }> = {
+  active: {
+    title: "Nothing running this month",
+    body: "Set yourself a target for the rest of the month. Your activities start counting towards it straight away.",
+  },
+  upcoming: {
+    title: "Nothing lined up for next month",
+    body: "Plan next month's target now and it starts counting on the 1st.",
+  },
+  past: {
+    title: "No finished challenges yet",
+    body: "Once a challenge's month is over it moves here, with what you managed against the goal.",
+  },
+};
+
 function EmptyShelf({
-  sport,
   status,
-  onClear,
+  firstRun,
+  onCreate,
 }: {
-  sport: Sport | "All";
   status: ChallengeStatus;
-  onClear: () => void;
+  firstRun: boolean;
+  onCreate: () => void;
 }) {
+  const copy = firstRun
+    ? {
+        title: "Make your own challenge",
+        body: "Name a target, pick a sport and a month, and decide who can see it. Progress is counted from the activities you already record.",
+      }
+    : EMPTY_COPY[status];
+
   return (
     <div className="mt-8 border border-dashed border-border px-6 py-16 text-center">
-      <p className="text-sm text-muted-foreground">
-        No {status} challenges for <span className="text-foreground">{sport}</span>.
-      </p>
-      <Button variant="outline" size="sm" className="mt-4" onClick={onClear}>
-        Show all sports
-      </Button>
+      <Trophy className="mx-auto h-6 w-6 text-muted-foreground/50" />
+      <h2 className="mt-4 font-display text-lg font-semibold tracking-tight">{copy.title}</h2>
+      <p className="mx-auto mt-2 max-w-md text-sm text-muted-foreground">{copy.body}</p>
+      {status !== "past" && (
+        <Button className="mt-6" onClick={onCreate}>
+          <Plus className="h-4 w-4" /> Create challenge
+        </Button>
+      )}
     </div>
   );
 }
@@ -549,7 +569,7 @@ function CreateDialog({
   const [metric, setMetric] = useState<GoalMetric>("distance");
   const [goal, setGoal] = useState("80");
   const [monthIdx, setMonthIdx] = useState(currentMonth);
-  const [visibility, setVisibility] = useState<Visibility>("friends");
+  const [visibility, setVisibility] = useState<Visibility>("private");
   const [pending, setPending] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
@@ -577,6 +597,7 @@ function CreateDialog({
       onCreated(challenge);
       setName("");
       setGoal("80");
+      setMonthIdx(currentMonth);
       onOpenChange(false);
     } catch (cause) {
       setError(
@@ -595,7 +616,7 @@ function CreateDialog({
             Create a challenge
           </DialogTitle>
           <DialogDescription>
-            Yours sits on the same shelf as the monthly ones and counts the same activities.
+            It counts the activities you already record — no separate tracking.
           </DialogDescription>
         </DialogHeader>
 
@@ -607,6 +628,7 @@ function CreateDialog({
               value={name}
               onChange={(event) => setName(event.target.value)}
               placeholder="Sunrise Crew 75K"
+              maxLength={80}
               autoFocus
             />
           </div>
@@ -663,6 +685,7 @@ function CreateDialog({
                     key={idx}
                     type="button"
                     onClick={() => setMonthIdx(idx)}
+                    aria-pressed={selected}
                     className={`h-9 flex-1 text-sm transition-colors ${
                       selected
                         ? "bg-secondary font-medium text-secondary-foreground"
@@ -678,7 +701,7 @@ function CreateDialog({
               })}
             </div>
             <p className="text-xs text-muted-foreground">
-              This month or next only — same horizon the engine works to.
+              A challenge runs for one calendar month, this month or next.
             </p>
           </div>
 

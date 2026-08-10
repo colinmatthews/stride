@@ -1,5 +1,4 @@
 import {
-  boolean,
   date,
   index,
   integer,
@@ -161,34 +160,17 @@ export const clubMemberships = pgTable(
 );
 
 /**
- * The template a recurring challenge is minted from. Rows here are the only
- * thing a human ever writes; the engine turns them into a fresh edition every
- * month without anyone in the loop.
+ * A challenge an athlete made. Every row has an author — there is no system
+ * that authors challenges, so `createdBy` is never null.
+ *
+ * A challenge runs over one whole calendar month, which is what lets the
+ * Active / Upcoming / Past filter be derived from `monthIdx` rather than
+ * stored and kept in sync.
  */
-export const challengeSeries = pgTable("challenge_series", {
-  id: text("id").primaryKey(),
-  sport: text("sport").notNull(),
-  tier: text("tier").notNull(),
-  label: text("label").notNull(),
-  badge: text("badge").notNull(),
-  metric: text("metric").notNull(),
-  goalMin: numeric("goal_min", { precision: 10, scale: 2 }).notNull(),
-  goalMax: numeric("goal_max", { precision: 10, scale: 2 }).notNull(),
-  goalStep: numeric("goal_step", { precision: 10, scale: 2 }).notNull(),
-  blurb: text("blurb").notNull(),
-  active: boolean("active").notNull().default(true),
-});
-
-/**
- * One month's run of a challenge. Editions are immutable once minted — an
- * athlete's target can't move under them mid-month — so the seed only ever
- * inserts, never updates. `seriesId` is null for challenges an athlete made.
- */
-export const challengeEditions = pgTable(
-  "challenge_editions",
+export const challenges = pgTable(
+  "challenges",
   {
     id: text("id").primaryKey(),
-    seriesId: text("series_id").references(() => challengeSeries.id, { onDelete: "set null" }),
     name: text("name").notNull(),
     sport: text("sport").notNull(),
     metric: text("metric").notNull(),
@@ -198,14 +180,15 @@ export const challengeEditions = pgTable(
     startsAt: date("starts_at").notNull(),
     endsAt: date("ends_at").notNull(),
     monthIdx: integer("month_idx").notNull(),
-    source: text("source").notNull(),
-    visibility: text("visibility").notNull().default("public"),
-    participants: integer("participants").notNull().default(0),
-    createdBy: text("created_by").references(() => users.id, { onDelete: "cascade" }),
+    visibility: text("visibility").notNull().default("private"),
+    createdBy: text("created_by")
+      .notNull()
+      .references(() => users.id, { onDelete: "cascade" }),
     createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
   },
   (table) => ({
-    monthIdx: index("challenge_editions_month_idx").on(table.monthIdx),
+    monthIdx: index("challenges_month_idx").on(table.monthIdx),
+    createdBy: index("challenges_created_by_idx").on(table.createdBy),
   }),
 );
 
@@ -215,13 +198,13 @@ export const challengeEntries = pgTable(
     userId: text("user_id")
       .notNull()
       .references(() => users.id, { onDelete: "cascade" }),
-    editionId: text("edition_id")
+    challengeId: text("challenge_id")
       .notNull()
-      .references(() => challengeEditions.id, { onDelete: "cascade" }),
+      .references(() => challenges.id, { onDelete: "cascade" }),
     createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
   },
   (table) => ({
-    pk: primaryKey({ columns: [table.userId, table.editionId] }),
+    pk: primaryKey({ columns: [table.userId, table.challengeId] }),
   }),
 );
 

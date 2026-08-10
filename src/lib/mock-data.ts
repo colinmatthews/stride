@@ -64,11 +64,10 @@ export interface Club {
 }
 
 export type ChallengeStatus = "active" | "upcoming" | "past";
-export type ChallengeSource = "auto" | "mine";
 export type GoalMetric = "distance" | "elevation";
 export type Visibility = "public" | "friends" | "private";
 
-/** Who made a challenge. Null for anything the engine minted. */
+/** Who made a challenge. Every challenge has an author. */
 export interface ChallengeAuthor {
   name: string;
   handle: string;
@@ -88,12 +87,11 @@ export interface ChallengeProgress {
 }
 
 /**
- * One month's run of a challenge. `seriesId` is set for the recurring ones the
- * engine mints and null for anything an athlete made themselves.
+ * A challenge an athlete made. It runs over one whole calendar month, which is
+ * what `status` is derived from server-side.
  */
 export interface Challenge {
   id: string;
-  seriesId: string | null;
   name: string;
   sport: Sport;
   metric: GoalMetric;
@@ -105,12 +103,11 @@ export interface Challenge {
   endsAt: string;
   monthIdx: number;
   status: ChallengeStatus;
-  source: ChallengeSource;
   visibility: Visibility;
   participants: number;
   joined: boolean;
   progress: ChallengeProgress;
-  createdBy: ChallengeAuthor | null;
+  createdBy: ChallengeAuthor;
 }
 
 export interface AppData {

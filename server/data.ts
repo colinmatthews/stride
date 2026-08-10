@@ -16,15 +16,15 @@ import {
   sum,
   type SQL,
 } from "drizzle-orm";
-import { db, mintEditions } from "./db.js";
+import { db } from "./db.js";
 import {
   activities as activitiesTable,
   activityComments,
   activityKudos,
   activitySegments,
   activitySplits,
-  challengeEditions,
   challengeEntries,
+  challenges as challengesTable,
   clubMemberships,
   clubs as clubsTable,
   follows,
@@ -33,23 +33,26 @@ import {
 } from "./db/schema.js";
 import { USER_AVATARS } from "./seed.js";
 import {
-  HORIZON_MONTHS,
+  badgeFor,
+  blurbFor,
+  canView,
   firstDay,
   lastDay,
   monthIndexOf,
+  parseChallengeDraft,
   progressFor,
   statusOf,
   todayISO,
   type EffortBucket,
   type GoalMetric,
   type Visibility,
-} from "./challenge-engine.js";
+} from "./challenges.js";
 
 const BOOTSTRAP_ACTIVITY_LIMIT = 40;
 const MAX_ACTIVITY_PAGE_LIMIT = 100;
 /**
  * How far back the Past tab reaches. History grows forever in the table but the
- * bootstrap payload shouldn't, so the shelf ships a rolling year.
+ * bootstrap payload shouldn't, so it ships a rolling year.
  */
 const BOOTSTRAP_HISTORY_MONTHS = 12;
 
@@ -350,20 +353,22 @@ export async function getActivityById(userId: string, activityId: string) {
   return activities[0] ?? null;
 }
 
-type EditionRow = typeof challengeEditions.$inferSelect;
+type ChallengeRow = typeof challengesTable.$inferSelect;
 
 /**
- * One edition as the client sees it. Progress is derived here rather than
- * stored, so it can never disagree with the athlete's activity log.
+ * One challenge as the client sees it. Progress and the participant count are
+ * both derived here rather than stored, so neither can drift out of agreement
+ * with the activity log or the join table.
  */
-function mapEdition(
-  row: EditionRow,
+function mapChallenge(
+  row: ChallengeRow,
   options: {
     userId: string;
     today: string;
     joined: boolean;
+    participants: number;
     buckets: Map<string, EffortBucket>;
-    author?: AthleteRow;
+    author: AthleteRow;
   },
 ) {
   const metric = row.metric as GoalMetric;
@@ -375,7 +380,6 @@ function mapEdition(
 
   return {
     id: row.id,
-    seriesId: row.seriesId,
     name: row.name,
     sport: row.sport as Sport,
     metric,
@@ -387,9 +391,8 @@ function mapEdition(
     endsAt: row.endsAt,
     monthIdx: row.monthIdx,
     status: statusOf(row.monthIdx, options.today),
-    source: row.source as "auto" | "mine",
     visibility: row.visibility as Visibility,
-    participants: row.participants,
+    participants: options.participants,
     joined: options.joined,
     progress: {
       total: progress.total,
@@ -398,22 +401,20 @@ function mapEdition(
       lastDate: progress.lastDate,
       complete: progress.complete,
     },
-    createdBy: options.author
-      ? {
-          name: options.author.name,
-          handle: options.author.handle,
-          isMe: options.author.id === options.userId,
-        }
-      : null,
+    createdBy: {
+      name: options.author.name,
+      handle: options.author.handle,
+      isMe: options.author.id === options.userId,
+    },
   };
 }
 
 /**
- * The athlete's own effort, bucketed by sport and calendar month. Challenge
- * editions run over whole months, so one bucket is exactly one edition window
- * — which means every edition's progress comes out of this single query.
+ * The athlete's own effort, bucketed by sport and calendar month. A challenge
+ * runs over a whole month, so one bucket is exactly one challenge window —
+ * which means every challenge's progress comes out of this single query.
  *
- * Future-dated activities are excluded: an edition counts effort up to today,
+ * Future-dated activities are excluded: a challenge counts effort up to today,
  * never past it.
  */
 async function listEffortBuckets(userId: string) {
@@ -450,28 +451,21 @@ async function listEffortBuckets(userId: string) {
 }
 
 /**
- * The last month this process minted for. Seeding runs at boot, but a server
- * that stays up across a month boundary would otherwise sail past the engine's
- * horizon and start serving a shelf with nothing upcoming on it — so the first
- * request of a new month tops it up. Minting is idempotent, so racing instances
- * are harmless.
+ * How many athletes have joined each challenge. Counted from the join table
+ * rather than kept as a column, so it can't drift.
  */
-let lastMintedMonthIdx: number | null = null;
+async function listParticipantCounts() {
+  const rows = await db
+    .select({ challengeId: challengeEntries.challengeId, participants: count() })
+    .from(challengeEntries)
+    .groupBy(challengeEntries.challengeId);
 
-async function ensureShelfFresh(currentMonthIdx: number, today: string) {
-  if (lastMintedMonthIdx === currentMonthIdx) {
-    return;
-  }
-
-  await mintEditions(db, today);
-  lastMintedMonthIdx = currentMonthIdx;
+  return new Map(rows.map((row) => [row.challengeId, Number(row.participants)]));
 }
 
 export async function buildBootstrap(userId: string) {
   const today = todayISO();
   const currentMonthIdx = monthIndexOf(today);
-
-  await ensureShelfFresh(currentMonthIdx, today);
 
   const [
     usersResult,
@@ -481,8 +475,9 @@ export async function buildBootstrap(userId: string) {
     mySegmentBests,
     clubsResult,
     clubMembershipsResult,
-    editionsResult,
+    challengesResult,
     challengeEntriesResult,
+    participantCounts,
     effortBuckets,
   ] = await Promise.all([
     db.select().from(users).orderBy(asc(users.createdAt)),
@@ -508,24 +503,20 @@ export async function buildBootstrap(userId: string) {
       .where(eq(clubMemberships.userId, userId)),
     db
       .select()
-      .from(challengeEditions)
-      .where(
-        and(
-          gte(challengeEditions.monthIdx, currentMonthIdx - BOOTSTRAP_HISTORY_MONTHS),
-          lte(challengeEditions.monthIdx, currentMonthIdx + HORIZON_MONTHS),
-        ),
-      )
-      .orderBy(desc(challengeEditions.monthIdx), asc(challengeEditions.name)),
+      .from(challengesTable)
+      .where(gte(challengesTable.monthIdx, currentMonthIdx - BOOTSTRAP_HISTORY_MONTHS))
+      .orderBy(desc(challengesTable.monthIdx), asc(challengesTable.name)),
     db
-      .select({ editionId: challengeEntries.editionId })
+      .select({ challengeId: challengeEntries.challengeId })
       .from(challengeEntries)
       .where(eq(challengeEntries.userId, userId)),
+    listParticipantCounts(),
     listEffortBuckets(userId),
   ]);
 
   const followedIds = new Set(followsResult.map((row) => row.followedId));
   const joinedClubIds = new Set(clubMembershipsResult.map((row) => row.clubId));
-  const joinedEditionIds = new Set(challengeEntriesResult.map((row) => row.editionId));
+  const joinedChallengeIds = new Set(challengeEntriesResult.map((row) => row.challengeId));
   const myBestBySegment = new Map(
     mySegmentBests.map((row) => [row.segmentId, row.effortSeconds ?? undefined]),
   );
@@ -566,35 +557,28 @@ export async function buildBootstrap(userId: string) {
 
   const athletesById = new Map(usersResult.map((row) => [row.id, row]));
 
-  const challenges = editionsResult
-    // A private edition is the author's alone; a friends-only one reaches the
-    // people they follow. Anything else the engine minted is public.
-    .filter((row) => {
-      if (row.visibility === "public") {
-        return true;
+  const challenges = challengesResult
+    .filter((row) => canView(row, userId, followedIds))
+    .flatMap((row) => {
+      const author = athletesById.get(row.createdBy);
+
+      // The author FK cascades on user delete, so a row without one shouldn't
+      // exist. Skip rather than throw: one orphan shouldn't blank the app.
+      if (!author) {
+        return [];
       }
 
-      // Everything the engine mints is public, so a non-public edition without
-      // an author is malformed rather than merely hidden.
-      if (!row.createdBy) {
-        return false;
-      }
-
-      if (row.createdBy === userId) {
-        return true;
-      }
-
-      return row.visibility === "friends" && followedIds.has(row.createdBy);
-    })
-    .map((row) =>
-      mapEdition(row, {
-        userId,
-        today,
-        joined: joinedEditionIds.has(row.id),
-        buckets: effortBuckets,
-        author: row.createdBy ? athletesById.get(row.createdBy) : undefined,
-      }),
-    );
+      return [
+        mapChallenge(row, {
+          userId,
+          today,
+          joined: joinedChallengeIds.has(row.id),
+          participants: participantCounts.get(row.id) ?? 0,
+          buckets: effortBuckets,
+          author,
+        }),
+      ];
+    });
 
   return {
     me,
@@ -787,55 +771,67 @@ export async function toggleClubMembership(userId: string, clubId: string) {
   };
 }
 
-export async function toggleChallengeEntry(userId: string, editionId: string) {
-  const existing = await db
-    .select({ editionId: challengeEntries.editionId })
-    .from(challengeEntries)
-    .where(and(eq(challengeEntries.userId, userId), eq(challengeEntries.editionId, editionId)))
+export async function toggleChallengeEntry(userId: string, challengeId: string) {
+  const [challenge] = await db
+    .select()
+    .from(challengesTable)
+    .where(eq(challengesTable.id, challengeId))
     .limit(1);
-  const editionRows = await db
-    .select({ participants: challengeEditions.participants })
-    .from(challengeEditions)
-    .where(eq(challengeEditions.id, editionId))
-    .limit(1);
-  const edition = editionRows[0];
 
-  if (!edition) {
-    throw new Error("Challenge not found");
+  if (!challenge) {
+    throw new NotFoundError("Challenge not found");
   }
 
-  if (existing.length > 0) {
+  // Joining is a read of someone else's challenge first. Without this check an
+  // athlete could join a private challenge by posting its id directly.
+  const followsResult = await db
+    .select({ followedId: follows.followedId })
+    .from(follows)
+    .where(eq(follows.followerId, userId));
+
+  if (!canView(challenge, userId, new Set(followsResult.map((row) => row.followedId)))) {
+    throw new NotFoundError("Challenge not found");
+  }
+
+  // A finished challenge can't be joined — there is no window left to count in.
+  if (statusOf(challenge.monthIdx, todayISO()) === "past") {
+    throw new ValidationError("This challenge has already finished");
+  }
+
+  const existing = await db
+    .select({ challengeId: challengeEntries.challengeId })
+    .from(challengeEntries)
+    .where(and(eq(challengeEntries.userId, userId), eq(challengeEntries.challengeId, challengeId)))
+    .limit(1);
+  const joined = existing.length === 0;
+
+  if (joined) {
+    await db.insert(challengeEntries).values({ userId, challengeId }).onConflictDoNothing();
+  } else {
     await db
       .delete(challengeEntries)
-      .where(and(eq(challengeEntries.userId, userId), eq(challengeEntries.editionId, editionId)));
-  } else {
-    await db.insert(challengeEntries).values({ userId, editionId });
+      .where(
+        and(eq(challengeEntries.userId, userId), eq(challengeEntries.challengeId, challengeId)),
+      );
   }
 
-  const participants =
-    existing.length > 0 ? Math.max(edition.participants - 1, 0) : edition.participants + 1;
-  await db
-    .update(challengeEditions)
-    .set({ participants })
-    .where(eq(challengeEditions.id, editionId));
+  const [{ participants }] = await db
+    .select({ participants: count() })
+    .from(challengeEntries)
+    .where(eq(challengeEntries.challengeId, challengeId));
 
-  return {
-    joined: existing.length === 0,
-    participants,
-  };
+  return { joined, participants: Number(participants) };
 }
 
-const SPORTS: Sport[] = ["Run", "Ride", "Swim", "Hike", "Walk"];
-const VISIBILITIES: Visibility[] = ["public", "friends", "private"];
-
 export class ValidationError extends Error {}
+export class NotFoundError extends Error {}
 
 /**
- * A challenge an athlete made. It lands on the same shelf as the minted ones
- * and counts the same activities — the only difference is that it carries a
- * byline and runs for one month rather than recurring.
+ * A challenge an athlete made for themselves and whoever they choose to share
+ * it with. Progress on it is summed from their real activities in the month it
+ * runs, so it starts counting the moment it exists.
  */
-export async function createChallengeEdition(
+export async function createChallenge(
   userId: string,
   input: {
     name?: unknown;
@@ -846,82 +842,44 @@ export async function createChallengeEdition(
     visibility?: unknown;
   },
 ) {
-  const name = typeof input.name === "string" ? input.name.trim() : "";
-  const goal = Number(input.goal);
-  const monthIdx = Number(input.monthIdx);
   const today = todayISO();
-  const currentMonthIdx = monthIndexOf(today);
+  const parsed = parseChallengeDraft(input, today);
 
-  if (name.length < 2 || name.length > 80) {
-    throw new ValidationError("Name must be between 2 and 80 characters");
+  if (!parsed.ok) {
+    throw new ValidationError(parsed.error);
   }
 
-  if (!SPORTS.includes(input.sport as Sport)) {
-    throw new ValidationError("Unknown sport");
-  }
-
-  if (input.metric !== "distance" && input.metric !== "elevation") {
-    throw new ValidationError("Metric must be distance or elevation");
-  }
-
-  if (!Number.isFinite(goal) || goal <= 0 || goal > 100_000) {
-    throw new ValidationError("Goal must be a positive number");
-  }
-
-  if (!VISIBILITIES.includes(input.visibility as Visibility)) {
-    throw new ValidationError("Unknown visibility");
-  }
-
-  // This month or next only — the same horizon the engine works to. Letting an
-  // athlete post a challenge for next December would put a row on the shelf
-  // that nothing else in the feature knows how to show.
-  if (
-    !Number.isInteger(monthIdx) ||
-    monthIdx < currentMonthIdx ||
-    monthIdx > currentMonthIdx + HORIZON_MONTHS
-  ) {
-    throw new ValidationError("A challenge can only run this month or next");
-  }
-
-  const metric = input.metric as GoalMetric;
-  const visibility = input.visibility as Visibility;
-  const id = `mine-${randomUUID()}`;
+  const { draft } = parsed;
+  const id = `challenge-${randomUUID()}`;
 
   const [row] = await db
-    .insert(challengeEditions)
+    .insert(challengesTable)
     .values({
       id,
-      seriesId: null,
-      name,
-      sport: input.sport as Sport,
-      metric,
-      goal: String(goal),
-      badge: name.slice(0, 4).toUpperCase().trim() || "MINE",
-      blurb:
-        visibility === "private"
-          ? "Just for you."
-          : visibility === "friends"
-            ? "Open to people you follow."
-            : "Open to anyone on Stride.",
-      startsAt: firstDay(monthIdx),
-      endsAt: lastDay(monthIdx),
-      monthIdx,
-      source: "mine",
-      visibility,
-      participants: 1,
+      name: draft.name,
+      sport: draft.sport,
+      metric: draft.metric,
+      goal: String(draft.goal),
+      badge: badgeFor(draft.name),
+      blurb: blurbFor(draft.visibility),
+      startsAt: firstDay(draft.monthIdx),
+      endsAt: lastDay(draft.monthIdx),
+      monthIdx: draft.monthIdx,
+      visibility: draft.visibility,
       createdBy: userId,
     })
     .returning();
 
   // The author is in it by definition — nobody creates a challenge to sit out.
-  await db.insert(challengeEntries).values({ userId, editionId: id }).onConflictDoNothing();
+  await db.insert(challengeEntries).values({ userId, challengeId: id }).onConflictDoNothing();
 
   const [author] = await db.select().from(users).where(eq(users.id, userId)).limit(1);
 
-  return mapEdition(row, {
+  return mapChallenge(row, {
     userId,
     today,
     joined: true,
+    participants: 1,
     buckets: await listEffortBuckets(userId),
     author,
   });

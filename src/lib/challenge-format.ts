@@ -1,11 +1,11 @@
 /**
  * Display helpers for the challenge shelf.
  *
- * The engine that decides *which* editions exist lives on the server
- * (`server/challenge-engine.ts`) — this module only formats what it sends
- * back. The month arithmetic is duplicated rather than shared because the
- * client and server builds are separate TypeScript projects, the same way
- * `Sport` is declared in both.
+ * The rules — status, progress, who may see what — live on the server in
+ * `server/challenges.ts`; this module only formats what it sends back. The
+ * month arithmetic is duplicated rather than shared because the client and
+ * server builds are separate TypeScript projects, the same way `Sport` is
+ * declared in both.
  */
 
 const MONTHS = [
@@ -54,7 +54,7 @@ export function daysBetween(fromISO: string, toISO: string) {
   return Math.round((Date.parse(toISO) - Date.parse(fromISO)) / 86_400_000);
 }
 
-/** Today as a UTC calendar date, matching how the server dates editions. */
+/** Today as a UTC calendar date, matching how the server dates challenges. */
 export function todayISO(now: Date = new Date()) {
   return now.toISOString().slice(0, 10);
 }
