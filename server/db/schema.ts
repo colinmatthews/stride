@@ -1,4 +1,13 @@
-import { date, integer, numeric, pgTable, primaryKey, text, timestamp } from "drizzle-orm/pg-core";
+import {
+  date,
+  index,
+  integer,
+  numeric,
+  pgTable,
+  primaryKey,
+  text,
+  timestamp,
+} from "drizzle-orm/pg-core";
 
 export const users = pgTable("users", {
   id: text("id").primaryKey(),
@@ -150,16 +159,41 @@ export const clubMemberships = pgTable(
   }),
 );
 
-export const challenges = pgTable("challenges", {
-  id: text("id").primaryKey(),
-  name: text("name").notNull(),
-  sport: text("sport").notNull(),
-  goalKm: numeric("goal_km", { precision: 10, scale: 2 }).notNull(),
-  participants: integer("participants").notNull(),
-  endsAt: date("ends_at").notNull(),
-  badge: text("badge").notNull(),
-  metricType: text("metric_type").notNull(),
-});
+/**
+ * A challenge an athlete made. Every row has an author — there is no system
+ * that authors challenges, so `createdBy` is never null.
+ *
+ * A challenge runs over one whole calendar month, which is what lets the
+ * Active / Upcoming / Past filter be derived from `monthIdx` rather than
+ * stored and kept in sync.
+ *
+ * Only facts an athlete chose are stored. The card's badge and blurb are
+ * derived from the name and visibility on read — storing them would mean two
+ * copies of the same fact, and a blurb that quietly contradicts the visibility
+ * it describes the moment either one can be edited.
+ */
+export const challenges = pgTable(
+  "challenges",
+  {
+    id: text("id").primaryKey(),
+    name: text("name").notNull(),
+    sport: text("sport").notNull(),
+    metric: text("metric").notNull(),
+    goal: numeric("goal", { precision: 10, scale: 2 }).notNull(),
+    startsAt: date("starts_at").notNull(),
+    endsAt: date("ends_at").notNull(),
+    monthIdx: integer("month_idx").notNull(),
+    visibility: text("visibility").notNull().default("private"),
+    createdBy: text("created_by")
+      .notNull()
+      .references(() => users.id, { onDelete: "cascade" }),
+    createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+  },
+  (table) => ({
+    monthIdx: index("challenges_month_idx").on(table.monthIdx),
+    createdBy: index("challenges_created_by_idx").on(table.createdBy),
+  }),
+);
 
 export const challengeEntries = pgTable(
   "challenge_entries",

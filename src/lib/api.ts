@@ -7,6 +7,10 @@ import {
   mergeActivities,
   type Activity,
   type AppData,
+  type Challenge,
+  type GoalMetric,
+  type Sport,
+  type Visibility,
 } from "./mock-data";
 
 class ApiError extends Error {
@@ -198,6 +202,24 @@ export async function toggleChallengeJoin(challengeId: string) {
   }
 
   return payload;
+}
+
+export async function createChallenge(input: {
+  name: string;
+  sport: Sport;
+  metric: GoalMetric;
+  goal: number;
+  monthIdx: number;
+  visibility: Visibility;
+}) {
+  const challenge = await apiFetch<Challenge>("/api/challenges", {
+    method: "POST",
+    body: JSON.stringify(input),
+  });
+
+  CHALLENGES.unshift(challenge);
+
+  return challenge;
 }
 
 export { ApiError };

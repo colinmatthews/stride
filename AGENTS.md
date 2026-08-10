@@ -22,7 +22,9 @@ The database `stride` and user `stride:stride` are pre-created. Connection strin
 npm run dev        # starts both Vite (5173) and Express (3002) via concurrently
 ```
 
-The Vite dev server proxies `/api` requests to the Express backend. The server seeds demo data (athletes, activities, segments, clubs, challenges) into PostgreSQL on startup, so the app has content immediately.
+The Vite dev server proxies `/api` requests to the Express backend. The server seeds demo data (athletes, activities, segments, clubs) into PostgreSQL on startup, so the app has content immediately.
+
+Challenges are not seeded — every one is authored by an athlete. `server/challenges.ts` holds the rules: a challenge runs over one whole calendar month, so its Active / Upcoming / Past status is derived from `month_idx` rather than stored, and progress is summed from the athlete's own activities inside that month rather than kept on the row. A new account therefore sees an empty shelf until it creates a challenge, and 0% progress until it records activities. `visibility` is access control, not a display filter — `canView()` is enforced on read _and_ on join.
 
 ### Lint / Build
 

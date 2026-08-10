@@ -1,5 +1,12 @@
 export type Sport = "Run" | "Ride" | "Swim" | "Hike" | "Walk";
 
+/**
+ * Every sport, in the order they're offered in pickers. Kept in step with
+ * `SPORTS` in `server/challenges.ts` — the client and server are separate
+ * TypeScript projects, so the list is declared on both sides, same as `Sport`.
+ */
+export const SPORTS: Sport[] = ["Run", "Ride", "Walk", "Swim", "Hike"];
+
 export interface Athlete {
   id: string;
   name: string;
@@ -63,16 +70,51 @@ export interface Club {
   joined?: boolean;
 }
 
+export type ChallengeStatus = "active" | "upcoming" | "past";
+export type GoalMetric = "distance" | "elevation";
+export type Visibility = "public" | "friends" | "private";
+
+/** Who made a challenge. Every challenge has an author. */
+export interface ChallengeAuthor {
+  name: string;
+  handle: string;
+  isMe: boolean;
+}
+
+/**
+ * Progress is summed server-side from the athlete's own activities inside the
+ * challenge window, so it can never disagree with their activity log.
+ */
+export interface ChallengeProgress {
+  total: number;
+  pct: number;
+  activities: number;
+  lastDate: string | null;
+  complete: boolean;
+}
+
+/**
+ * A challenge an athlete made. It runs over one whole calendar month, which is
+ * what `status` is derived from server-side.
+ */
 export interface Challenge {
   id: string;
   name: string;
-  sport: Sport | "Multisport";
-  goalKm: number;
-  myProgressKm: number;
-  participants: number;
-  endsAt: string;
+  sport: Sport;
+  metric: GoalMetric;
+  goal: number;
+  unit: "km" | "m";
   badge: string;
-  joined?: boolean;
+  blurb: string;
+  startsAt: string;
+  endsAt: string;
+  monthIdx: number;
+  status: ChallengeStatus;
+  visibility: Visibility;
+  participants: number;
+  joined: boolean;
+  progress: ChallengeProgress;
+  createdBy: ChallengeAuthor;
 }
 
 export interface AppData {

@@ -65,7 +65,11 @@ function FeedPage() {
     .reduce((sum, activity) => sum + activity.elevationM, 0);
 
   const suggested = ATHLETES.filter((athlete) => athlete.id !== "me").slice(0, 4);
-  const myChallenges = CHALLENGES.filter((challenge) => challenge.joined);
+  // Only what's running now — the shelf carries finished months too, and a
+  // sidebar of last spring's completed challenges isn't a to-do list.
+  const myChallenges = CHALLENGES.filter(
+    (challenge) => challenge.joined && challenge.status === "active",
+  );
 
   return (
     <AppShell>
@@ -149,7 +153,7 @@ function FeedPage() {
             </div>
             <ul className="space-y-3">
               {myChallenges.map((challenge) => {
-                const pct = Math.min(100, (challenge.myProgressKm / challenge.goalKm) * 100);
+                const pct = challenge.progress.pct;
                 return (
                   <li key={challenge.id}>
                     <div className="flex items-center justify-between text-sm">

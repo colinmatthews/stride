@@ -2,9 +2,12 @@ import { existsSync } from "node:fs";
 import path from "node:path";
 import express from "express";
 import {
+  NotFoundError,
+  ValidationError,
   addComment,
   buildBootstrap,
   createActivity,
+  createChallenge,
   createUser,
   findUserForAuth,
   getActivityById,
@@ -209,10 +212,37 @@ export function createApp() {
     }
   });
 
+  app.post("/api/challenges", requireAuth, async (request, response, next) => {
+    try {
+      const challenge = await createChallenge(request.userId!, request.body ?? {});
+
+      response.status(201).json(challenge);
+    } catch (error) {
+      if (error instanceof ValidationError) {
+        response.status(400).json({ error: error.message });
+        return;
+      }
+
+      next(error);
+    }
+  });
+
   app.post("/api/challenges/:id/join", requireAuth, async (request, response, next) => {
     try {
       response.json(await toggleChallengeEntry(request.userId!, String(request.params.id)));
     } catch (error) {
+      // A challenge the athlete can't see is reported as missing rather than
+      // forbidden — "403" on a private challenge would confirm it exists.
+      if (error instanceof NotFoundError) {
+        response.status(404).json({ error: error.message });
+        return;
+      }
+
+      if (error instanceof ValidationError) {
+        response.status(400).json({ error: error.message });
+        return;
+      }
+
       next(error);
     }
   });

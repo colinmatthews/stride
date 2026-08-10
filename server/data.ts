@@ -1,5 +1,22 @@
 import { randomUUID } from "node:crypto";
-import { and, asc, desc, eq, gt, inArray, lt, min, sum, type SQL } from "drizzle-orm";
+import {
+  and,
+  asc,
+  count,
+  desc,
+  eq,
+  gt,
+  gte,
+  inArray,
+  lt,
+  lte,
+  max,
+  min,
+  or,
+  sql,
+  sum,
+  type SQL,
+} from "drizzle-orm";
 import { db } from "./db.js";
 import {
   activities as activitiesTable,
@@ -16,9 +33,43 @@ import {
   users,
 } from "./db/schema.js";
 import { USER_AVATARS } from "./seed.js";
+import {
+  HORIZON_MONTHS,
+  badgeFor,
+  blurbFor,
+  canView,
+  firstDay,
+  lastDay,
+  monthIndexOf,
+  parseChallengeDraft,
+  progressFor,
+  statusOf,
+  todayISO,
+  type EffortBucket,
+  type GoalMetric,
+  type Visibility,
+} from "./challenges.js";
 
 const BOOTSTRAP_ACTIVITY_LIMIT = 40;
 const MAX_ACTIVITY_PAGE_LIMIT = 100;
+/**
+ * How far back the Past tab reaches. History grows forever in the table but the
+ * bootstrap payload shouldn't, so it ships a rolling year.
+ */
+const BOOTSTRAP_HISTORY_MONTHS = 12;
+/**
+ * Hard ceiling on challenges in one bootstrap payload. Public challenges are
+ * visible to everyone, so this is what stops the shelf growing without bound as
+ * the app gains athletes.
+ */
+const BOOTSTRAP_CHALLENGE_LIMIT = 120;
+/**
+ * How many challenges one athlete may have running or upcoming at once. A cap
+ * is needed because a public challenge lands on every other athlete's shelf,
+ * so bulk creation is a way to spam everyone. It doubles as a sane product
+ * limit — nobody is meaningfully chasing 25 targets in a month.
+ */
+const MAX_OPEN_CHALLENGES_PER_ATHLETE = 25;
 
 type Sport = "Run" | "Ride" | "Swim" | "Hike" | "Walk";
 
@@ -317,7 +368,192 @@ export async function getActivityById(userId: string, activityId: string) {
   return activities[0] ?? null;
 }
 
+type ChallengeRow = typeof challengesTable.$inferSelect;
+
+/**
+ * One challenge as the client sees it. Progress and the participant count are
+ * both derived here rather than stored, so neither can drift out of agreement
+ * with the activity log or the join table.
+ */
+function mapChallenge(
+  row: ChallengeRow,
+  options: {
+    userId: string;
+    today: string;
+    joined: boolean;
+    participants: number;
+    buckets: Map<string, EffortBucket>;
+    author: AthleteRow;
+  },
+) {
+  const metric = row.metric as GoalMetric;
+  const goal = Number(row.goal);
+  const progress = progressFor(
+    { sport: row.sport as Sport, metric, goal, monthIdx: row.monthIdx },
+    options.buckets,
+  );
+
+  return {
+    id: row.id,
+    name: row.name,
+    sport: row.sport as Sport,
+    metric,
+    goal,
+    unit: metric === "elevation" ? ("m" as const) : ("km" as const),
+    // Derived, not stored — see the note on the challenges table.
+    badge: badgeFor(row.name),
+    blurb: blurbFor(row.visibility as Visibility),
+    startsAt: row.startsAt,
+    endsAt: row.endsAt,
+    monthIdx: row.monthIdx,
+    status: statusOf(row.monthIdx, options.today),
+    visibility: row.visibility as Visibility,
+    participants: options.participants,
+    joined: options.joined,
+    progress: {
+      total: progress.total,
+      pct: progress.pct,
+      activities: progress.activities,
+      lastDate: progress.lastDate,
+      complete: progress.complete,
+    },
+    createdBy: {
+      name: options.author.name,
+      handle: options.author.handle,
+      isMe: options.author.id === options.userId,
+    },
+  };
+}
+
+/**
+ * The athlete's own effort, bucketed by sport and calendar month. A challenge
+ * runs over a whole month, so one bucket is exactly one challenge window —
+ * which means every challenge's progress comes out of this single query.
+ *
+ * Future-dated activities are excluded: a challenge counts effort up to today,
+ * never past it.
+ */
+async function listEffortBuckets(userId: string) {
+  const monthIdxColumn = sql<number>`(
+    EXTRACT(YEAR FROM ${activitiesTable.date} AT TIME ZONE 'UTC')::int * 12
+    + EXTRACT(MONTH FROM ${activitiesTable.date} AT TIME ZONE 'UTC')::int - 1
+  )`;
+
+  const rows = await db
+    .select({
+      sport: activitiesTable.sport,
+      monthIdx: monthIdxColumn,
+      distanceKm: sum(activitiesTable.distanceKm),
+      elevationM: sum(activitiesTable.elevationM),
+      activities: count(),
+      lastDate: max(activitiesTable.date),
+    })
+    .from(activitiesTable)
+    .where(and(eq(activitiesTable.athleteId, userId), lte(activitiesTable.date, sql`NOW()`)))
+    .groupBy(activitiesTable.sport, monthIdxColumn);
+
+  const buckets = new Map<string, EffortBucket>();
+
+  for (const row of rows) {
+    buckets.set(`${row.sport}:${Number(row.monthIdx)}`, {
+      distanceKm: Number(row.distanceKm ?? 0),
+      elevationM: Number(row.elevationM ?? 0),
+      activities: Number(row.activities),
+      lastDate: row.lastDate ? new Date(row.lastDate).toISOString().slice(0, 10) : null,
+    });
+  }
+
+  return buckets;
+}
+
+/**
+ * SQL for "this viewer is allowed to see this challenge" — the same rule as
+ * `canView`, expressed as a WHERE clause.
+ *
+ * This has to be enforced in the query rather than by filtering rows in JS:
+ * a private challenge should never leave the database in the first place, so
+ * that no future refactor can drop the filter and start serving them.
+ */
+function visibleToViewer(viewerId: string) {
+  return or(
+    eq(challengesTable.visibility, "public"),
+    eq(challengesTable.createdBy, viewerId),
+    and(
+      eq(challengesTable.visibility, "friends"),
+      inArray(
+        challengesTable.createdBy,
+        db
+          .select({ followedId: follows.followedId })
+          .from(follows)
+          .where(eq(follows.followerId, viewerId)),
+      ),
+    ),
+  )!;
+}
+
+/**
+ * The challenges to put in front of this viewer.
+ *
+ * Bounded on purpose. Public challenges from every athlete are visible to
+ * everyone, so without a cap one account creating challenges in bulk would
+ * inflate every other athlete's bootstrap payload permanently. The viewer's
+ * own and joined challenges sort first so the cap never hides their shelf —
+ * it only limits how much of other people's it carries.
+ */
+async function listVisibleChallenges(userId: string, currentMonthIdx: number) {
+  const mineOrJoined = sql<boolean>`(${challengesTable.createdBy} = ${userId} OR ${challengeEntries.userId} IS NOT NULL)`;
+
+  return db
+    .select({
+      challenge: challengesTable,
+      joined: sql<boolean>`${challengeEntries.userId} IS NOT NULL`,
+    })
+    .from(challengesTable)
+    .leftJoin(
+      challengeEntries,
+      and(
+        eq(challengeEntries.challengeId, challengesTable.id),
+        eq(challengeEntries.userId, userId),
+      ),
+    )
+    .where(
+      and(
+        gte(challengesTable.monthIdx, currentMonthIdx - BOOTSTRAP_HISTORY_MONTHS),
+        // The same horizon `parseChallengeDraft` enforces on write. Bounding it
+        // here too means a row that got in by some other route can't sit in
+        // Upcoming indefinitely — the read path doesn't rely on the write path
+        // having been the only way in.
+        lte(challengesTable.monthIdx, currentMonthIdx + HORIZON_MONTHS),
+        visibleToViewer(userId),
+      ),
+    )
+    .orderBy(desc(mineOrJoined), desc(challengesTable.monthIdx), asc(challengesTable.name))
+    .limit(BOOTSTRAP_CHALLENGE_LIMIT);
+}
+
+/**
+ * How many athletes have joined each of the given challenges. Counted from the
+ * join table rather than kept as a column, so it can't drift — and scoped to
+ * the challenges actually being returned rather than grouping the whole table.
+ */
+async function listParticipantCounts(challengeIds: string[]) {
+  if (challengeIds.length === 0) {
+    return new Map<string, number>();
+  }
+
+  const rows = await db
+    .select({ challengeId: challengeEntries.challengeId, participants: count() })
+    .from(challengeEntries)
+    .where(inArray(challengeEntries.challengeId, challengeIds))
+    .groupBy(challengeEntries.challengeId);
+
+  return new Map(rows.map((row) => [row.challengeId, Number(row.participants)]));
+}
+
 export async function buildBootstrap(userId: string) {
+  const today = todayISO();
+  const currentMonthIdx = monthIndexOf(today);
+
   const [
     usersResult,
     followsResult,
@@ -327,8 +563,7 @@ export async function buildBootstrap(userId: string) {
     clubsResult,
     clubMembershipsResult,
     challengesResult,
-    challengeEntriesResult,
-    challengeProgressResult,
+    effortBuckets,
   ] = await Promise.all([
     db.select().from(users).orderBy(asc(users.createdAt)),
     db
@@ -351,25 +586,16 @@ export async function buildBootstrap(userId: string) {
       .select({ clubId: clubMemberships.clubId })
       .from(clubMemberships)
       .where(eq(clubMemberships.userId, userId)),
-    db.select().from(challengesTable).orderBy(asc(challengesTable.endsAt)),
-    db
-      .select({ challengeId: challengeEntries.challengeId })
-      .from(challengeEntries)
-      .where(eq(challengeEntries.userId, userId)),
-    db
-      .select({
-        sport: activitiesTable.sport,
-        distanceKm: sum(activitiesTable.distanceKm),
-        elevationM: sum(activitiesTable.elevationM),
-      })
-      .from(activitiesTable)
-      .where(eq(activitiesTable.athleteId, userId))
-      .groupBy(activitiesTable.sport),
+    listVisibleChallenges(userId, currentMonthIdx),
+    listEffortBuckets(userId),
   ]);
+
+  const participantCounts = await listParticipantCounts(
+    challengesResult.map((row) => row.challenge.id),
+  );
 
   const followedIds = new Set(followsResult.map((row) => row.followedId));
   const joinedClubIds = new Set(clubMembershipsResult.map((row) => row.clubId));
-  const joinedChallengeIds = new Set(challengeEntriesResult.map((row) => row.challengeId));
   const myBestBySegment = new Map(
     mySegmentBests.map((row) => [row.segmentId, row.effortSeconds ?? undefined]),
   );
@@ -379,14 +605,6 @@ export async function buildBootstrap(userId: string) {
 
   if (!me) {
     throw new Error("Authenticated user not found");
-  }
-
-  const distanceBySport = new Map<string, number>();
-  let totalElevation = 0;
-
-  for (const row of challengeProgressResult) {
-    distanceBySport.set(row.sport, (distanceBySport.get(row.sport) ?? 0) + Number(row.distanceKm));
-    totalElevation += Number(row.elevationM);
   }
 
   const segments = segmentsResult.map((row) => ({
@@ -416,20 +634,30 @@ export async function buildBootstrap(userId: string) {
     joined: joinedClubIds.has(row.id),
   }));
 
-  const challenges = challengesResult.map((row) => ({
-    id: row.id,
-    name: row.name,
-    sport: row.sport,
-    goalKm: Number(row.goalKm),
-    myProgressKm:
-      row.metricType === "elevation_m"
-        ? totalElevation
-        : Number((distanceBySport.get(row.sport) ?? 0).toFixed(1)),
-    participants: row.participants,
-    endsAt: row.endsAt,
-    badge: row.badge,
-    joined: joinedChallengeIds.has(row.id),
-  }));
+  const athletesById = new Map(usersResult.map((row) => [row.id, row]));
+
+  // Visibility is already applied in SQL by `listVisibleChallenges`, so every
+  // row here is one this viewer is allowed to see.
+  const challenges = challengesResult.flatMap(({ challenge, joined }) => {
+    const author = athletesById.get(challenge.createdBy);
+
+    // The author FK cascades on user delete, so a row without one shouldn't
+    // exist. Skip rather than throw: one orphan shouldn't blank the app.
+    if (!author) {
+      return [];
+    }
+
+    return [
+      mapChallenge(challenge, {
+        userId,
+        today,
+        joined,
+        participants: participantCounts.get(challenge.id) ?? 0,
+        buckets: effortBuckets,
+        author,
+      }),
+    ];
+  });
 
   return {
     me,
@@ -623,38 +851,130 @@ export async function toggleClubMembership(userId: string, clubId: string) {
 }
 
 export async function toggleChallengeEntry(userId: string, challengeId: string) {
+  const [challenge] = await db
+    .select()
+    .from(challengesTable)
+    .where(eq(challengesTable.id, challengeId))
+    .limit(1);
+
+  if (!challenge) {
+    throw new NotFoundError("Challenge not found");
+  }
+
+  // Joining is a read of someone else's challenge first. Without this check an
+  // athlete could join a private challenge by posting its id directly.
+  const followsResult = await db
+    .select({ followedId: follows.followedId })
+    .from(follows)
+    .where(eq(follows.followerId, userId));
+
+  if (!canView(challenge, userId, new Set(followsResult.map((row) => row.followedId)))) {
+    throw new NotFoundError("Challenge not found");
+  }
+
+  // A finished challenge can't be joined — there is no window left to count in.
+  if (statusOf(challenge.monthIdx, todayISO()) === "past") {
+    throw new ValidationError("This challenge has already finished");
+  }
+
   const existing = await db
     .select({ challengeId: challengeEntries.challengeId })
     .from(challengeEntries)
     .where(and(eq(challengeEntries.userId, userId), eq(challengeEntries.challengeId, challengeId)))
     .limit(1);
-  const challengeRows = await db
-    .select({ participants: challengesTable.participants })
-    .from(challengesTable)
-    .where(eq(challengesTable.id, challengeId))
-    .limit(1);
-  const challenge = challengeRows[0];
+  const joined = existing.length === 0;
 
-  if (!challenge) {
-    throw new Error("Challenge not found");
-  }
-
-  if (existing.length > 0) {
+  if (joined) {
+    await db.insert(challengeEntries).values({ userId, challengeId }).onConflictDoNothing();
+  } else {
     await db
       .delete(challengeEntries)
       .where(
         and(eq(challengeEntries.userId, userId), eq(challengeEntries.challengeId, challengeId)),
       );
-  } else {
-    await db.insert(challengeEntries).values({ userId, challengeId });
   }
 
-  const participants =
-    existing.length > 0 ? Math.max(challenge.participants - 1, 0) : challenge.participants + 1;
-  await db.update(challengesTable).set({ participants }).where(eq(challengesTable.id, challengeId));
+  const [{ participants }] = await db
+    .select({ participants: count() })
+    .from(challengeEntries)
+    .where(eq(challengeEntries.challengeId, challengeId));
 
-  return {
-    joined: existing.length === 0,
-    participants,
-  };
+  return { joined, participants: Number(participants) };
+}
+
+export class ValidationError extends Error {}
+export class NotFoundError extends Error {}
+
+/**
+ * A challenge an athlete made for themselves and whoever they choose to share
+ * it with. Progress on it is summed from their real activities in the month it
+ * runs, so it starts counting the moment it exists.
+ */
+export async function createChallenge(
+  userId: string,
+  input: {
+    name?: unknown;
+    sport?: unknown;
+    metric?: unknown;
+    goal?: unknown;
+    monthIdx?: unknown;
+    visibility?: unknown;
+  },
+) {
+  const today = todayISO();
+  const parsed = parseChallengeDraft(input, today);
+
+  if (!parsed.ok) {
+    throw new ValidationError(parsed.error);
+  }
+
+  const { draft } = parsed;
+
+  const [openCount] = await db
+    .select({ open: count() })
+    .from(challengesTable)
+    .where(
+      and(
+        eq(challengesTable.createdBy, userId),
+        gte(challengesTable.monthIdx, monthIndexOf(today)),
+      ),
+    );
+
+  if (Number(openCount.open) >= MAX_OPEN_CHALLENGES_PER_ATHLETE) {
+    throw new ValidationError(
+      `You can have ${MAX_OPEN_CHALLENGES_PER_ATHLETE} challenges running or upcoming at once. Wait for one to finish, or delete one first.`,
+    );
+  }
+
+  const id = `challenge-${randomUUID()}`;
+
+  const [row] = await db
+    .insert(challengesTable)
+    .values({
+      id,
+      name: draft.name,
+      sport: draft.sport,
+      metric: draft.metric,
+      goal: String(draft.goal),
+      startsAt: firstDay(draft.monthIdx),
+      endsAt: lastDay(draft.monthIdx),
+      monthIdx: draft.monthIdx,
+      visibility: draft.visibility,
+      createdBy: userId,
+    })
+    .returning();
+
+  // The author is in it by definition — nobody creates a challenge to sit out.
+  await db.insert(challengeEntries).values({ userId, challengeId: id }).onConflictDoNothing();
+
+  const [author] = await db.select().from(users).where(eq(users.id, userId)).limit(1);
+
+  return mapChallenge(row, {
+    userId,
+    today,
+    joined: true,
+    participants: 1,
+    buckets: await listEffortBuckets(userId),
+    author,
+  });
 }

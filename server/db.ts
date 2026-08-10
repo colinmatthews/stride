@@ -1,13 +1,7 @@
 import { Pool } from "pg";
 import { drizzle } from "drizzle-orm/node-postgres";
 import * as schema from "./db/schema.js";
-import {
-  SEEDED_ATHLETES,
-  SEEDED_CHALLENGES,
-  SEEDED_CLUBS,
-  SEEDED_SEGMENTS,
-  generateSeedActivities,
-} from "./seed.js";
+import { SEEDED_ATHLETES, SEEDED_CLUBS, SEEDED_SEGMENTS, generateSeedActivities } from "./seed.js";
 
 const dbUrl = process.env.DB_URL;
 
@@ -90,22 +84,6 @@ async function seedDatabase() {
           members: club.members,
           cover: club.cover,
           description: club.description,
-        })
-        .onConflictDoNothing();
-    }
-
-    for (const challenge of SEEDED_CHALLENGES) {
-      await tx
-        .insert(schema.challenges)
-        .values({
-          id: challenge.id,
-          name: challenge.name,
-          sport: challenge.sport,
-          goalKm: String(challenge.goalKm),
-          participants: challenge.participants,
-          endsAt: challenge.endsAt,
-          badge: challenge.badge,
-          metricType: challenge.metricType,
         })
         .onConflictDoNothing();
     }
