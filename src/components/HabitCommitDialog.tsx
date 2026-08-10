@@ -60,10 +60,10 @@ export function HabitCommitDialog({
 
   async function save() {
     setSaving(true);
-    closedByAction.current = true;
     try {
       const input = { sport, distanceKm, buddyId };
       await commitWeekZeroHabit(input);
+      closedByAction.current = true;
       onCommitted?.(input);
       onOpenChange(false);
     } finally {
@@ -73,9 +73,9 @@ export function HabitCommitDialog({
 
   async function skip() {
     setSaving(true);
-    closedByAction.current = true;
     try {
       await dismissHabitCommitPrompt();
+      closedByAction.current = true;
       onSkipped?.();
       onOpenChange(false);
     } finally {

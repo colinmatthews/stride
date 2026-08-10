@@ -169,12 +169,11 @@ export function createApp() {
         routeSeed: Number(request.body.routeSeed ?? 1),
       });
 
-      const [activity, habit] = await Promise.all([
-        getActivityById(request.userId!, activityId),
-        syncHabitAfterActivity(request.userId!),
-      ]);
+      const activity = await getActivityById(request.userId!, activityId);
+      await syncHabitAfterActivity(request.userId!);
 
-      response.status(201).json({ activity, habit });
+      // Keep the historical Activity DTO shape; clients refresh habit via bootstrap /api/habits.
+      response.status(201).json(activity);
     } catch (error) {
       next(error);
     }

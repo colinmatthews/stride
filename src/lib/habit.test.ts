@@ -1,6 +1,7 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import {
   applyActivityDay,
+  activeDaysInWindow,
   dayKey,
   findMissedDate,
   habitProgress,
@@ -83,6 +84,19 @@ describe("habitWindowDays", () => {
       "2025-06-02",
       "2025-06-03",
     ]);
+  });
+});
+
+describe("activeDaysInWindow", () => {
+  it("drops activity days outside the 3-day window", () => {
+    expect(
+      activeDaysInWindow(
+        commitment({
+          startedAt: "2025-06-01T12:00:00.000Z",
+          activeDays: ["2025-06-01", "2025-06-05", "2025-06-06"],
+        }),
+      ),
+    ).toEqual(["2025-06-01"]);
   });
 });
 

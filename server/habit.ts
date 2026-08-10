@@ -176,15 +176,13 @@ export async function getHabitState(userId: string): Promise<HabitStateDto> {
   let commitment: HabitCommitmentDto | null = null;
 
   if (hasCommitment && habitRow?.startedAt && habitRow.sport && habitRow.distanceKm) {
-    const windowEnd = new Date(habitRow.startedAt);
-    windowEnd.setDate(windowEnd.getDate() + 14);
+    const windowStart = new Date(habitRow.startedAt);
+    windowStart.setHours(0, 0, 0, 0);
+    const windowEnd = new Date(windowStart);
+    windowEnd.setDate(windowEnd.getDate() + HABIT_WINDOW_DAYS);
 
-    let activeDays = await loadActiveDays(userId, habitRow.startedAt, windowEnd);
-    // Always include the commitment start day if first activity falls on it
-    const startDay = dayKey(habitRow.startedAt);
-    if (!activeDays.includes(startDay) && firstActivity) {
-      activeDays = [startDay, ...activeDays.filter((d) => d !== startDay)].sort();
-    }
+    // Only count calendar days inside the visible 3-day habit window — never invent days.
+    const activeDays = await loadActiveDays(userId, windowStart, windowEnd);
 
     let completedAt = habitRow.completedAt;
     if (!completedAt && activeDays.length >= HABIT_TARGET_DAYS) {

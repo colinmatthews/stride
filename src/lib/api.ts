@@ -147,14 +147,14 @@ export async function saveActivity(payload: {
   avgSpeedKmh?: number;
   routeSeed: number;
 }) {
-  const result = await apiFetch<{ activity: Activity; habit: HabitState }>("/api/activities", {
+  const activity = await apiFetch<Activity>("/api/activities", {
     method: "POST",
     body: JSON.stringify(payload),
   });
 
-  mergeActivities([result.activity]);
-  setHabitState(result.habit);
-  return result.activity;
+  mergeActivities([activity]);
+  await fetchHabit();
+  return activity;
 }
 
 export async function toggleActivityKudo(activityId: string) {

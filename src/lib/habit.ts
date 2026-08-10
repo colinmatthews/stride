@@ -109,6 +109,12 @@ export function habitWindowDays(commitment: HabitCommitment): string[] {
   });
 }
 
+/** Keep only activity days that fall inside the commitment's visible window. */
+export function activeDaysInWindow(commitment: HabitCommitment): string[] {
+  const window = new Set(habitWindowDays(commitment));
+  return commitment.activeDays.filter((day) => window.has(day)).sort();
+}
+
 export function shouldShowMissedReminder(state: HabitState = HABIT): boolean {
   const c = state.commitment;
   if (!c || c.completedAt || !c.reminder || c.reminder.dismissed) return false;

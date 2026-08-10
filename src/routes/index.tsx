@@ -83,8 +83,7 @@ function FeedPage() {
   const suggested = ATHLETES.filter((athlete) => athlete.id !== "me").slice(0, 4);
   const myChallenges = CHALLENGES.filter((challenge) => challenge.joined);
 
-  const showReminder =
-    habitSectionOpen && shouldShowMissedReminder(habit) && habit.commitment !== null;
+  const showReminder = shouldShowMissedReminder(habit) && habit.commitment !== null;
 
   return (
     <AppShell>
@@ -122,7 +121,7 @@ function FeedPage() {
                     posthog.capture("feed_filter_changed", { filter: filterName });
                   }}
                   className={`rounded px-3 py-1.5 text-sm transition-colors ${
-                    filterName === filter
+                    filter === filterName
                       ? "bg-surface text-foreground shadow-sm"
                       : "text-muted-foreground hover:text-foreground"
                   }`}
@@ -133,16 +132,17 @@ function FeedPage() {
             </div>
           </div>
 
-          {habitSectionOpen && (
-            <section id={HABIT_HASH} className="mb-6 scroll-mt-24 space-y-4">
-              {showReminder && habit.commitment && (
-                <MissedDayReminder
-                  commitment={habit.commitment}
-                  onDismiss={() =>
-                    posthog.capture("habit_reminder_dismissed", { channel: "in_app" })
-                  }
-                />
-              )}
+          {showReminder && habit.commitment && (
+            <MissedDayReminder
+              commitment={habit.commitment}
+              onDismiss={() =>
+                posthog.capture("habit_reminder_dismissed", { channel: "in_app" })
+              }
+            />
+          )}
+
+          <section id={HABIT_HASH} className="mb-6 scroll-mt-24 space-y-4 xl:hidden">
+            {(habit.commitment || habit.commitPromptPending) && (
               <HabitProgressCard
                 state={habit}
                 onSetNextAction={() => {
@@ -150,10 +150,8 @@ function FeedPage() {
                   posthog.capture("habit_commit_opened", { source: "feed_habit_section" });
                 }}
               />
-            </section>
-          )}
-
-          {!habitSectionOpen && <div id={HABIT_HASH} className="scroll-mt-24" />}
+            )}
+          </section>
 
           <div className="space-y-5">
             {visible.length > 0 ? (
