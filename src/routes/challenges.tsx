@@ -4,6 +4,7 @@ import { Calendar, Check, Clock, Globe, Lock, Plus, Sparkles, Trophy, Users } fr
 import { usePostHog } from "@posthog/react";
 import {
   CHALLENGES,
+  SPORTS,
   type Challenge,
   type ChallengeStatus,
   type GoalMetric,
@@ -11,6 +12,7 @@ import {
   type Visibility,
 } from "@/lib/mock-data";
 import { AppShell } from "@/components/AppShell";
+import { SportBadge } from "@/components/SportBadge";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -31,6 +33,14 @@ import {
 } from "@/components/ui/select";
 import { ApiError, createChallenge, toggleChallengeJoin } from "@/lib/api";
 import {
+  STATUS_TABS,
+  completedCount,
+  emptyShelfCopy,
+  pastMonths,
+  shelfFor,
+  tallyByStatus,
+} from "@/lib/challenge-shelf";
+import {
   dayOfMonth,
   daysBetween,
   fmtGoal,
@@ -41,12 +51,6 @@ import {
   todayISO,
   windowLabel,
 } from "@/lib/challenge-format";
-
-const STATUS_TABS: { key: ChallengeStatus; label: string }[] = [
-  { key: "active", label: "Active" },
-  { key: "upcoming", label: "Upcoming" },
-  { key: "past", label: "Past" },
-];
 
 const VISIBILITY_LABEL: Record<Visibility, string> = {
   private: "Just you",
@@ -86,27 +90,8 @@ function ChallengesPage() {
   const today = todayISO();
   const currentMonth = monthIndexOf(today);
 
-  const counts = useMemo(() => {
-    const tally: Record<ChallengeStatus, number> = { active: 0, upcoming: 0, past: 0 };
-
-    for (const challenge of challenges) {
-      tally[challenge.status] += 1;
-    }
-
-    return tally;
-  }, [challenges]);
-
-  const visible = useMemo(
-    () =>
-      challenges
-        .filter((challenge) => challenge.status === status)
-        .sort((a, b) => {
-          if (a.monthIdx !== b.monthIdx) return b.monthIdx - a.monthIdx;
-          if (a.createdBy.isMe !== b.createdBy.isMe) return a.createdBy.isMe ? -1 : 1;
-          return Number(b.joined) - Number(a.joined);
-        }),
-    [challenges, status],
-  );
+  const counts = useMemo(() => tallyByStatus(challenges), [challenges]);
+  const visible = useMemo(() => shelfFor(challenges, status), [challenges, status]);
 
   function selectStatus(next: ChallengeStatus) {
     setStatus(next);
@@ -114,6 +99,16 @@ function ChallengesPage() {
     // Mirrors `feed_filter_changed` on the home feed — without it there's no
     // way to tell whether anyone uses Upcoming or Past.
     posthog.capture("challenge_filter_changed", { filter: next, results: counts[next] });
+  }
+
+  /**
+   * Paired with `challenge_created` so the funnel is measurable: the question
+   * this feature exists to answer is how many athletes who open the form
+   * actually finish one.
+   */
+  function startCreating(source: "header" | "empty_state") {
+    setCreating(true);
+    posthog.capture("challenge_create_started", { source, existing: challenges.length });
   }
 
   async function toggleJoin(challenge: Challenge) {
@@ -149,7 +144,7 @@ function ChallengesPage() {
             Challenges
           </h1>
         </div>
-        <Button onClick={() => setCreating(true)} className="h-11 px-5">
+        <Button onClick={() => startCreating("header")} className="h-11 px-5">
           <Plus className="h-4 w-4" /> Create challenge
         </Button>
       </div>
@@ -205,7 +200,7 @@ function ChallengesPage() {
         <EmptyShelf
           status={status}
           firstRun={challenges.length === 0}
-          onCreate={() => setCreating(true)}
+          onCreate={() => startCreating("empty_state")}
         />
       ) : status === "past" ? (
         <PastList challenges={visible} />
@@ -226,6 +221,12 @@ function ChallengesPage() {
         open={creating}
         onOpenChange={setCreating}
         currentMonth={currentMonth}
+        onFailed={(detail) =>
+          posthog.capture("challenge_create_failed", {
+            reason: detail.reason,
+            status: detail.status,
+          })
+        }
         onCreated={(challenge) => {
           setChallenges((state) => [challenge, ...state]);
           setStatus(challenge.status);
@@ -427,17 +428,11 @@ function ChallengeCard({
 /* ------------------------------------------------------------------ */
 
 function PastList({ challenges }: { challenges: Challenge[] }) {
-  const months = [...new Set(challenges.map((challenge) => challenge.monthIdx))].sort(
-    (a, b) => b - a,
-  );
-
   return (
     <div className="mt-8 space-y-10">
-      {months.map((idx) => {
+      {pastMonths(challenges).map((idx) => {
         const rows = challenges.filter((challenge) => challenge.monthIdx === idx);
-        const finished = rows.filter(
-          (challenge) => challenge.joined && challenge.progress.complete,
-        ).length;
+        const finished = completedCount(rows);
 
         return (
           <section key={idx}>
@@ -460,10 +455,12 @@ function PastList({ challenges }: { challenges: Challenge[] }) {
                   </span>
 
                   <div className="min-w-0 flex-1">
-                    <div className="truncate text-sm font-medium">{challenge.name}</div>
+                    <div className="flex items-center gap-2">
+                      <span className="truncate text-sm font-medium">{challenge.name}</span>
+                      <SportBadge sport={challenge.sport} className="shrink-0" />
+                    </div>
                     <div className="mt-0.5 font-mono text-[10px] uppercase tracking-[0.22em] text-muted-foreground">
-                      {bylineFor(challenge)} · {challenge.sport} ·{" "}
-                      {windowLabel(challenge.startsAt, challenge.endsAt)}
+                      {bylineFor(challenge)} · {windowLabel(challenge.startsAt, challenge.endsAt)}
                     </div>
                   </div>
 
@@ -512,21 +509,6 @@ function PastList({ challenges }: { challenges: Challenge[] }) {
 /* it rather than just reporting that there's nothing here.             */
 /* ------------------------------------------------------------------ */
 
-const EMPTY_COPY: Record<ChallengeStatus, { title: string; body: string }> = {
-  active: {
-    title: "Nothing running this month",
-    body: "Set yourself a target for the rest of the month. Your activities start counting towards it straight away.",
-  },
-  upcoming: {
-    title: "Nothing lined up for next month",
-    body: "Plan next month's target now and it starts counting on the 1st.",
-  },
-  past: {
-    title: "No finished challenges yet",
-    body: "Once a challenge's month is over it moves here, with what you managed against the goal.",
-  },
-};
-
 function EmptyShelf({
   status,
   firstRun,
@@ -536,19 +518,14 @@ function EmptyShelf({
   firstRun: boolean;
   onCreate: () => void;
 }) {
-  const copy = firstRun
-    ? {
-        title: "Make your own challenge",
-        body: "Name a target, pick a sport and a month, and decide who can see it. Progress is counted from the activities you already record.",
-      }
-    : EMPTY_COPY[status];
+  const copy = emptyShelfCopy(status, firstRun);
 
   return (
     <div className="mt-8 border border-dashed border-border px-6 py-16 text-center">
       <Trophy className="mx-auto h-6 w-6 text-muted-foreground/50" />
       <h2 className="mt-4 font-display text-lg font-semibold tracking-tight">{copy.title}</h2>
       <p className="mx-auto mt-2 max-w-md text-sm text-muted-foreground">{copy.body}</p>
-      {status !== "past" && (
+      {copy.showCreate && (
         <Button className="mt-6" onClick={onCreate}>
           <Plus className="h-4 w-4" /> Create challenge
         </Button>
@@ -566,11 +543,13 @@ function CreateDialog({
   onOpenChange,
   currentMonth,
   onCreated,
+  onFailed,
 }: {
   open: boolean;
   onOpenChange: (next: boolean) => void;
   currentMonth: number;
   onCreated: (challenge: Challenge) => void;
+  onFailed: (detail: { reason: string; status: number }) => void;
 }) {
   const [name, setName] = useState("");
   const [sport, setSport] = useState<Sport>("Run");
@@ -608,9 +587,13 @@ function CreateDialog({
       setMonthIdx(currentMonth);
       onOpenChange(false);
     } catch (cause) {
-      setError(
-        cause instanceof ApiError ? cause.message : "Could not create the challenge. Try again.",
-      );
+      const message =
+        cause instanceof ApiError ? cause.message : "Could not create the challenge. Try again.";
+
+      setError(message);
+      // Rejections are the other half of the funnel — a spike here means the
+      // form is letting people build something the server won't accept.
+      onFailed({ reason: message, status: cause instanceof ApiError ? cause.status : 0 });
     } finally {
       setPending(false);
     }
@@ -649,7 +632,7 @@ function CreateDialog({
                   <SelectValue />
                 </SelectTrigger>
                 <SelectContent>
-                  {(["Run", "Ride", "Walk", "Swim", "Hike"] as Sport[]).map((option) => (
+                  {SPORTS.map((option) => (
                     <SelectItem key={option} value={option}>
                       {option}
                     </SelectItem>

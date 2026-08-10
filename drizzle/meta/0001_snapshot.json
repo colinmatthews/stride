@@ -1,5 +1,5 @@
 {
-  "id": "6c4b12c3-4eaf-4930-8db0-c8fd3af14da5",
+  "id": "9a257b20-d34d-434b-bb63-3186c7f633a6",
   "prevId": "f83e656b-5714-4d6b-ad58-27da7a2cbe55",
   "version": "7",
   "dialect": "postgresql",
@@ -514,18 +514,6 @@
         "goal": {
           "name": "goal",
           "type": "numeric(10, 2)",
-          "primaryKey": false,
-          "notNull": true
-        },
-        "badge": {
-          "name": "badge",
-          "type": "text",
-          "primaryKey": false,
-          "notNull": true
-        },
-        "blurb": {
-          "name": "blurb",
-          "type": "text",
           "primaryKey": false,
           "notNull": true
         },

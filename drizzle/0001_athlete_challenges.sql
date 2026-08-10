@@ -17,8 +17,6 @@ CREATE TABLE "challenges" (
 	"sport" text NOT NULL,
 	"metric" text NOT NULL,
 	"goal" numeric(10, 2) NOT NULL,
-	"badge" text NOT NULL,
-	"blurb" text NOT NULL,
 	"starts_at" date NOT NULL,
 	"ends_at" date NOT NULL,
 	"month_idx" integer NOT NULL,

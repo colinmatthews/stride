@@ -166,6 +166,11 @@ export const clubMemberships = pgTable(
  * A challenge runs over one whole calendar month, which is what lets the
  * Active / Upcoming / Past filter be derived from `monthIdx` rather than
  * stored and kept in sync.
+ *
+ * Only facts an athlete chose are stored. The card's badge and blurb are
+ * derived from the name and visibility on read — storing them would mean two
+ * copies of the same fact, and a blurb that quietly contradicts the visibility
+ * it describes the moment either one can be edited.
  */
 export const challenges = pgTable(
   "challenges",
@@ -175,8 +180,6 @@ export const challenges = pgTable(
     sport: text("sport").notNull(),
     metric: text("metric").notNull(),
     goal: numeric("goal", { precision: 10, scale: 2 }).notNull(),
-    badge: text("badge").notNull(),
-    blurb: text("blurb").notNull(),
     startsAt: date("starts_at").notNull(),
     endsAt: date("ends_at").notNull(),
     monthIdx: integer("month_idx").notNull(),

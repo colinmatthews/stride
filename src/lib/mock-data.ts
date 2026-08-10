@@ -1,5 +1,12 @@
 export type Sport = "Run" | "Ride" | "Swim" | "Hike" | "Walk";
 
+/**
+ * Every sport, in the order they're offered in pickers. Kept in step with
+ * `SPORTS` in `server/challenges.ts` — the client and server are separate
+ * TypeScript projects, so the list is declared on both sides, same as `Sport`.
+ */
+export const SPORTS: Sport[] = ["Run", "Ride", "Walk", "Swim", "Hike"];
+
 export interface Athlete {
   id: string;
   name: string;

@@ -148,7 +148,8 @@ export function progressFor(
 /* Creating one                                                        */
 /* ------------------------------------------------------------------ */
 
-export const SPORTS: Sport[] = ["Run", "Ride", "Swim", "Hike", "Walk"];
+/** Kept in step with `SPORTS` in `src/lib/mock-data.ts`. */
+export const SPORTS: Sport[] = ["Run", "Ride", "Walk", "Swim", "Hike"];
 export const VISIBILITIES: Visibility[] = ["public", "friends", "private"];
 
 const MAX_GOAL = 100_000;
@@ -225,9 +226,16 @@ export function parseChallengeDraft(
   };
 }
 
-/** A four-letter mark for the card. Falls back when a name has no letters. */
+/**
+ * A four-character mark for the card, derived from the name.
+ *
+ * Split by code point rather than by `slice`, which cuts surrogate pairs in
+ * half and turns an emoji in a challenge name into a replacement character.
+ */
 export function badgeFor(name: string) {
-  return name.slice(0, 4).toUpperCase().trim() || "MINE";
+  const characters = Array.from(name.trim().replace(/\s+/g, " "));
+
+  return characters.slice(0, 4).join("").toUpperCase().trim() || "MINE";
 }
 
 export function blurbFor(visibility: Visibility) {

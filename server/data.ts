@@ -34,6 +34,7 @@ import {
 } from "./db/schema.js";
 import { USER_AVATARS } from "./seed.js";
 import {
+  HORIZON_MONTHS,
   badgeFor,
   blurbFor,
   canView,
@@ -399,8 +400,9 @@ function mapChallenge(
     metric,
     goal,
     unit: metric === "elevation" ? ("m" as const) : ("km" as const),
-    badge: row.badge,
-    blurb: row.blurb,
+    // Derived, not stored — see the note on the challenges table.
+    badge: badgeFor(row.name),
+    blurb: blurbFor(row.visibility as Visibility),
     startsAt: row.startsAt,
     endsAt: row.endsAt,
     monthIdx: row.monthIdx,
@@ -517,6 +519,11 @@ async function listVisibleChallenges(userId: string, currentMonthIdx: number) {
     .where(
       and(
         gte(challengesTable.monthIdx, currentMonthIdx - BOOTSTRAP_HISTORY_MONTHS),
+        // The same horizon `parseChallengeDraft` enforces on write. Bounding it
+        // here too means a row that got in by some other route can't sit in
+        // Upcoming indefinitely — the read path doesn't rely on the write path
+        // having been the only way in.
+        lte(challengesTable.monthIdx, currentMonthIdx + HORIZON_MONTHS),
         visibleToViewer(userId),
       ),
     )
@@ -949,8 +956,6 @@ export async function createChallenge(
       sport: draft.sport,
       metric: draft.metric,
       goal: String(draft.goal),
-      badge: badgeFor(draft.name),
-      blurb: blurbFor(draft.visibility),
       startsAt: firstDay(draft.monthIdx),
       endsAt: lastDay(draft.monthIdx),
       monthIdx: draft.monthIdx,

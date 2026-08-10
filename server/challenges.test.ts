@@ -248,10 +248,21 @@ describe("creating a challenge", () => {
     }
   });
 
-  it("derives a four-letter badge, with a fallback", () => {
+  it("derives a four-character badge, with a fallback", () => {
     expect(badgeFor("Sunrise Crew 75K")).toBe("SUNR");
     expect(badgeFor("Go")).toBe("GO");
     expect(badgeFor("   ")).toBe("MINE");
+  });
+
+  it("counts by code point, so an emoji name isn't cut in half", () => {
+    // `"🏃 Run".slice(0, 4)` splits the surrogate pair and yields a replacement
+    // character; splitting by code point keeps the glyph intact.
+    expect(badgeFor("🏃 Run")).toBe("🏃 RU");
+    expect(badgeFor("🏔️🏔️🏔️🏔️🏔️")).not.toContain("�");
+  });
+
+  it("collapses runs of whitespace rather than padding the badge with them", () => {
+    expect(badgeFor("A    B")).toBe("A B");
   });
 
   it("describes the audience in the blurb", () => {
