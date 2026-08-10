@@ -15,7 +15,7 @@ import {
   segments as segmentsTable,
   users,
 } from "./db/schema.js";
-import { USER_AVATARS, type RouteConfidenceSegment } from "./seed.js";
+import { USER_AVATARS, computeGpsConfidence, type RouteConfidenceSegment } from "./seed.js";
 
 const BOOTSTRAP_ACTIVITY_LIMIT = 40;
 const MAX_ACTIVITY_PAGE_LIMIT = 100;
@@ -463,6 +463,17 @@ export async function createActivity(input: {
   routeSeed: number;
 }) {
   const id = `act-${randomUUID()}`;
+  const athleteRows = await db
+    .select({ city: users.city })
+    .from(users)
+    .where(eq(users.id, input.userId))
+    .limit(1);
+  const { routeConfidence, distanceRangeKm } = computeGpsConfidence({
+    sport: input.sport,
+    city: athleteRows[0]?.city ?? "",
+    distanceKm: input.distanceKm,
+    random: Math.random,
+  });
 
   await db.insert(activitiesTable).values({
     id,
@@ -481,6 +492,9 @@ export async function createActivity(input: {
     achievements: 0,
     photo: null,
     routeSeed: input.routeSeed,
+    routeConfidence: routeConfidence ?? null,
+    distanceRangeLowKm: distanceRangeKm ? String(distanceRangeKm[0]) : null,
+    distanceRangeHighKm: distanceRangeKm ? String(distanceRangeKm[1]) : null,
   });
 
   return id;
