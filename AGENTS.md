@@ -22,7 +22,9 @@ The database `stride` and user `stride:stride` are pre-created. Connection strin
 npm run dev        # starts both Vite (5173) and Express (3002) via concurrently
 ```
 
-The Vite dev server proxies `/api` requests to the Express backend. The server seeds demo data (athletes, activities, segments, clubs, challenges) into PostgreSQL on startup, so the app has content immediately.
+The Vite dev server proxies `/api` requests to the Express backend. The server seeds demo data (athletes, activities, segments, clubs, challenge series) into PostgreSQL on startup, so the app has content immediately.
+
+Challenges are not seeded as fixed rows. `server/challenge-engine.ts` mints one *edition* per series per month — the trailing history window, the current month, and exactly one month ahead — and `mintEditions()` runs both at startup and on the first request of a new month. Minting is insert-only, so an edition's goal never changes once an athlete has started chasing it. Progress is summed from the athlete's own activities inside the edition's window rather than stored, so a brand-new account correctly shows 0% until it has activities.
 
 ### Lint / Build
 

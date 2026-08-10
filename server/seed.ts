@@ -1,5 +1,4 @@
 export type Sport = "Run" | "Ride" | "Swim" | "Hike" | "Walk";
-export type MetricType = "distance_km" | "elevation_m";
 
 export interface SeedAthlete {
   id: string;
@@ -58,17 +57,6 @@ export interface SeedClub {
   members: number;
   cover: string;
   description: string;
-}
-
-export interface SeedChallenge {
-  id: string;
-  name: string;
-  sport: Sport | "Multisport";
-  goalKm: number;
-  participants: number;
-  endsAt: string;
-  badge: string;
-  metricType: MetricType;
 }
 
 const ATHLETE_PHOTOS = [
@@ -330,59 +318,6 @@ export const SEEDED_CLUBS: SeedClub[] = [
     members: 280,
     cover: "https://images.unsplash.com/photo-1551698618-1dfe5d97d256?w=900&h=400&fit=crop",
     description: "Run through wind, snow and northern lights.",
-  },
-];
-
-export const SEEDED_CHALLENGES: SeedChallenge[] = [
-  {
-    id: "ch1",
-    name: "April Distance Run",
-    sport: "Run",
-    goalKm: 100,
-    participants: 184230,
-    endsAt: "2026-04-30",
-    badge: "RUN",
-    metricType: "distance_km",
-  },
-  {
-    id: "ch2",
-    name: "Climb 5,000m",
-    sport: "Ride",
-    goalKm: 5000,
-    participants: 92450,
-    endsAt: "2026-04-30",
-    badge: "CLIMB",
-    metricType: "elevation_m",
-  },
-  {
-    id: "ch3",
-    name: "Gran Fondo 100K",
-    sport: "Ride",
-    goalKm: 100,
-    participants: 64200,
-    endsAt: "2026-05-15",
-    badge: "GF",
-    metricType: "distance_km",
-  },
-  {
-    id: "ch4",
-    name: "10K Race Ready",
-    sport: "Run",
-    goalKm: 10,
-    participants: 38120,
-    endsAt: "2026-05-31",
-    badge: "10K",
-    metricType: "distance_km",
-  },
-  {
-    id: "ch5",
-    name: "Swim 20K",
-    sport: "Swim",
-    goalKm: 20,
-    participants: 22100,
-    endsAt: "2026-04-30",
-    badge: "SWIM",
-    metricType: "distance_km",
   },
 ];
 

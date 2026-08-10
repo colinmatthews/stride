@@ -2,9 +2,11 @@ import { existsSync } from "node:fs";
 import path from "node:path";
 import express from "express";
 import {
+  ValidationError,
   addComment,
   buildBootstrap,
   createActivity,
+  createChallengeEdition,
   createUser,
   findUserForAuth,
   getActivityById,
@@ -205,6 +207,21 @@ export function createApp() {
     try {
       response.json(await toggleClubMembership(request.userId!, String(request.params.id)));
     } catch (error) {
+      next(error);
+    }
+  });
+
+  app.post("/api/challenges", requireAuth, async (request, response, next) => {
+    try {
+      const edition = await createChallengeEdition(request.userId!, request.body ?? {});
+
+      response.status(201).json(edition);
+    } catch (error) {
+      if (error instanceof ValidationError) {
+        response.status(400).json({ error: error.message });
+        return;
+      }
+
       next(error);
     }
   });

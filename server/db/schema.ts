@@ -1,4 +1,14 @@
-import { date, integer, numeric, pgTable, primaryKey, text, timestamp } from "drizzle-orm/pg-core";
+import {
+  boolean,
+  date,
+  index,
+  integer,
+  numeric,
+  pgTable,
+  primaryKey,
+  text,
+  timestamp,
+} from "drizzle-orm/pg-core";
 
 export const users = pgTable("users", {
   id: text("id").primaryKey(),
@@ -150,16 +160,54 @@ export const clubMemberships = pgTable(
   }),
 );
 
-export const challenges = pgTable("challenges", {
+/**
+ * The template a recurring challenge is minted from. Rows here are the only
+ * thing a human ever writes; the engine turns them into a fresh edition every
+ * month without anyone in the loop.
+ */
+export const challengeSeries = pgTable("challenge_series", {
   id: text("id").primaryKey(),
-  name: text("name").notNull(),
   sport: text("sport").notNull(),
-  goalKm: numeric("goal_km", { precision: 10, scale: 2 }).notNull(),
-  participants: integer("participants").notNull(),
-  endsAt: date("ends_at").notNull(),
+  tier: text("tier").notNull(),
+  label: text("label").notNull(),
   badge: text("badge").notNull(),
-  metricType: text("metric_type").notNull(),
+  metric: text("metric").notNull(),
+  goalMin: numeric("goal_min", { precision: 10, scale: 2 }).notNull(),
+  goalMax: numeric("goal_max", { precision: 10, scale: 2 }).notNull(),
+  goalStep: numeric("goal_step", { precision: 10, scale: 2 }).notNull(),
+  blurb: text("blurb").notNull(),
+  active: boolean("active").notNull().default(true),
 });
+
+/**
+ * One month's run of a challenge. Editions are immutable once minted — an
+ * athlete's target can't move under them mid-month — so the seed only ever
+ * inserts, never updates. `seriesId` is null for challenges an athlete made.
+ */
+export const challengeEditions = pgTable(
+  "challenge_editions",
+  {
+    id: text("id").primaryKey(),
+    seriesId: text("series_id").references(() => challengeSeries.id, { onDelete: "set null" }),
+    name: text("name").notNull(),
+    sport: text("sport").notNull(),
+    metric: text("metric").notNull(),
+    goal: numeric("goal", { precision: 10, scale: 2 }).notNull(),
+    badge: text("badge").notNull(),
+    blurb: text("blurb").notNull(),
+    startsAt: date("starts_at").notNull(),
+    endsAt: date("ends_at").notNull(),
+    monthIdx: integer("month_idx").notNull(),
+    source: text("source").notNull(),
+    visibility: text("visibility").notNull().default("public"),
+    participants: integer("participants").notNull().default(0),
+    createdBy: text("created_by").references(() => users.id, { onDelete: "cascade" }),
+    createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+  },
+  (table) => ({
+    monthIdx: index("challenge_editions_month_idx").on(table.monthIdx),
+  }),
+);
 
 export const challengeEntries = pgTable(
   "challenge_entries",
@@ -167,13 +215,13 @@ export const challengeEntries = pgTable(
     userId: text("user_id")
       .notNull()
       .references(() => users.id, { onDelete: "cascade" }),
-    challengeId: text("challenge_id")
+    editionId: text("edition_id")
       .notNull()
-      .references(() => challenges.id, { onDelete: "cascade" }),
+      .references(() => challengeEditions.id, { onDelete: "cascade" }),
     createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
   },
   (table) => ({
-    pk: primaryKey({ columns: [table.userId, table.challengeId] }),
+    pk: primaryKey({ columns: [table.userId, table.editionId] }),
   }),
 );
 

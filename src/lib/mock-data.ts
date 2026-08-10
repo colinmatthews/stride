@@ -63,16 +63,54 @@ export interface Club {
   joined?: boolean;
 }
 
+export type ChallengeStatus = "active" | "upcoming" | "past";
+export type ChallengeSource = "auto" | "mine";
+export type GoalMetric = "distance" | "elevation";
+export type Visibility = "public" | "friends" | "private";
+
+/** Who made a challenge. Null for anything the engine minted. */
+export interface ChallengeAuthor {
+  name: string;
+  handle: string;
+  isMe: boolean;
+}
+
+/**
+ * Progress is summed server-side from the athlete's own activities inside the
+ * challenge window, so it can never disagree with their activity log.
+ */
+export interface ChallengeProgress {
+  total: number;
+  pct: number;
+  activities: number;
+  lastDate: string | null;
+  complete: boolean;
+}
+
+/**
+ * One month's run of a challenge. `seriesId` is set for the recurring ones the
+ * engine mints and null for anything an athlete made themselves.
+ */
 export interface Challenge {
   id: string;
+  seriesId: string | null;
   name: string;
-  sport: Sport | "Multisport";
-  goalKm: number;
-  myProgressKm: number;
-  participants: number;
-  endsAt: string;
+  sport: Sport;
+  metric: GoalMetric;
+  goal: number;
+  unit: "km" | "m";
   badge: string;
-  joined?: boolean;
+  blurb: string;
+  startsAt: string;
+  endsAt: string;
+  monthIdx: number;
+  status: ChallengeStatus;
+  source: ChallengeSource;
+  visibility: Visibility;
+  participants: number;
+  joined: boolean;
+  progress: ChallengeProgress;
+  createdBy: ChallengeAuthor | null;
 }
 
 export interface AppData {
