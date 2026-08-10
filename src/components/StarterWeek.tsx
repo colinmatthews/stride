@@ -1,9 +1,17 @@
 import { Link } from "@tanstack/react-router";
-import { useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { usePostHog } from "@posthog/react";
 import { ArrowRight, Check, Flame, HeartPulse, PartyPopper, Trophy, Users } from "lucide-react";
 import { CHALLENGES, fmtDuration, type Challenge, type StarterWeekState } from "@/lib/mock-data";
 import { retryStarterWeek, toggleChallengeJoin } from "@/lib/api";
+import {
+  CONFETTI_DURATION_MS,
+  advancePieces,
+  createPieces,
+  drawPieces,
+  fadeAt,
+  type ConfettiPiece,
+} from "@/lib/confetti";
 import { SportBadge } from "./SportBadge";
 
 const EYEBROW = "font-mono text-[10px] uppercase tracking-[0.22em]";
@@ -261,9 +269,97 @@ export function NextChallengeCard({ state }: { state: StarterWeekState }) {
   );
 }
 
+/**
+ * One-shot celebration burst. Drawn on a canvas rather than as DOM nodes so ~90
+ * pieces cost a single element, and it stops and clears itself when finished.
+ */
+function Confetti() {
+  const canvasRef = useRef<HTMLCanvasElement>(null);
+
+  useEffect(() => {
+    const canvas = canvasRef.current;
+    if (!canvas) return;
+
+    // The celebration reads perfectly well without motion, so honour the OS setting.
+    if (window.matchMedia("(prefers-reduced-motion: reduce)").matches) return;
+
+    const ctx = canvas.getContext("2d");
+    if (!ctx) return;
+
+    const dpr = window.devicePixelRatio || 1;
+    let width = 0;
+    let height = 0;
+
+    const measure = () => {
+      width = window.innerWidth || document.documentElement.clientWidth;
+      height = window.innerHeight || document.documentElement.clientHeight;
+      canvas.width = width * dpr;
+      canvas.height = height * dpr;
+      ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+    };
+
+    measure();
+    window.addEventListener("resize", measure);
+
+    let pieces: ConfettiPiece[] = [];
+    let raf = 0;
+    let start: number | undefined;
+    let last: number | undefined;
+
+    const frame = (time: number) => {
+      // Mounted in a background tab or before layout: hold the burst rather than
+      // burning it against a zero-sized canvas where nobody would ever see it.
+      if (width === 0 || height === 0) {
+        measure();
+        raf = requestAnimationFrame(frame);
+        return;
+      }
+
+      if (pieces.length === 0) {
+        pieces = createPieces(width, height);
+      }
+
+      start ??= time;
+      const elapsed = time - start;
+      // Clamp dt so a backgrounded tab doesn't teleport every piece off-screen.
+      const dt = Math.min((time - (last ?? time)) / 1000, 0.05);
+      last = time;
+
+      advancePieces(pieces, dt);
+
+      ctx.clearRect(0, 0, width, height);
+      ctx.globalAlpha = fadeAt(elapsed);
+      drawPieces(ctx, pieces);
+      ctx.globalAlpha = 1;
+
+      if (elapsed < CONFETTI_DURATION_MS) {
+        raf = requestAnimationFrame(frame);
+      } else {
+        ctx.clearRect(0, 0, width, height);
+      }
+    };
+
+    raf = requestAnimationFrame(frame);
+
+    return () => {
+      cancelAnimationFrame(raf);
+      window.removeEventListener("resize", measure);
+    };
+  }, []);
+
+  return (
+    <canvas
+      ref={canvasRef}
+      aria-hidden="true"
+      className="pointer-events-none fixed inset-0 z-40 h-full w-full"
+    />
+  );
+}
+
 export function StarterWeekCelebration({ state }: { state: StarterWeekState }) {
   return (
     <div className="space-y-4">
+      <Confetti />
       <section className="border border-pr/40 bg-pr/10 p-8 text-center">
         <div className="mx-auto flex h-14 w-14 items-center justify-center rounded-full bg-pr/20">
           <PartyPopper className="h-6 w-6 text-pr" />
