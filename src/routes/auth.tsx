@@ -78,7 +78,7 @@ function AuthPage() {
       {/* LEFT — form column */}
       <div className="flex min-h-screen flex-col">
         <header className="flex items-center justify-between px-6 py-6 lg:px-12">
-          <Link to="/" className="flex items-center gap-3">
+          <Link to="/" className="flex items-center gap-3 transition-opacity hover:opacity-90">
             <div className="grid h-9 w-9 place-items-center rounded-sm bg-secondary font-display text-base font-bold text-secondary-foreground">
               S
             </div>

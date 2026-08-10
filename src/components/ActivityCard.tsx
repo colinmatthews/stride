@@ -24,7 +24,11 @@ export function ActivityCard({ activity }: Props) {
   return (
     <article className="group/card overflow-hidden border border-border bg-surface transition-colors hover:border-foreground/30">
       <header className="flex items-start gap-3 px-5 pb-4 pt-5">
-        <Link to="/athlete/$id" params={{ id: ath.id }} className="shrink-0">
+        <Link
+          to="/athlete/$id"
+          params={{ id: ath.id }}
+          className="shrink-0 transition-opacity hover:opacity-80"
+        >
           <img
             src={ath.avatar}
             alt={ath.name}
@@ -123,7 +127,9 @@ export function ActivityCard({ activity }: Props) {
         <button
           onClick={toggle}
           className={`inline-flex items-center gap-1.5 px-2.5 py-1.5 text-sm transition-colors ${
-            kudoed ? "text-primary" : "text-muted-foreground hover:text-foreground"
+            kudoed
+              ? "text-primary hover:text-primary/80"
+              : "text-muted-foreground hover:text-foreground"
           }`}
           aria-label="Give kudos"
         >

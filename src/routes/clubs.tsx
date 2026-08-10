@@ -36,7 +36,11 @@ function ClubsPage() {
             key={c.id}
             className="bg-surface border border-border rounded-xl overflow-hidden"
           >
-            <Link to="/club/$id" params={{ id: c.id }}>
+            <Link
+              to="/club/$id"
+              params={{ id: c.id }}
+              className="block transition-opacity hover:opacity-90"
+            >
               <img src={c.cover} alt="" className="w-full h-36 object-cover" />
             </Link>
             <div className="p-4">
@@ -57,7 +61,7 @@ function ClubsPage() {
                     setJoined((state) => ({ ...state, [c.id]: result.joined }));
                     setMembers((state) => ({ ...state, [c.id]: result.members }));
                   }}
-                  className={`text-xs px-3 py-1.5 rounded-md font-medium inline-flex items-center gap-1.5 ${
+                  className={`text-xs px-3 py-1.5 rounded-md font-medium inline-flex items-center gap-1.5 transition-opacity hover:opacity-95 ${
                     joined[c.id]
                       ? "bg-secondary text-secondary-foreground"
                       : "bg-primary text-primary-foreground"
