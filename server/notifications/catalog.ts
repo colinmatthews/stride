@@ -148,7 +148,9 @@ export function buildPreferencesDto(input: {
       key,
       label: CHANNEL_CATALOG[key].label,
       description: describeChannel(key, input.email),
-      enabled: input.channelSettings[key],
+      // Report email as off when there is no address, so the switch agrees with
+      // the "Add an email address to enable." copy beside it.
+      enabled: key === "email" && !input.email ? false : input.channelSettings[key],
     })),
     categories: NOTIFICATION_KINDS.map((kind) => ({
       kind,
@@ -182,10 +184,22 @@ export function resolveDelivery(input: {
   kind: NotificationKind;
   channelSettings: ChannelFlags;
   preferences: Record<NotificationKind, ChannelFlags>;
+  /** False when the account has no email address on file. */
+  hasEmail?: boolean;
 }): NotificationChannelKey[] {
-  return CHANNEL_KEYS.filter(
-    (key) => input.channelSettings[key] && input.preferences[input.kind][key],
-  );
+  return CHANNEL_KEYS.filter((key) => {
+    if (!input.channelSettings[key] || !input.preferences[input.kind][key]) {
+      return false;
+    }
+
+    // An account with no address cannot receive email no matter what the
+    // preference says, and reporting otherwise contradicts the channel copy.
+    if (key === "email" && input.hasEmail === false) {
+      return false;
+    }
+
+    return true;
+  });
 }
 
 /**

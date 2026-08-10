@@ -12,7 +12,6 @@ import {
   users,
 } from "../db/schema.js";
 import {
-  CHANNEL_KEYS,
   buildPreferencesDto,
   decodeNotificationCursor,
   encodeNotificationCursor,
@@ -22,6 +21,7 @@ import {
   resolveDelivery,
   selectNextCursor,
   DEFAULT_CHANNEL_SETTINGS,
+  DEFAULT_PREFERENCES,
   type ChannelFlags,
   type NotificationKind,
   type PreferencesDto,
@@ -115,7 +115,7 @@ export async function deleteNotification(tx: Executor, notificationId: string) {
 }
 
 async function resolveDeliveryChannels(tx: Executor, userId: string, kind: NotificationKind) {
-  const [channelRows, preferenceRows] = await Promise.all([
+  const [channelRows, preferenceRows, userRows] = await Promise.all([
     tx
       .select({
         pushEnabled: notificationChannelSettings.pushEnabled,
@@ -132,12 +132,16 @@ async function resolveDeliveryChannels(tx: Executor, userId: string, kind: Notif
       })
       .from(notificationPreferences)
       .where(eq(notificationPreferences.userId, userId)),
+    // Needed so we never report an email delivery for an account that has no
+    // address to send to — the seeded athletes have a NULL email.
+    tx.select({ email: users.email }).from(users).where(eq(users.id, userId)).limit(1),
   ]);
 
   return resolveDelivery({
     kind,
     channelSettings: toChannelFlags(channelRows[0]),
     preferences: mergePreferences(preferenceRows),
+    hasEmail: Boolean(userRows[0]?.email),
   });
 }
 
@@ -356,47 +360,75 @@ export function parsePreferencesPatch(body: unknown): PreferencesPatch {
 
 export class PreferencesValidationError extends Error {}
 
+/**
+ * Apply a partial preference change.
+ *
+ * Deliberately does NOT read the current state first. An earlier version read a
+ * snapshot, merged it in JS, and wrote every column back — so two quick
+ * single-key requests (push off, then email off) both read the same snapshot and
+ * the second silently re-enabled what the first had turned off. A control that
+ * un-sets itself is precisely the bug this feature exists to fix.
+ *
+ * Instead the conflict clause updates ONLY the columns named in the patch, so
+ * concurrent writes to different channels cannot clobber one another. The INSERT
+ * branch supplies code defaults for untouched columns, matching the same
+ * "sparse rows + code defaults" rule the read path uses.
+ */
 export async function updateNotificationPreferences(userId: string, patch: PreferencesPatch) {
-  const current = await getNotificationPreferences(userId);
-
   await db.transaction(async (tx) => {
-    if (patch.channels) {
-      const next = { ...channelFlagsFromDto(current), ...patch.channels };
+    if (patch.channels && Object.keys(patch.channels).length > 0) {
+      const set: Partial<typeof notificationChannelSettings.$inferInsert> = {};
+
+      if (patch.channels.push !== undefined) {
+        set.pushEnabled = patch.channels.push;
+      }
+
+      if (patch.channels.email !== undefined) {
+        set.emailEnabled = patch.channels.email;
+      }
 
       await tx
         .insert(notificationChannelSettings)
-        .values({ userId, pushEnabled: next.push, emailEnabled: next.email })
-        .onConflictDoUpdate({
-          target: notificationChannelSettings.userId,
-          set: { pushEnabled: next.push, emailEnabled: next.email },
-        });
+        .values({
+          userId,
+          pushEnabled: patch.channels.push ?? DEFAULT_CHANNEL_SETTINGS.push,
+          emailEnabled: patch.channels.email ?? DEFAULT_CHANNEL_SETTINGS.email,
+        })
+        .onConflictDoUpdate({ target: notificationChannelSettings.userId, set });
     }
 
     for (const category of patch.categories ?? []) {
-      const existing = current.categories.find((entry) => entry.kind === category.kind);
-      const next = { ...existing?.channels, ...category.channels } as ChannelFlags;
+      if (Object.keys(category.channels).length === 0) {
+        continue;
+      }
+
+      const defaults = DEFAULT_PREFERENCES[category.kind];
+      const set: Partial<typeof notificationPreferences.$inferInsert> = {};
+
+      if (category.channels.push !== undefined) {
+        set.push = category.channels.push;
+      }
+
+      if (category.channels.email !== undefined) {
+        set.email = category.channels.email;
+      }
 
       await tx
         .insert(notificationPreferences)
-        .values({ userId, kind: category.kind, push: next.push, email: next.email })
+        .values({
+          userId,
+          kind: category.kind,
+          push: category.channels.push ?? defaults.push,
+          email: category.channels.email ?? defaults.email,
+        })
         .onConflictDoUpdate({
           target: [notificationPreferences.userId, notificationPreferences.kind],
-          set: { push: next.push, email: next.email },
+          set,
         });
     }
   });
 
   return getNotificationPreferences(userId);
-}
-
-function channelFlagsFromDto(dto: PreferencesDto): ChannelFlags {
-  const flags = {} as ChannelFlags;
-
-  for (const key of CHANNEL_KEYS) {
-    flags[key] = dto.channels.find((channel) => channel.key === key)?.enabled ?? false;
-  }
-
-  return flags;
 }
 
 export { BOOTSTRAP_NOTIFICATION_LIMIT };

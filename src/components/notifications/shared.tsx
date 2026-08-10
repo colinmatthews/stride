@@ -11,7 +11,7 @@
  * server whenever a save failed — the "either I'm missing something obvious or
  * the toggles aren't working" complaint this feature exists to fix.
  */
-import { useMemo, useState } from "react";
+import { useMemo, useRef, useState } from "react";
 import {
   Bell,
   ThumbsUp,
@@ -34,6 +34,7 @@ import { Avatar, AvatarImage, AvatarFallback } from "@/components/ui/avatar";
 import { cn } from "@/lib/utils";
 import {
   NOTIFICATIONS,
+  NOTIFICATIONS_NEXT_CURSOR,
   NOTIFICATIONS_UNREAD,
   NOTIFICATION_PREFERENCES,
   getAthlete,
@@ -45,6 +46,7 @@ import {
   type NotificationChannelKey,
 } from "@/lib/mock-data";
 import {
+  fetchNotifications,
   markNotificationRead,
   markAllNotificationsRead,
   updateNotificationPreferences,
@@ -98,8 +100,15 @@ export const CHANNEL_ICON: Record<NotificationChannelKey, LucideIcon> = {
 export interface InboxController {
   items: AppNotification[];
   unread: number;
+  hasMore: boolean;
+  loadingMore: boolean;
   markOne: (id: string) => void;
   markAll: () => void;
+  loadMore: () => void;
+}
+
+function sortByNewest(items: AppNotification[]) {
+  return [...items].sort((left, right) => +new Date(right.date) - +new Date(left.date));
 }
 
 export function useInboxController(): InboxController {
@@ -109,10 +118,18 @@ export function useInboxController(): InboxController {
   // The count comes from the server rather than being derived from `items`: the
   // inbox holds one page, and the badge must reflect every unread notification.
   const [unread, setUnread] = useState(NOTIFICATIONS_UNREAD);
+  // Bootstrap returns the first page plus its cursor; anything older is fetched
+  // on demand. Without this the inbox would be permanently capped at that first
+  // page while the badge counted every unread notification.
+  const [cursor, setCursor] = useState<string | undefined>(NOTIFICATIONS_NEXT_CURSOR);
+  const [loadingMore, setLoadingMore] = useState(false);
 
   async function markOne(id: string) {
-    const previousItems = items;
-    const previousUnread = unread;
+    const target = items.find((n) => n.id === id);
+
+    if (!target || target.read) {
+      return;
+    }
 
     setItems((state) => state.map((n) => (n.id === id ? { ...n, read: true } : n)));
     setUnread((state) => Math.max(state - 1, 0));
@@ -121,14 +138,16 @@ export function useInboxController(): InboxController {
       const result = await markNotificationRead(id);
       setUnread(result.unread);
     } catch {
-      setItems(previousItems);
-      setUnread(previousUnread);
+      // Revert only this row. Restoring a whole-array snapshot would also undo
+      // any other read that succeeded while this request was in flight.
+      setItems((state) => state.map((n) => (n.id === id ? { ...n, read: false } : n)));
+      setUnread((state) => state + 1);
       toast.error("Couldn't mark that as read. Please try again.");
     }
   }
 
   async function markAll() {
-    const previousItems = items;
+    const previousUnreadIds = new Set(items.filter((n) => !n.read).map((n) => n.id));
     const previousUnread = unread;
 
     setItems((state) => state.map((n) => ({ ...n, read: true })));
@@ -137,13 +156,50 @@ export function useInboxController(): InboxController {
     try {
       await markAllNotificationsRead();
     } catch {
-      setItems(previousItems);
+      // Restore by id, so rows that arrived mid-flight keep their own state.
+      setItems((state) =>
+        state.map((n) => (previousUnreadIds.has(n.id) ? { ...n, read: false } : n)),
+      );
       setUnread(previousUnread);
       toast.error("Couldn't mark everything as read. Please try again.");
     }
   }
 
-  return { items, unread, markOne, markAll };
+  async function loadMore() {
+    if (!cursor || loadingMore) {
+      return;
+    }
+
+    setLoadingMore(true);
+
+    try {
+      const page = await fetchNotifications({ cursor });
+
+      setItems((state) => {
+        const byId = new Map(state.map((n) => [n.id, n]));
+        for (const notification of page.notifications) {
+          byId.set(notification.id, notification);
+        }
+        return sortByNewest(Array.from(byId.values()));
+      });
+      setCursor(page.nextCursor);
+      setUnread(page.unread);
+    } catch {
+      toast.error("Couldn't load older notifications. Please try again.");
+    } finally {
+      setLoadingMore(false);
+    }
+  }
+
+  return {
+    items,
+    unread,
+    hasMore: Boolean(cursor),
+    loadingMore,
+    markOne,
+    markAll,
+    loadMore,
+  };
 }
 
 export interface SettingsController {
@@ -161,6 +217,9 @@ export function useSettingsController(): SettingsController {
   const [categories, setCategories] = useState(() =>
     NOTIFICATION_PREFERENCES.categories.map((c) => ({ ...c, channels: { ...c.channels } })),
   );
+  // Each save returns the full recomputed state. Without sequencing, a slow
+  // response from an earlier toggle would land last and flip a newer one back.
+  const latestSave = useRef(0);
 
   const channelEnabled = useMemo(
     () =>
@@ -174,6 +233,7 @@ export function useSettingsController(): SettingsController {
   async function toggleChannel(key: NotificationChannelKey) {
     const previous = channels;
     const next = !channels.find((c) => c.key === key)?.enabled;
+    const seq = ++latestSave.current;
 
     setChannels((state) => state.map((c) => (c.key === key ? { ...c, enabled: next } : c)));
 
@@ -181,6 +241,11 @@ export function useSettingsController(): SettingsController {
       // Absolute value, not a toggle: the request carries the state the UI is
       // already showing, so a retry cannot land on the opposite value.
       const saved = await updateNotificationPreferences({ channels: { [key]: next } });
+
+      if (seq !== latestSave.current) {
+        return;
+      }
+
       setChannels(saved.channels);
       setCategories(saved.categories);
     } catch {
@@ -192,6 +257,7 @@ export function useSettingsController(): SettingsController {
   async function toggleCategory(kind: NotificationKind, key: NotificationChannelKey) {
     const previous = categories;
     const next = !categories.find((c) => c.kind === kind)?.channels[key];
+    const seq = ++latestSave.current;
 
     setCategories((state) =>
       state.map((c) => (c.kind === kind ? { ...c, channels: { ...c.channels, [key]: next } } : c)),
@@ -201,6 +267,11 @@ export function useSettingsController(): SettingsController {
       const saved = await updateNotificationPreferences({
         categories: [{ kind, channels: { [key]: next } }],
       });
+
+      if (seq !== latestSave.current) {
+        return;
+      }
+
       setChannels(saved.channels);
       setCategories(saved.categories);
     } catch {

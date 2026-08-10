@@ -76,6 +76,17 @@ describe("resolveDelivery", () => {
       }),
     ).toEqual([]);
   });
+
+  it("never reports email for an account with no address on file", () => {
+    expect(
+      resolveDelivery({
+        kind: "kudos",
+        channelSettings: { push: true, email: true },
+        preferences,
+        hasEmail: false,
+      }),
+    ).toEqual(["push"]);
+  });
 });
 
 describe("buildPreferencesDto", () => {
@@ -99,10 +110,12 @@ describe("buildPreferencesDto", () => {
       channelSettings: { push: true, email: true },
       preferences: mergePreferences([]),
     });
+    const email = dto.channels.find((channel) => channel.key === "email");
 
-    expect(dto.channels.find((channel) => channel.key === "email")?.description).toBe(
-      "Add an email address to enable.",
-    );
+    expect(email?.description).toBe("Add an email address to enable.");
+    // The switch must agree with the copy rather than showing "on" for a
+    // channel that cannot deliver.
+    expect(email?.enabled).toBe(false);
   });
 });
 

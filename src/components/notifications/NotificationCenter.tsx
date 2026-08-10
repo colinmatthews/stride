@@ -7,7 +7,13 @@
  */
 import { useEffect, useRef, useState, type ReactNode } from "react";
 import { Link, useSearch } from "@tanstack/react-router";
-import { Settings2, Inbox as InboxIcon, ChevronRight, ChevronLeft } from "lucide-react";
+import {
+  Settings2,
+  Inbox as InboxIcon,
+  ChevronRight,
+  ChevronLeft,
+  LoaderCircle,
+} from "lucide-react";
 import { Card } from "@/components/ui/card";
 import type { NotificationKind } from "@/lib/mock-data";
 import { NotificationRow, EmptyInbox, SettingsBlock, groupByRecency, KIND_LABEL } from "./shared";
@@ -98,6 +104,26 @@ export function NotificationCenter() {
                   </Card>
                 </section>
               ))}
+
+              {/* Bootstrap only carries the first page. Without this the older
+                  history is unreachable while the bell keeps counting it. */}
+              {inbox.hasMore && (
+                <div className="flex justify-center pt-2">
+                  <button
+                    onClick={inbox.loadMore}
+                    disabled={inbox.loadingMore}
+                    className="inline-flex items-center gap-2 rounded-md border border-border px-4 py-2 text-sm text-muted-foreground transition-colors hover:bg-muted hover:text-foreground disabled:opacity-50"
+                  >
+                    {inbox.loadingMore ? (
+                      <>
+                        <LoaderCircle className="h-4 w-4 animate-spin" /> Loading
+                      </>
+                    ) : (
+                      "Load older notifications"
+                    )}
+                  </button>
+                </div>
+              )}
             </div>
           )}
         </>

@@ -136,23 +136,33 @@ const STEPS: Step[] = [
 
 /**
  * Give the inbox a plausible read state so the bell shows a believable number
- * instead of every backfilled row at once. Guarded on read_at IS NULL, so
- * re-runs neither churn rows nor undo a real user's reads.
+ * instead of every backfilled row at once.
+ *
+ * Scoped to the ids this run just inserted. An earlier version matched every row
+ * older than three days for every user, which did not "undo real reads" (the
+ * read_at IS NULL guard covered that) but did the opposite and worse: it
+ * fabricated read state over genuinely unread history.
  */
 const AGE_OUT_SQL = `
   UPDATE notifications
   SET read_at = created_at + interval '2 hours'
-  WHERE read_at IS NULL
+  WHERE id = ANY($1::text[])
+    AND read_at IS NULL
     AND created_at < now() - interval '3 days'`;
 
 export async function backfillNotifications(client: PoolClient): Promise<void> {
+  const insertedIds: string[] = [];
+
   for (const step of STEPS) {
-    const result = await client.query(step.sql);
+    // RETURNING id after ON CONFLICT DO NOTHING yields only the rows this run
+    // actually created, never pre-existing ones.
+    const result = await client.query<{ id: string }>(`${step.sql} RETURNING id`);
+    insertedIds.push(...result.rows.map((row) => row.id));
     console.log(`  ${step.label}: +${result.rowCount ?? 0}`);
   }
 
-  const aged = await client.query(AGE_OUT_SQL);
-  console.log(`  marked read (older than 3 days): ${aged.rowCount ?? 0}`);
+  const aged = await client.query(AGE_OUT_SQL, [insertedIds]);
+  console.log(`  marked read (backfilled rows older than 3 days): ${aged.rowCount ?? 0}`);
 }
 
 async function main(): Promise<void> {
