@@ -1,5 +1,12 @@
 export type Sport = "Run" | "Ride" | "Swim" | "Hike" | "Walk";
 
+// A stretch of the route the app isn't confident about (e.g. GPS multipath in
+// an urban canyon) — startT/endT are fractions (0-1) along the route path.
+export interface RouteConfidenceSegment {
+  startT: number;
+  endT: number;
+}
+
 export interface Athlete {
   id: string;
   name: string;
@@ -34,6 +41,9 @@ export interface Activity {
   splits?: { km: number; paceSec: number; hr: number; elev: number }[];
   segments?: { id: string; rank: number }[];
   kudoed?: boolean;
+  // Present only when part of the recorded track had weak/bounced GPS signal.
+  routeConfidence?: RouteConfidenceSegment[];
+  distanceRangeKm?: [number, number];
 }
 
 export interface Segment {
@@ -153,6 +163,21 @@ export function fmtPace(secPerKm: number): string {
   const minutes = Math.floor(secPerKm / 60);
   const seconds = Math.floor(secPerKm % 60);
   return `${minutes}:${pad(seconds)}/km`;
+}
+
+export function fmtDistanceRange([lo, hi]: [number, number]): string {
+  return `${lo.toFixed(1)}–${hi.toFixed(1)}`;
+}
+
+// Uncertain distances render as an approximation (`~12.3`) instead of the
+// usual two-decimal precision — a track we're not confident about shouldn't
+// look more exact than it is.
+export function fmtActivityDistance(
+  activity: Pick<Activity, "distanceKm" | "distanceRangeKm">,
+): string {
+  return activity.distanceRangeKm
+    ? `~${activity.distanceKm.toFixed(1)}`
+    : activity.distanceKm.toFixed(2);
 }
 
 export function fmtDate(iso: string): string {

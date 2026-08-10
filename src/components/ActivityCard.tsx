@@ -2,10 +2,18 @@ import { Link } from "@tanstack/react-router";
 import { useState } from "react";
 import { Heart, MessageCircle, Trophy, MapPin, Clock } from "lucide-react";
 import type { Activity } from "@/lib/mock-data";
-import { fmtDuration, fmtPace, fmtTimeAgo, getActivityPhoto, getAthlete } from "@/lib/mock-data";
+import {
+  fmtActivityDistance,
+  fmtDuration,
+  fmtPace,
+  fmtTimeAgo,
+  getActivityPhoto,
+  getAthlete,
+} from "@/lib/mock-data";
 import { toggleActivityKudo } from "@/lib/api";
 import { RouteMap } from "./RouteMap";
 import { SportBadge } from "./SportBadge";
+import { GpsConfidenceBadge } from "./GpsConfidenceBadge";
 
 interface Props {
   activity: Activity;
@@ -67,7 +75,12 @@ export function ActivityCard({ activity }: Props) {
       </Link>
 
       <div className="grid grid-cols-3 gap-0 border-y border-border/70 mx-5 mt-4">
-        <CardStat label="Distance" value={activity.distanceKm.toFixed(2)} unit="km" />
+        <CardStat
+          label="Distance"
+          value={fmtActivityDistance(activity)}
+          unit="km"
+          rangeKm={activity.distanceRangeKm}
+        />
         {activity.sport === "Ride" ? (
           <CardStat
             label="Avg speed"
@@ -105,6 +118,8 @@ export function ActivityCard({ activity }: Props) {
                 height={200}
                 className="h-44 w-full"
                 distanceKm={activity.distanceKm}
+                distanceRangeKm={activity.distanceRangeKm}
+                confidence={activity.routeConfidence}
               />
             </div>
           ) : (
@@ -114,6 +129,8 @@ export function ActivityCard({ activity }: Props) {
               height={260}
               className="h-52 w-full"
               distanceKm={activity.distanceKm}
+              distanceRangeKm={activity.distanceRangeKm}
+              confidence={activity.routeConfidence}
             />
           )}
         </div>
@@ -159,16 +176,19 @@ function CardStat({
   value,
   unit,
   border,
+  rangeKm,
 }: {
   label: string;
   value: string | number;
   unit?: string;
   border?: boolean;
+  rangeKm?: [number, number];
 }) {
   return (
     <div className={`py-3 ${border ? "border-l border-border/70 pl-4" : "pr-4"}`}>
-      <div className="font-mono text-[10px] uppercase tracking-[0.22em] text-muted-foreground">
+      <div className="flex items-center gap-1.5 font-mono text-[10px] uppercase tracking-[0.22em] text-muted-foreground">
         {label}
+        {rangeKm && <GpsConfidenceBadge compact rangeKm={rangeKm} />}
       </div>
       <div className="stat-num mt-1 text-xl font-bold tracking-tight">
         {value}

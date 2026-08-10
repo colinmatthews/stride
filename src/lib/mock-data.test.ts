@@ -1,6 +1,8 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import {
   clearAppData,
+  fmtActivityDistance,
+  fmtDistanceRange,
   fmtDuration,
   fmtPace,
   fmtTimeAgo,
@@ -80,6 +82,22 @@ describe("fmtTimeAgo", () => {
 
   it("returns days ago within a week", () => {
     expect(fmtTimeAgo("2025-05-29T12:00:00.000Z")).toBe("3d ago");
+  });
+});
+
+describe("fmtDistanceRange", () => {
+  it("formats a low-high range to one decimal each", () => {
+    expect(fmtDistanceRange([9.5, 10.5])).toBe("9.5–10.5");
+  });
+});
+
+describe("fmtActivityDistance", () => {
+  it("shows two-decimal precision when there's no uncertainty", () => {
+    expect(fmtActivityDistance({ distanceKm: 10.234 })).toBe("10.23");
+  });
+
+  it("shows an approximate one-decimal figure when the track has a GPS-uncertain range", () => {
+    expect(fmtActivityDistance({ distanceKm: 10.234, distanceRangeKm: [9.5, 10.9] })).toBe("~10.2");
   });
 });
 

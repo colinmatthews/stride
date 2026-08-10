@@ -1,4 +1,13 @@
-import { date, integer, numeric, pgTable, primaryKey, text, timestamp } from "drizzle-orm/pg-core";
+import {
+  date,
+  integer,
+  jsonb,
+  numeric,
+  pgTable,
+  primaryKey,
+  text,
+  timestamp,
+} from "drizzle-orm/pg-core";
 
 export const users = pgTable("users", {
   id: text("id").primaryKey(),
@@ -60,6 +69,12 @@ export const activities = pgTable("activities", {
   achievements: integer("achievements").notNull().default(0),
   photo: text("photo"),
   routeSeed: integer("route_seed").notNull(),
+  // Stretches of the recorded track the app isn't confident about (e.g. GPS
+  // multipath in an urban canyon). Fractions (0-1) along the route path.
+  // Null/empty means the whole track is treated as confident.
+  routeConfidence: jsonb("route_confidence").$type<{ startT: number; endT: number }[]>(),
+  distanceRangeLowKm: numeric("distance_range_low_km", { precision: 10, scale: 2 }),
+  distanceRangeHighKm: numeric("distance_range_high_km", { precision: 10, scale: 2 }),
 });
 
 export const activityComments = pgTable("activity_comments", {

@@ -132,6 +132,11 @@ async function seedDatabase() {
           achievements: activity.achievements,
           photo: activity.photo ?? null,
           routeSeed: activity.routeSeed,
+          routeConfidence: activity.routeConfidence ?? null,
+          distanceRangeLowKm: activity.distanceRangeKm ? String(activity.distanceRangeKm[0]) : null,
+          distanceRangeHighKm: activity.distanceRangeKm
+            ? String(activity.distanceRangeKm[1])
+            : null,
         })
         .onConflictDoNothing();
 
