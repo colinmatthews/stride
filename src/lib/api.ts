@@ -183,11 +183,11 @@ export async function toggleClubJoin(clubId: string) {
   return payload;
 }
 
-export async function toggleChallengeJoin(challengeId: string) {
+async function setChallengeJoin(challengeId: string, joined: boolean) {
   const payload = await apiFetch<{ joined: boolean; participants: number }>(
     `/api/challenges/${challengeId}/join`,
     {
-      method: "POST",
+      method: joined ? "PUT" : "DELETE",
     },
   );
   const challenge = CHALLENGES.find((entry) => entry.id === challengeId);
@@ -198,6 +198,14 @@ export async function toggleChallengeJoin(challengeId: string) {
   }
 
   return payload;
+}
+
+export function joinChallenge(challengeId: string) {
+  return setChallengeJoin(challengeId, true);
+}
+
+export function leaveChallenge(challengeId: string) {
+  return setChallengeJoin(challengeId, false);
 }
 
 export { ApiError };

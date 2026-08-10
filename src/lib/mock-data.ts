@@ -67,6 +67,7 @@ export interface Challenge {
   id: string;
   name: string;
   sport: Sport | "Multisport";
+  metricType: "distance_km" | "elevation_m";
   goalKm: number;
   myProgressKm: number;
   participants: number;
