@@ -589,7 +589,7 @@ function TimerMode({ sport }: { sport: Sport }) {
             <>
               <button
                 onClick={pause}
-                className="grid h-14 w-14 place-items-center rounded-full bg-surface text-foreground"
+                className="grid h-14 w-14 place-items-center rounded-full bg-surface text-foreground transition-transform hover:scale-105"
               >
                 {paused ? (
                   <Play className="h-6 w-6 fill-current" />
@@ -599,7 +599,7 @@ function TimerMode({ sport }: { sport: Sport }) {
               </button>
               <button
                 onClick={stop}
-                className="grid h-14 w-14 place-items-center rounded-full bg-destructive text-destructive-foreground"
+                className="grid h-14 w-14 place-items-center rounded-full bg-destructive text-destructive-foreground transition-transform hover:scale-105"
               >
                 <Square className="h-5 w-5 fill-current" />
               </button>
@@ -646,7 +646,7 @@ function TimerMode({ sport }: { sport: Sport }) {
             <button
               onClick={save}
               disabled={saving}
-              className="inline-flex h-10 items-center gap-2 bg-primary px-5 text-sm font-medium text-primary-foreground disabled:opacity-50"
+              className="inline-flex h-10 items-center gap-2 bg-primary px-5 text-sm font-medium text-primary-foreground transition-opacity hover:opacity-95 disabled:opacity-50"
             >
               {saving ? (
                 <>

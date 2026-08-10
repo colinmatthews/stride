@@ -22,7 +22,7 @@ export function FollowButton({ id, onChange }: { id: string; onChange?: () => vo
       }}
       className={`rounded-md border px-3 py-1.5 text-xs font-medium transition-colors disabled:cursor-wait disabled:opacity-60 ${
         following
-          ? "border-secondary bg-secondary text-secondary-foreground"
+          ? "border-secondary bg-secondary text-secondary-foreground hover:opacity-90"
           : "border-border hover:bg-muted"
       }`}
     >

@@ -71,7 +71,7 @@ function ClubDetail() {
               city: club.city,
             });
           }}
-          className={`h-10 px-5 rounded-md text-sm font-medium inline-flex items-center gap-2 ${
+          className={`h-10 px-5 rounded-md text-sm font-medium inline-flex items-center gap-2 transition-opacity hover:opacity-95 ${
             joined ? "bg-secondary text-secondary-foreground" : "bg-primary text-primary-foreground"
           }`}
         >
@@ -102,7 +102,11 @@ function ClubDetail() {
             <ul className="space-y-3">
               {members.map((m) => (
                 <li key={m.id} className="flex items-center gap-3">
-                  <Link to="/athlete/$id" params={{ id: m.id }}>
+                  <Link
+                    to="/athlete/$id"
+                    params={{ id: m.id }}
+                    className="transition-opacity hover:opacity-80"
+                  >
                     <img src={m.avatar} alt="" className="h-9 w-9 rounded-full object-cover" />
                   </Link>
                   <div className="flex-1 min-w-0">

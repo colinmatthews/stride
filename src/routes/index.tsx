@@ -176,7 +176,11 @@ function FeedPage() {
             <ul className="space-y-3">
               {suggested.map((athlete) => (
                 <li key={athlete.id} className="flex items-center gap-3">
-                  <Link to="/athlete/$id" params={{ id: athlete.id }} className="shrink-0">
+                  <Link
+                    to="/athlete/$id"
+                    params={{ id: athlete.id }}
+                    className="shrink-0 transition-opacity hover:opacity-80"
+                  >
                     <img
                       src={athlete.avatar}
                       alt={athlete.name}
@@ -285,7 +289,7 @@ function LandingPage() {
     <div className="min-h-screen bg-background text-foreground">
       <header className="border-b border-border/70">
         <div className="mx-auto flex w-full max-w-[1320px] items-center justify-between px-6 py-5 lg:px-10">
-          <Link to="/" className="flex items-center gap-3">
+          <Link to="/" className="flex items-center gap-3 transition-opacity hover:opacity-90">
             <div className="grid h-9 w-9 place-items-center rounded-sm bg-secondary font-display text-base font-bold text-secondary-foreground">
               S
             </div>

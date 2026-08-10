@@ -61,7 +61,7 @@ function AppShellInner({ children }: { children: ReactNode }) {
       {/* Sidebar */}
       <aside className="w-60 shrink-0 border-r border-border bg-surface flex flex-col sticky top-0 h-screen">
         <div className="px-5 py-5 border-b border-border">
-          <Link to="/" className="flex items-center gap-3">
+          <Link to="/" className="flex items-center gap-3 transition-opacity hover:opacity-90">
             <div className="grid h-9 w-9 place-items-center rounded-sm bg-secondary font-display text-base font-bold text-secondary-foreground">
               S
             </div>
