@@ -1,5 +1,5 @@
 import { createFileRoute } from "@tanstack/react-router";
-import { useState } from "react";
+import { useRef, useState } from "react";
 import {
   ArrowRight,
   CalendarDays,
@@ -67,11 +67,13 @@ function ChallengesPage() {
   const [participants, setParticipants] = useState<Record<string, number>>(
     Object.fromEntries(CHALLENGES.map((challenge) => [challenge.id, challenge.participants])),
   );
+  const operationId = useRef(0);
 
   const joinedCount = Object.values(joined).filter(Boolean).length;
 
   function selectChallenge(challenge: Challenge) {
     const decision = buildChallengeDecision(challenge);
+    operationId.current += 1;
     setSelected(challenge);
     setFeedback(null);
     setJoining(false);
@@ -87,73 +89,95 @@ function ChallengesPage() {
 
   async function handleJoin() {
     if (!selected) return;
+    const challenge = selected;
+    const currentOperation = ++operationId.current;
 
     setJoining(true);
     setFeedback(null);
 
     try {
-      const result = await joinChallenge(selected.id);
-      setJoined((state) => ({ ...state, [selected.id]: result.joined }));
-      setParticipants((state) => ({ ...state, [selected.id]: result.participants }));
-      setFeedback({
-        type: "success",
-        title: "You’re in",
-        message: `You joined ${selected.name}. Your qualifying ${selected.sport.toLowerCase()} activities count automatically.`,
-      });
+      const result = await joinChallenge(challenge.id);
+      setJoined((state) => ({ ...state, [challenge.id]: result.joined }));
+      setParticipants((state) => ({ ...state, [challenge.id]: result.participants }));
+      if (operationId.current === currentOperation) {
+        setFeedback({
+          type: "success",
+          title: "You’re in",
+          message: `You joined ${challenge.name}. Your qualifying ${challenge.sport.toLowerCase()} activities count automatically.`,
+        });
+      }
       posthog.capture("challenge_joined", {
-        challenge_id: selected.id,
-        challenge_name: selected.name,
-        sport: selected.sport,
-        goal: selected.goalKm,
-        metric_type: selected.metricType,
+        challenge_id: challenge.id,
+        challenge_name: challenge.name,
+        sport: challenge.sport,
+        goal_km: challenge.goalKm,
+        metric_type: challenge.metricType,
       });
     } catch (error) {
-      posthog.captureException(error);
-      setFeedback({
-        type: "error",
-        title: "Couldn’t join challenge",
-        message:
-          error instanceof Error
-            ? error.message
-            : "Stride could not join this challenge. Please try again.",
+      posthog.captureException(error, {
+        challenge_id: challenge.id,
+        challenge_name: challenge.name,
+        challenge_action: "join",
       });
+      if (operationId.current === currentOperation) {
+        setFeedback({
+          type: "error",
+          title: "Couldn’t join challenge",
+          message:
+            error instanceof Error
+              ? error.message
+              : "Stride could not join this challenge. Please try again.",
+        });
+      }
     } finally {
-      setJoining(false);
+      if (operationId.current === currentOperation) setJoining(false);
     }
   }
 
   async function handleLeave() {
     if (!selected) return;
+    const challenge = selected;
+    const currentOperation = ++operationId.current;
 
     setLeaving(true);
     setFeedback(null);
 
     try {
-      const result = await leaveChallenge(selected.id);
-      setJoined((state) => ({ ...state, [selected.id]: result.joined }));
-      setParticipants((state) => ({ ...state, [selected.id]: result.participants }));
-      setFeedback({
-        type: "success",
-        title: "Challenge left",
-        message: `You left ${selected.name}. Future qualifying activities will no longer count toward your participation.`,
-      });
+      const result = await leaveChallenge(challenge.id);
+      setJoined((state) => ({ ...state, [challenge.id]: result.joined }));
+      setParticipants((state) => ({ ...state, [challenge.id]: result.participants }));
+      if (operationId.current === currentOperation) {
+        setFeedback({
+          type: "success",
+          title: "Challenge left",
+          message: `You left ${challenge.name}. Future qualifying activities will no longer count toward your participation.`,
+        });
+      }
       posthog.capture("challenge_left", {
-        challenge_id: selected.id,
-        challenge_name: selected.name,
-        sport: selected.sport,
+        challenge_id: challenge.id,
+        challenge_name: challenge.name,
+        sport: challenge.sport,
+        goal_km: challenge.goalKm,
+        metric_type: challenge.metricType,
       });
     } catch (error) {
-      posthog.captureException(error);
-      setFeedback({
-        type: "error",
-        title: "Couldn’t leave challenge",
-        message:
-          error instanceof Error
-            ? error.message
-            : "Stride could not leave this challenge. Please try again.",
+      posthog.captureException(error, {
+        challenge_id: challenge.id,
+        challenge_name: challenge.name,
+        challenge_action: "leave",
       });
+      if (operationId.current === currentOperation) {
+        setFeedback({
+          type: "error",
+          title: "Couldn’t leave challenge",
+          message:
+            error instanceof Error
+              ? error.message
+              : "Stride could not leave this challenge. Please try again.",
+        });
+      }
     } finally {
-      setLeaving(false);
+      if (operationId.current === currentOperation) setLeaving(false);
     }
   }
 
@@ -207,7 +231,7 @@ function ChallengesPage() {
                 />
                 <div className="relative flex items-start justify-between gap-3">
                   <div className="font-mono text-[10px] uppercase tracking-[0.22em] text-secondary-foreground/60">
-                    {challenge.sport} · {decision.difficulty}
+                    {challenge.sport} · estimated {decision.difficulty.toLowerCase()}
                   </div>
                   {isJoined ? (
                     <div className="flex items-center gap-1.5 bg-primary px-2.5 py-1 font-mono text-[10px] uppercase tracking-[0.22em] text-primary-foreground">
@@ -280,6 +304,7 @@ function ChallengesPage() {
         open={Boolean(selected)}
         onOpenChange={(open) => {
           if (!open) {
+            operationId.current += 1;
             setSelected(null);
             setFeedback(null);
           }
@@ -388,7 +413,7 @@ function ChallengeDecisionPanel({
           />
           <DecisionStat
             icon={Gauge}
-            label="Difficulty"
+            label="Estimated difficulty"
             value={decision.difficulty}
             detail={decision.difficultyDetail}
             border

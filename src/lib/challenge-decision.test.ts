@@ -40,6 +40,11 @@ describe("challenge decision", () => {
     expect(decision.eligibility).toContain("no longer accepting entries");
   });
 
+  it("uses the UTC end of the deadline day", () => {
+    expect(isChallengeOpen("2026-08-31", new Date("2026-08-31T23:59:59.999Z"))).toBe(true);
+    expect(isChallengeOpen("2026-08-31", new Date("2026-09-01T00:00:00.000Z"))).toBe(false);
+  });
+
   it("uses the stored metric type when classifying elevation challenges", () => {
     const climb = challenge({ sport: "Ride", metricType: "elevation_m", goalKm: 5_000 });
 

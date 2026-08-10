@@ -26,12 +26,12 @@ export function formatChallengeAmount(challenge: Challenge, value: number) {
 }
 
 export function challengeDaysRemaining(endsAt: string, now = new Date()) {
-  const deadline = new Date(`${endsAt}T23:59:59.999`).getTime();
+  const deadline = new Date(`${endsAt}T23:59:59.999Z`).getTime();
   return Math.max(0, Math.ceil((deadline - now.getTime()) / DAY_MS));
 }
 
 export function isChallengeOpen(endsAt: string, now = new Date()) {
-  return new Date(`${endsAt}T23:59:59.999`).getTime() >= now.getTime();
+  return new Date(`${endsAt}T23:59:59.999Z`).getTime() >= now.getTime();
 }
 
 export function challengeDifficulty(challenge: Challenge): ChallengeDifficulty {

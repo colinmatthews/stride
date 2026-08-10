@@ -107,17 +107,7 @@ async function seedDatabase() {
           badge: challenge.badge,
           metricType: challenge.metricType,
         })
-        .onConflictDoUpdate({
-          target: schema.challenges.id,
-          set: {
-            name: challenge.name,
-            sport: challenge.sport,
-            goalKm: String(challenge.goalKm),
-            endsAt: challenge.endsAt,
-            badge: challenge.badge,
-            metricType: challenge.metricType,
-          },
-        });
+        .onConflictDoNothing();
     }
 
     const activities = generateSeedActivities();

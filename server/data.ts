@@ -635,6 +635,10 @@ export class ChallengeEntryError extends Error {
   }
 }
 
+export function isChallengeOpen(endsAt: string, now = new Date()) {
+  return new Date(`${endsAt}T23:59:59.999Z`).getTime() >= now.getTime();
+}
+
 export async function setChallengeEntry(userId: string, challengeId: string, joined: boolean) {
   return db.transaction(async (tx) => {
     const challengeRows = await tx
@@ -648,9 +652,7 @@ export async function setChallengeEntry(userId: string, challengeId: string, joi
       throw new ChallengeEntryError("Challenge not found", 404);
     }
 
-    const today = new Date().toISOString().slice(0, 10);
-
-    if (joined && challenge.endsAt < today) {
+    if (joined && !isChallengeOpen(challenge.endsAt)) {
       throw new ChallengeEntryError("This challenge has ended and can no longer be joined.", 422);
     }
 
@@ -662,7 +664,12 @@ export async function setChallengeEntry(userId: string, challengeId: string, joi
         .returning({ challengeId: challengeEntries.challengeId });
 
       if (inserted.length === 0) {
-        return { joined: true, participants: challenge.participants };
+        const current = await tx
+          .select({ participants: challengesTable.participants })
+          .from(challengesTable)
+          .where(eq(challengesTable.id, challengeId))
+          .limit(1);
+        return { joined: true, participants: current[0]?.participants ?? challenge.participants };
       }
 
       const updated = await tx
@@ -682,7 +689,12 @@ export async function setChallengeEntry(userId: string, challengeId: string, joi
       .returning({ challengeId: challengeEntries.challengeId });
 
     if (deleted.length === 0) {
-      return { joined: false, participants: challenge.participants };
+      const current = await tx
+        .select({ participants: challengesTable.participants })
+        .from(challengesTable)
+        .where(eq(challengesTable.id, challengeId))
+        .limit(1);
+      return { joined: false, participants: current[0]?.participants ?? challenge.participants };
     }
 
     const updated = await tx
