@@ -1,5 +1,5 @@
 export type Sport = "Run" | "Ride" | "Swim" | "Hike" | "Walk";
-export type MetricType = "distance_km" | "elevation_m";
+export type MetricType = "distance_km" | "elevation_m" | "activity_count";
 
 export interface SeedAthlete {
   id: string;
@@ -69,6 +69,10 @@ export interface SeedChallenge {
   endsAt: string;
   badge: string;
   metricType: MetricType;
+  goalCount?: number;
+  durationDays?: number;
+  autoEnroll?: boolean;
+  description?: string;
 }
 
 const ATHLETE_PHOTOS = [
@@ -334,6 +338,22 @@ export const SEEDED_CLUBS: SeedClub[] = [
 ];
 
 export const SEEDED_CHALLENGES: SeedChallenge[] = [
+  {
+    id: "starter-week",
+    name: "Starter Week",
+    sport: "Multisport",
+    // Not a distance challenge — progress is counted in activities, see metricType.
+    goalKm: 0,
+    goalCount: 3,
+    durationDays: 7,
+    autoEnroll: true,
+    participants: 0,
+    // Rolling per-user window; endsAt is unused but the column is NOT NULL.
+    endsAt: "2099-12-31",
+    badge: "START",
+    metricType: "activity_count",
+    description: "Log 3 activities in your first 7 days.",
+  },
   {
     id: "ch1",
     name: "April Distance Run",

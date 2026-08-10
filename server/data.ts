@@ -16,6 +16,7 @@ import {
   users,
 } from "./db/schema.js";
 import { USER_AVATARS } from "./seed.js";
+import { STARTER_WEEK_ID, getStarterWeekState } from "./starter-week.js";
 
 const BOOTSTRAP_ACTIVITY_LIMIT = 40;
 const MAX_ACTIVITY_PAGE_LIMIT = 100;
@@ -416,20 +417,24 @@ export async function buildBootstrap(userId: string) {
     joined: joinedClubIds.has(row.id),
   }));
 
-  const challenges = challengesResult.map((row) => ({
-    id: row.id,
-    name: row.name,
-    sport: row.sport,
-    goalKm: Number(row.goalKm),
-    myProgressKm:
-      row.metricType === "elevation_m"
-        ? totalElevation
-        : Number((distanceBySport.get(row.sport) ?? 0).toFixed(1)),
-    participants: row.participants,
-    endsAt: row.endsAt,
-    badge: row.badge,
-    joined: joinedChallengeIds.has(row.id),
-  }));
+  const challenges = challengesResult
+    // Starter Week is surfaced through its own state object, not the challenge grid:
+    // it has no distance goal and its window is per-user.
+    .filter((row) => row.id !== STARTER_WEEK_ID)
+    .map((row) => ({
+      id: row.id,
+      name: row.name,
+      sport: row.sport,
+      goalKm: Number(row.goalKm),
+      myProgressKm:
+        row.metricType === "elevation_m"
+          ? totalElevation
+          : Number((distanceBySport.get(row.sport) ?? 0).toFixed(1)),
+      participants: row.participants,
+      endsAt: row.endsAt,
+      badge: row.badge,
+      joined: joinedChallengeIds.has(row.id),
+    }));
 
   return {
     me,
@@ -439,6 +444,7 @@ export async function buildBootstrap(userId: string) {
     segments,
     clubs,
     challenges,
+    starterWeek: await getStarterWeekState(userId),
   };
 }
 
@@ -623,8 +629,13 @@ export async function toggleClubMembership(userId: string, clubId: string) {
 }
 
 export async function toggleChallengeEntry(userId: string, challengeId: string) {
+  if (challengeId === STARTER_WEEK_ID) {
+    // Starter Week is auto-enrolled and retried through its own endpoints.
+    throw new Error("Starter Week cannot be joined manually");
+  }
+
   const existing = await db
-    .select({ challengeId: challengeEntries.challengeId })
+    .select({ id: challengeEntries.id })
     .from(challengeEntries)
     .where(and(eq(challengeEntries.userId, userId), eq(challengeEntries.challengeId, challengeId)))
     .limit(1);
@@ -646,7 +657,11 @@ export async function toggleChallengeEntry(userId: string, challengeId: string) 
         and(eq(challengeEntries.userId, userId), eq(challengeEntries.challengeId, challengeId)),
       );
   } else {
-    await db.insert(challengeEntries).values({ userId, challengeId });
+    await db.insert(challengeEntries).values({
+      id: `entry-${randomUUID()}`,
+      userId,
+      challengeId,
+    });
   }
 
   const participants =

@@ -5,8 +5,10 @@ import {
   CLUBS,
   ME,
   mergeActivities,
+  setStarterWeek,
   type Activity,
   type AppData,
+  type StarterWeekState,
 } from "./mock-data";
 
 class ApiError extends Error {
@@ -105,13 +107,45 @@ export async function saveActivity(payload: {
   avgSpeedKmh?: number;
   routeSeed: number;
 }) {
-  const activity = await apiFetch<Activity>("/api/activities", {
+  const result = await apiFetch<{
+    activity: Activity;
+    starterWeek: StarterWeekState;
+    justEnrolled: boolean;
+  }>("/api/activities", {
     method: "POST",
     body: JSON.stringify(payload),
   });
 
-  mergeActivities([activity]);
-  return activity;
+  mergeActivities([result.activity]);
+  setStarterWeek(result.starterWeek);
+  return result;
+}
+
+export async function retryStarterWeek() {
+  const state = await apiFetch<StarterWeekState>("/api/challenges/starter-week/retry", {
+    method: "POST",
+  });
+
+  setStarterWeek(state);
+  return state;
+}
+
+export async function markStarterWeekCelebrationSeen() {
+  const state = await apiFetch<StarterWeekState>("/api/challenges/starter-week/celebration-seen", {
+    method: "POST",
+  });
+
+  setStarterWeek(state);
+  return state;
+}
+
+export async function dismissStarterWeek() {
+  const state = await apiFetch<StarterWeekState>("/api/challenges/starter-week/dismiss", {
+    method: "POST",
+  });
+
+  setStarterWeek(state);
+  return state;
 }
 
 export async function toggleActivityKudo(activityId: string) {
