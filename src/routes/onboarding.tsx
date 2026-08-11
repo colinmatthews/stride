@@ -369,7 +369,7 @@ function GoalStep({
           step={5}
           value={goalKm}
           onChange={(event) => setGoalKm(Number(event.target.value))}
-          className="mt-8 w-full accent-[var(--primary)]"
+          className="mt-8 w-full cursor-pointer accent-[var(--primary)]"
         />
 
         <div className="mt-6 flex flex-wrap gap-2">

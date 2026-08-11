@@ -69,7 +69,7 @@ export const Route = createFileRoute("/activity/$id")({
     <AppShell>
       <div className="text-center py-24">
         <h1 className="text-2xl font-display font-bold">Activity not found</h1>
-        <Link to="/" className="text-primary mt-2 inline-block">
+        <Link to="/" className="text-primary mt-2 inline-block hover:underline">
           Back to feed
         </Link>
       </div>
@@ -121,7 +121,11 @@ function ActivityDetail() {
         <div className="min-w-0">
           {/* Header */}
           <div className="flex items-start gap-4 mb-6">
-            <Link to="/athlete/$id" params={{ id: ath.id }}>
+            <Link
+              to="/athlete/$id"
+              params={{ id: ath.id }}
+              className="transition-opacity hover:opacity-80"
+            >
               <img
                 src={ath.avatar}
                 alt={ath.name}
@@ -391,7 +395,7 @@ function ActivityDetail() {
                 onClick={toggleKudos}
                 className={`inline-flex items-center gap-2 px-4 py-2 rounded-md border transition-colors ${
                   kudoed
-                    ? "bg-primary text-primary-foreground border-primary"
+                    ? "bg-primary text-primary-foreground border-primary hover:opacity-90"
                     : "border-border hover:bg-muted"
                 }`}
               >
@@ -441,7 +445,7 @@ function ActivityDetail() {
               />
               <button
                 onClick={submitComment}
-                className="h-10 px-4 rounded-md bg-secondary text-secondary-foreground text-sm font-medium"
+                className="h-10 px-4 rounded-md bg-secondary text-secondary-foreground text-sm font-medium transition-opacity hover:opacity-95"
               >
                 Post
               </button>
