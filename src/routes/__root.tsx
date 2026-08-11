@@ -1,5 +1,6 @@
 import { Outlet, Link, createRootRoute, HeadContent } from "@tanstack/react-router";
 import { PostHogProvider } from "@posthog/react";
+import { ChallengeCompletionModal } from "@/components/ChallengeCompletionModal";
 
 function NotFoundComponent() {
   return (
@@ -72,5 +73,10 @@ function RootShell({ children }: { children: React.ReactNode }) {
 }
 
 function RootComponent() {
-  return <Outlet />;
+  return (
+    <>
+      <Outlet />
+      <ChallengeCompletionModal />
+    </>
+  );
 }

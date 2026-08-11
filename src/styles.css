@@ -121,3 +121,14 @@
   from { transform: translateX(0); }
   to { transform: translateX(-50%); }
 }
+
+@keyframes confetti-fall {
+  0% {
+    transform: translate3d(0, 0, 0) rotate(0deg);
+    opacity: 1;
+  }
+  100% {
+    transform: translate3d(var(--confetti-drift, 0px), 110vh, 0) rotate(var(--confetti-rotate, 360deg));
+    opacity: 0.85;
+  }
+}
