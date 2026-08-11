@@ -1,5 +1,6 @@
 import { Outlet, Link, createRootRoute, HeadContent } from "@tanstack/react-router";
 import { PostHogProvider } from "@posthog/react";
+import { Toaster } from "@/components/ui/sonner";
 
 function NotFoundComponent() {
   return (
@@ -67,6 +68,7 @@ function RootShell({ children }: { children: React.ReactNode }) {
       >
         {children}
       </PostHogProvider>
+      <Toaster />
     </>
   );
 }

@@ -6,7 +6,12 @@ import tanstackRouter from "@tanstack/router-plugin/vite";
 import tsconfigPaths from "vite-tsconfig-paths";
 
 export default defineConfig({
-  plugins: [tanstackRouter({ target: "react" }), react(), tailwindcss(), tsconfigPaths()],
+  plugins: [
+    tanstackRouter({ target: "react", routeFileIgnorePattern: "\\.test\\.tsx?$" }),
+    react(),
+    tailwindcss(),
+    tsconfigPaths(),
+  ],
   resolve: {
     alias: {
       "@": path.resolve(__dirname, "./src"),
@@ -39,7 +44,8 @@ export default defineConfig({
     outDir: "dist",
   },
   test: {
-    environment: "node",
+    environment: "jsdom",
+    setupFiles: ["./src/test/setup.ts"],
     include: ["src/**/*.test.ts", "src/**/*.test.tsx"],
   },
 });
