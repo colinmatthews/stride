@@ -2,9 +2,10 @@ import { createFileRoute } from "@tanstack/react-router";
 import { useState } from "react";
 import { CHALLENGES } from "@/lib/mock-data";
 import { AppShell } from "@/components/AppShell";
-import { Trophy, Users, Calendar, Check } from "lucide-react";
+import { Zap, Users, Calendar, Check } from "lucide-react";
 import { toggleChallengeJoin } from "@/lib/api";
 import { usePostHog } from "@posthog/react";
+import { toast } from "sonner";
 
 export const Route = createFileRoute("/challenges")({
   head: () => ({
@@ -24,6 +25,7 @@ function ChallengesPage() {
   const [participants, setParticipants] = useState<Record<string, number>>(
     Object.fromEntries(CHALLENGES.map((c) => [c.id, c.participants])),
   );
+  const [pending, setPending] = useState<Record<string, boolean>>({});
 
   const joinedCount = Object.values(joined).filter(Boolean).length;
 
@@ -146,34 +148,57 @@ function ChallengesPage() {
                   )}
                 </div>
 
-                <button
-                  onClick={async () => {
-                    const result = await toggleChallengeJoin(c.id);
-                    setJoined((state) => ({ ...state, [c.id]: result.joined }));
-                    setParticipants((state) => ({ ...state, [c.id]: result.participants }));
-                    posthog.capture(result.joined ? "challenge_joined" : "challenge_left", {
-                      challenge_id: c.id,
-                      challenge_name: c.name,
-                      sport: c.sport,
-                      goal_km: c.goalKm,
-                    });
-                  }}
-                  className={`mt-6 inline-flex h-11 w-full items-center justify-center gap-2 text-sm font-medium transition-opacity hover:opacity-95 ${
-                    isJoined
-                      ? "border border-border bg-surface text-foreground"
-                      : "bg-primary text-primary-foreground"
-                  }`}
-                >
-                  {isJoined ? (
-                    <>
-                      <Check className="h-4 w-4" /> Leave challenge
-                    </>
-                  ) : (
-                    <>
-                      <Trophy className="h-4 w-4" /> Join challenge
-                    </>
+                <div className="mt-6">
+                  {!isJoined && (
+                    <div className="mb-2 flex items-center gap-1.5 font-mono text-[10px] uppercase tracking-[0.22em] text-muted-foreground">
+                      <Zap className="h-3 w-3 text-primary" />
+                      Default goal auto-applied · no setup
+                    </div>
                   )}
-                </button>
+                  <button
+                    disabled={pending[c.id]}
+                    onClick={async () => {
+                      setPending((state) => ({ ...state, [c.id]: true }));
+                      try {
+                        const result = await toggleChallengeJoin(c.id);
+                        setJoined((state) => ({ ...state, [c.id]: result.joined }));
+                        setParticipants((state) => ({ ...state, [c.id]: result.participants }));
+                        posthog.capture(result.joined ? "challenge_joined" : "challenge_left", {
+                          challenge_id: c.id,
+                          challenge_name: c.name,
+                          sport: c.sport,
+                          goal_km: c.goalKm,
+                          join_method: "quick",
+                        });
+                        if (result.joined) {
+                          toast.success(`Joined ${c.name}`, {
+                            description: `Goal set to ${c.goalKm} ${unit} — change it anytime from the challenge.`,
+                          });
+                        }
+                      } catch (err) {
+                        posthog.captureException(err);
+                        toast.error("Couldn't update challenge. Try again.");
+                      } finally {
+                        setPending((state) => ({ ...state, [c.id]: false }));
+                      }
+                    }}
+                    className={`inline-flex h-11 w-full items-center justify-center gap-2 text-sm font-medium transition-opacity hover:opacity-95 disabled:cursor-not-allowed disabled:opacity-60 ${
+                      isJoined
+                        ? "border border-border bg-surface text-foreground"
+                        : "bg-primary text-primary-foreground"
+                    }`}
+                  >
+                    {isJoined ? (
+                      <>
+                        <Check className="h-4 w-4" /> Leave challenge
+                      </>
+                    ) : (
+                      <>
+                        <Zap className="h-4 w-4" /> {pending[c.id] ? "Joining…" : "Quick join"}
+                      </>
+                    )}
+                  </button>
+                </div>
               </div>
             </article>
           );
