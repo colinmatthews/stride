@@ -43,6 +43,20 @@ export function isElevationMetric(metricType: string): boolean {
 }
 
 /**
+ * Days remaining, counting the final day as one — `endsAt` is inclusive, which
+ * is how it reads to an athlete ("ends April 30" means April 30 still counts).
+ * Zero or negative means the challenge is over.
+ */
+export function daysUntilEnd(endsAt: string, now: Date): number {
+  return Math.ceil((new Date(`${endsAt}T23:59:59.999Z`).getTime() - now.getTime()) / 86_400_000);
+}
+
+/** Guards against an unparseable date resolving to NaN and slipping through. */
+export function isChallengeOpen(endsAt: string, now: Date): boolean {
+  return daysUntilEnd(endsAt, now) > 0;
+}
+
+/**
  * Picks the challenge with the strongest pitch for the activity just logged.
  *
  * Unjoined challenges come first — the surface exists to convert — but a
@@ -50,14 +64,22 @@ export function isElevationMetric(metricType: string): boolean {
  * the page is revisited after the athlete has opted in. Among those, the
  * challenge the athlete is furthest through wins: a bar that is already
  * two-thirds full is the whole argument.
+ *
+ * Challenges that have already ended are never pitched. Their standings are
+ * frozen, so "keep this progress" would be a promise the challenge can't keep
+ * — the athlete would join something they can no longer move in.
  */
 export function pickMomentumChallenge<T extends ChallengeLike>(
   candidates: T[],
   sport: string,
   carriedFor: (challenge: T) => number,
+  now: Date,
 ): T | undefined {
   const eligible = candidates.filter(
-    (candidate) => candidate.sport === sport && carriedFor(candidate) > 0,
+    (candidate) =>
+      candidate.sport === sport &&
+      isChallengeOpen(candidate.endsAt, now) &&
+      carriedFor(candidate) > 0,
   );
 
   return [...eligible].sort((a, b) => {

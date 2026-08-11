@@ -3,6 +3,7 @@ import { and, asc, desc, eq, gt, gte, inArray, lt, min, sum, type SQL } from "dr
 import { db } from "./db.js";
 import {
   MOMENTUM_WINDOW_DAYS,
+  daysUntilEnd,
   isElevationMetric,
   momentumWindowStart,
   pickMomentumChallenge,
@@ -668,12 +669,6 @@ export async function toggleChallengeEntry(userId: string, challengeId: string) 
   };
 }
 
-function daysUntil(endsAt: string, now: Date) {
-  const end = new Date(`${endsAt}T23:59:59.999Z`);
-
-  return Math.ceil((end.getTime() - now.getTime()) / 86_400_000);
-}
-
 /**
  * Everything the post-run nudge needs for a single activity: the challenge
  * worth pitching, how much of it the athlete has already covered, and the
@@ -753,6 +748,7 @@ export async function getPostRunMomentum(userId: string, activityId: string) {
     candidates,
     activity.sport,
     (candidate) => totalsFor(candidate.metricType).get(userId) ?? 0,
+    now,
   );
 
   if (!challenge) {
@@ -800,7 +796,7 @@ export async function getPostRunMomentum(userId: string, activityId: string) {
       participants: challenge.participants,
       joined: challenge.joined,
       unit: elevation ? "m" : "km",
-      daysLeft: daysUntil(challenge.endsAt, now),
+      daysLeft: daysUntilEnd(challenge.endsAt, now),
     },
     carried: {
       total: Number(carriedTotal.toFixed(1)),

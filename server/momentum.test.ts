@@ -1,6 +1,8 @@
 import { describe, expect, it } from "vitest";
 import {
   MOMENTUM_WINDOW_DAYS,
+  daysUntilEnd,
+  isChallengeOpen,
   isElevationMetric,
   momentumWindowStart,
   pickMomentumChallenge,
@@ -9,6 +11,9 @@ import {
   type BoardInput,
   type BoardRow,
 } from "./momentum.js";
+
+/** Every candidate below ends 2026-04-30 unless it says otherwise, so "now" sits inside that. */
+const NOW = new Date("2026-04-20T12:00:00.000Z");
 
 type Candidate = {
   id: string;
@@ -60,6 +65,7 @@ describe("pickMomentumChallenge", () => {
       [candidate({ id: "ride", sport: "Ride" }), candidate({ id: "run", sport: "Run" })],
       "Run",
       carried({ ride: 400, run: 20 }),
+      NOW,
     );
 
     expect(picked?.id).toBe("run");
@@ -70,6 +76,7 @@ describe("pickMomentumChallenge", () => {
       [candidate({ id: "far", goalKm: 100 }), candidate({ id: "near", goalKm: 10 })],
       "Run",
       carried({ far: 20, near: 8 }),
+      NOW,
     );
 
     // 8/10 beats 20/100 — the fuller bar is the stronger pitch.
@@ -84,6 +91,7 @@ describe("pickMomentumChallenge", () => {
       ],
       "Run",
       carried({ joined: 9, open: 20 }),
+      NOW,
     );
 
     expect(picked?.id).toBe("open");
@@ -94,13 +102,64 @@ describe("pickMomentumChallenge", () => {
       [candidate({ id: "joined", joined: true })],
       "Run",
       carried({ joined: 40 }),
+      NOW,
     );
 
     expect(picked?.id).toBe("joined");
   });
 
   it("returns nothing when the athlete has no distance to carry", () => {
-    expect(pickMomentumChallenge([candidate({ id: "run" })], "Run", carried({}))).toBeUndefined();
+    expect(
+      pickMomentumChallenge([candidate({ id: "run" })], "Run", carried({}), NOW),
+    ).toBeUndefined();
+  });
+
+  it("never pitches a challenge that has already ended", () => {
+    const picked = pickMomentumChallenge(
+      [candidate({ id: "over", endsAt: "2026-04-19" })],
+      "Run",
+      carried({ over: 90 }),
+      NOW,
+    );
+
+    expect(picked).toBeUndefined();
+  });
+
+  it("skips an expired challenge in favour of one still running", () => {
+    const picked = pickMomentumChallenge(
+      [
+        // Expired, and the fuller bar — it would win on progress alone.
+        candidate({ id: "over", goalKm: 10, endsAt: "2026-04-19" }),
+        candidate({ id: "open", goalKm: 100, endsAt: "2026-05-31" }),
+      ],
+      "Run",
+      carried({ over: 9, open: 20 }),
+      NOW,
+    );
+
+    expect(picked?.id).toBe("open");
+  });
+
+  it("still pitches a challenge on its final day", () => {
+    const picked = pickMomentumChallenge(
+      [candidate({ id: "today", endsAt: "2026-04-20" })],
+      "Run",
+      carried({ today: 20 }),
+      NOW,
+    );
+
+    expect(picked?.id).toBe("today");
+  });
+
+  it("drops a challenge whose end date can't be parsed", () => {
+    const picked = pickMomentumChallenge(
+      [candidate({ id: "broken", endsAt: "not-a-date" })],
+      "Run",
+      carried({ broken: 20 }),
+      NOW,
+    );
+
+    expect(picked).toBeUndefined();
   });
 
   it("breaks ties on the soonest end date", () => {
@@ -111,6 +170,7 @@ describe("pickMomentumChallenge", () => {
       ],
       "Run",
       carried({ later: 20, sooner: 20 }),
+      NOW,
     );
 
     expect(picked?.id).toBe("sooner");
@@ -121,9 +181,35 @@ describe("pickMomentumChallenge", () => {
       [candidate({ id: "zero", goalKm: 0 })],
       "Run",
       carried({ zero: 20 }),
+      NOW,
     );
 
     expect(picked?.id).toBe("zero");
+  });
+});
+
+describe("daysUntilEnd", () => {
+  it("counts the final day as one day left", () => {
+    expect(daysUntilEnd("2026-04-20", NOW)).toBe(1);
+    expect(daysUntilEnd("2026-04-30", NOW)).toBe(11);
+  });
+
+  it("stops being positive once the challenge is over", () => {
+    // Math.ceil hands back -0 on the day just past; the sign is noise, what
+    // matters is that it is no longer greater than zero.
+    expect(daysUntilEnd("2026-04-19", NOW)).toBeLessThanOrEqual(0);
+    expect(daysUntilEnd("2026-04-10", NOW)).toBe(-9);
+  });
+});
+
+describe("isChallengeOpen", () => {
+  it("stays open through the last day and closes after it", () => {
+    expect(isChallengeOpen("2026-04-20", NOW)).toBe(true);
+    expect(isChallengeOpen("2026-04-19", NOW)).toBe(false);
+  });
+
+  it("treats an unparseable date as closed rather than NaN", () => {
+    expect(isChallengeOpen("not-a-date", NOW)).toBe(false);
   });
 });
 
