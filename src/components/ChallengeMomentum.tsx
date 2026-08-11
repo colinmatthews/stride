@@ -83,7 +83,11 @@ export function ChallengeMomentum({ momentum }: { momentum: ActivityMomentum }) 
   }
 
   return (
-    <section className="overflow-hidden border border-border bg-surface">
+    // A container, not a viewport consumer: this card sits in the activity
+    // page's main column, which is far narrower than the window. Breakpoints
+    // below are measured against the card itself so the standings and the
+    // join panel only sit side by side when there is genuinely room.
+    <section className="@container overflow-hidden border border-border bg-surface">
       {/* Ink banner — same language as the /challenges cards, laid out
           horizontally so it reads as a strip under the run rather than
           competing with it. */}
@@ -169,7 +173,7 @@ export function ChallengeMomentum({ momentum }: { momentum: ActivityMomentum }) 
 
       {/* Standings sit beside the decision, so the rank being offered is
           visible at the same moment as the button. */}
-      <div className="grid grid-cols-1 lg:grid-cols-[minmax(0,1fr)_minmax(0,340px)]">
+      <div className="grid grid-cols-1 @3xl:grid-cols-[minmax(0,1fr)_minmax(0,340px)]">
         <div className="p-6">
           <div className="flex items-baseline justify-between gap-4">
             <div className="font-mono text-[10px] uppercase tracking-[0.22em] text-muted-foreground">
@@ -202,7 +206,7 @@ export function ChallengeMomentum({ momentum }: { momentum: ActivityMomentum }) 
           </ol>
         </div>
 
-        <div className="flex flex-col justify-center border-t border-border bg-surface-2 p-6 lg:border-l lg:border-t-0">
+        <div className="flex flex-col justify-center border-t border-border bg-surface-2 p-6 @3xl:border-l @3xl:border-t-0">
           {joined ? (
             <div className="border border-pr/30 bg-pr/5 p-4">
               <div className="flex items-center gap-2 font-mono text-[10px] uppercase tracking-[0.22em] text-pr">
