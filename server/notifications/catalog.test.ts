@@ -7,6 +7,7 @@ import {
   isNotificationKind,
   mergePreferences,
   resolveDelivery,
+  resolveNotificationTarget,
   selectNextCursor,
 } from "./catalog.js";
 
@@ -116,6 +117,75 @@ describe("buildPreferencesDto", () => {
     // The switch must agree with the copy rather than showing "on" for a
     // channel that cannot deliver.
     expect(email?.enabled).toBe(false);
+  });
+});
+
+describe("resolveNotificationTarget", () => {
+  const empty = {
+    activityId: null,
+    clubId: null,
+    challengeId: null,
+    segmentId: null,
+    targetUserId: null,
+  };
+
+  it("sends kudos and comments to the activity", () => {
+    expect(resolveNotificationTarget({ ...empty, kind: "kudos", activityId: "act-1" })).toEqual({
+      type: "activity",
+      id: "act-1",
+    });
+    expect(resolveNotificationTarget({ ...empty, kind: "comment", activityId: "act-1" })).toEqual({
+      type: "activity",
+      id: "act-1",
+    });
+  });
+
+  it("sends a follow to the follower's profile", () => {
+    expect(resolveNotificationTarget({ ...empty, kind: "follow", targetUserId: "u-9" })).toEqual({
+      type: "athlete",
+      id: "u-9",
+    });
+  });
+
+  it("sends a club notification to the club", () => {
+    expect(resolveNotificationTarget({ ...empty, kind: "club", clubId: "club-1" })).toEqual({
+      type: "club",
+      id: "club-1",
+    });
+  });
+
+  it("prefers the segment over the activity for a KOM row", () => {
+    // KOM rows carry both. The title names the segment, so generic FK precedence
+    // would send this to the wrong screen.
+    expect(
+      resolveNotificationTarget({
+        ...empty,
+        kind: "segment",
+        segmentId: "seg-1",
+        activityId: "act-1",
+      }),
+    ).toEqual({ type: "segment", id: "seg-1" });
+  });
+
+  it("falls back to the activity when a segment row has no segment", () => {
+    expect(resolveNotificationTarget({ ...empty, kind: "segment", activityId: "act-1" })).toEqual({
+      type: "activity",
+      id: "act-1",
+    });
+  });
+
+  it("sends challenges to the list and recaps to the training log, with no id", () => {
+    expect(resolveNotificationTarget({ ...empty, kind: "challenge", challengeId: "ch-1" })).toEqual(
+      { type: "challenge" },
+    );
+    expect(resolveNotificationTarget({ ...empty, kind: "system" })).toEqual({ type: "training" });
+  });
+
+  it("returns undefined when the expected reference is missing", () => {
+    // Degrades to a plain, non-clickable row rather than a link to /activity/undefined.
+    expect(resolveNotificationTarget({ ...empty, kind: "kudos" })).toBeUndefined();
+    expect(resolveNotificationTarget({ ...empty, kind: "follow" })).toBeUndefined();
+    expect(resolveNotificationTarget({ ...empty, kind: "club" })).toBeUndefined();
   });
 });
 

@@ -19,11 +19,13 @@ import {
   isNotificationKind,
   mergePreferences,
   resolveDelivery,
+  resolveNotificationTarget,
   selectNextCursor,
   DEFAULT_CHANNEL_SETTINGS,
   DEFAULT_PREFERENCES,
   type ChannelFlags,
   type NotificationKind,
+  type NotificationTarget,
   type PreferencesDto,
 } from "./catalog.js";
 
@@ -55,6 +57,8 @@ export type NotificationDto = {
   body: string;
   date: string;
   read: boolean;
+  /** Where the row navigates to; absent when nothing sensible is referenced. */
+  target?: NotificationTarget;
 };
 
 /**
@@ -158,6 +162,7 @@ function mapNotification(
   currentUserId: string,
 ): NotificationDto {
   const kind = isNotificationKind(row.kind) ? row.kind : "system";
+  const target = resolveNotificationTarget({ ...row, kind });
 
   return {
     id: row.id,
@@ -167,6 +172,12 @@ function mapNotification(
     body: row.body,
     date: row.createdAt.toISOString(),
     read: row.readAt !== null,
+    // An athlete target must be aliased like actorId: the client's getAthlete
+    // silently falls back to ME on an unknown id.
+    target:
+      target?.type === "athlete" && target.id === currentUserId
+        ? { type: "athlete", id: "me" }
+        : target,
   };
 }
 

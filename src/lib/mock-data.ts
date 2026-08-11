@@ -84,6 +84,23 @@ export type NotificationKind =
   | "club"
   | "system";
 
+export type NotificationTargetType =
+  | "activity"
+  | "athlete"
+  | "club"
+  | "challenge"
+  | "segment"
+  | "training";
+
+/**
+ * Where a row navigates to. The server sends structure, not a URL — the client
+ * owns route shapes. `challenge` and `training` carry no id.
+ */
+export interface NotificationTarget {
+  type: NotificationTargetType;
+  id?: string;
+}
+
 export interface AppNotification {
   id: string;
   kind: NotificationKind;
@@ -93,6 +110,8 @@ export interface AppNotification {
   body: string;
   date: string;
   read: boolean;
+  /** Absent when the row references nothing worth linking to. */
+  target?: NotificationTarget;
 }
 
 export type NotificationChannelKey = "push" | "email";

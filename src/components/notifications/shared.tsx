@@ -11,7 +11,8 @@
  * server whenever a save failed — the "either I'm missing something obvious or
  * the toggles aren't working" complaint this feature exists to fix.
  */
-import { useMemo, useRef, useState } from "react";
+import { useMemo, useRef, useState, type ReactNode } from "react";
+import { Link } from "@tanstack/react-router";
 import {
   Bell,
   ThumbsUp,
@@ -315,65 +316,161 @@ export function groupByRecency(items: AppNotification[]): NotificationGroup[] {
 /* Presentational atoms                                               */
 /* ------------------------------------------------------------------ */
 
+/**
+ * Renders the row's content as a link to whatever the notification references.
+ *
+ * TanStack Router's Link is aggressively generic, so spreading union-typed props
+ * fights the type checker. Switching on the target type and returning a concrete
+ * Link per branch keeps `to`/`params` pairings checked at compile time — a wrong
+ * pairing becomes a build error rather than a runtime 404.
+ */
+function NotificationLink({
+  n,
+  className,
+  onNavigate,
+  children,
+}: {
+  n: AppNotification;
+  className: string;
+  onNavigate?: () => void;
+  children: ReactNode;
+}) {
+  const shared = { className, onClick: onNavigate };
+
+  switch (n.target?.type) {
+    case "activity":
+      return (
+        <Link
+          to="/activity/$id"
+          params={{ id: n.target.id! }}
+          // The comment thread is a presentation detail of the activity page,
+          // so the hash is derived here rather than carried in the payload.
+          hash={n.kind === "comment" ? "comments" : undefined}
+          {...shared}
+        >
+          {children}
+        </Link>
+      );
+    case "athlete":
+      return (
+        <Link to="/athlete/$id" params={{ id: n.target.id! }} {...shared}>
+          {children}
+        </Link>
+      );
+    case "club":
+      return (
+        <Link to="/club/$id" params={{ id: n.target.id! }} {...shared}>
+          {children}
+        </Link>
+      );
+    case "segment":
+      return (
+        <Link to="/segment/$id" params={{ id: n.target.id! }} {...shared}>
+          {children}
+        </Link>
+      );
+    case "challenge":
+      return (
+        <Link to="/challenges" {...shared}>
+          {children}
+        </Link>
+      );
+    case "training":
+      return (
+        <Link to="/training" {...shared}>
+          {children}
+        </Link>
+      );
+    default:
+      // Nothing worth linking to — render inert, with no cursor or hover.
+      return <div className={className}>{children}</div>;
+  }
+}
+
 export function NotificationRow({
   n,
   onMarkRead,
+  onNavigate,
   compact = false,
 }: {
   n: AppNotification;
   onMarkRead?: (id: string) => void;
+  onNavigate?: () => void;
   compact?: boolean;
 }) {
   const Icon = KIND_ICON[n.kind];
   const actor = n.actorId ? getAthlete(n.actorId) : null;
   const avatarSize = compact ? "h-8 w-8" : "h-10 w-10";
+  const clickable = Boolean(n.target);
+
+  // Opening a notification is the clearest signal it has been seen. markOne
+  // already no-ops on an already-read row and keeps unread server-authoritative.
+  function handleNavigate() {
+    if (!n.read) {
+      onMarkRead?.(n.id);
+    }
+    onNavigate?.();
+  }
 
   return (
     <div
       className={cn(
-        "flex items-start gap-3 transition-colors",
-        compact ? "px-3 py-3" : "px-5 py-4 gap-4",
+        "flex items-start transition-colors",
+        compact ? "px-3 py-3" : "px-5 py-4",
         !n.read && "bg-primary/[0.04]",
+        clickable && "hover:bg-muted/40",
       )}
     >
-      <div className="relative shrink-0">
-        {actor ? (
-          <Avatar className={avatarSize}>
-            <AvatarImage src={actor.avatar} alt={actor.name} />
-            <AvatarFallback>{actor.name.slice(0, 2)}</AvatarFallback>
-          </Avatar>
-        ) : (
-          <div className={cn("grid place-items-center rounded-full bg-muted", avatarSize)}>
-            <Bell className="h-4 w-4 text-muted-foreground" />
-          </div>
-        )}
-        <span
-          className={cn(
-            "absolute -bottom-1 -right-1 grid h-5 w-5 place-items-center rounded-full ring-2 ring-card",
-            KIND_TINT[n.kind],
+      {/* Only the avatar and text are inside the link. The Read button stays a
+          sibling: a <button> nested in an <a> is invalid HTML and gives the row
+          two competing click targets. */}
+      <NotificationLink
+        n={n}
+        onNavigate={handleNavigate}
+        className={cn("flex min-w-0 flex-1 items-start", compact ? "gap-3" : "gap-4")}
+      >
+        <div className="relative shrink-0">
+          {actor ? (
+            <Avatar className={avatarSize}>
+              <AvatarImage src={actor.avatar} alt={actor.name} />
+              <AvatarFallback>{actor.name.slice(0, 2)}</AvatarFallback>
+            </Avatar>
+          ) : (
+            <div className={cn("grid place-items-center rounded-full bg-muted", avatarSize)}>
+              <Bell className="h-4 w-4 text-muted-foreground" />
+            </div>
           )}
-        >
-          <Icon className="h-3 w-3" />
-        </span>
-      </div>
-
-      <div className="min-w-0 flex-1">
-        <div className="flex items-start gap-2">
-          <p className={cn("font-medium leading-snug", compact ? "text-[13px]" : "text-sm")}>
-            {n.title}
-          </p>
-          {!n.read && (
-            <span className="mt-1.5 h-2 w-2 shrink-0 rounded-full bg-primary" aria-label="Unread" />
-          )}
+          <span
+            className={cn(
+              "absolute -bottom-1 -right-1 grid h-5 w-5 place-items-center rounded-full ring-2 ring-card",
+              KIND_TINT[n.kind],
+            )}
+          >
+            <Icon className="h-3 w-3" />
+          </span>
         </div>
-        {!compact && <p className="text-sm text-muted-foreground mt-0.5">{n.body}</p>}
-        <p className="text-xs text-muted-foreground mt-1.5">{fmtTimeAgo(n.date)}</p>
-      </div>
+
+        <div className="min-w-0 flex-1">
+          <div className="flex items-start gap-2">
+            <p className={cn("font-medium leading-snug", compact ? "text-[13px]" : "text-sm")}>
+              {n.title}
+            </p>
+            {!n.read && (
+              <span
+                className="mt-1.5 h-2 w-2 shrink-0 rounded-full bg-primary"
+                aria-label="Unread"
+              />
+            )}
+          </div>
+          {!compact && <p className="text-sm text-muted-foreground mt-0.5">{n.body}</p>}
+          <p className="text-xs text-muted-foreground mt-1.5">{fmtTimeAgo(n.date)}</p>
+        </div>
+      </NotificationLink>
 
       {!n.read && onMarkRead && (
         <button
           onClick={() => onMarkRead(n.id)}
-          className="shrink-0 self-center inline-flex items-center gap-1 rounded-md px-2 py-1 text-xs text-muted-foreground hover:bg-muted hover:text-foreground"
+          className="ml-3 shrink-0 self-center inline-flex items-center gap-1 rounded-md px-2 py-1 text-xs text-muted-foreground hover:bg-muted hover:text-foreground"
         >
           <Check className="h-3.5 w-3.5" />
           {!compact && "Read"}

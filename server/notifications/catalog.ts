@@ -202,6 +202,71 @@ export function resolveDelivery(input: {
   });
 }
 
+export type NotificationTargetType =
+  | "activity"
+  | "athlete"
+  | "club"
+  | "challenge"
+  | "segment"
+  | "training";
+
+export type NotificationTarget = { type: NotificationTargetType; id?: string };
+
+export type NotificationTargetRow = {
+  kind: NotificationKind;
+  activityId: string | null;
+  clubId: string | null;
+  challengeId: string | null;
+  segmentId: string | null;
+  targetUserId: string | null;
+};
+
+/**
+ * Where an inbox row should navigate to (spec R6.3).
+ *
+ * Keyed on `kind` rather than on generic foreign-key precedence, because a KOM
+ * row carries BOTH `segment_id` and `activity_id` and its title names the
+ * segment — precedence alone would send it to the wrong screen.
+ *
+ * Returns a structural target, never a URL: route shapes stay owned by the
+ * client router, matching every other DTO the server emits.
+ *
+ * Returns undefined when the expected reference is missing, so a legacy or
+ * partially-populated row renders as a plain, non-clickable row instead of a
+ * dead link. `challenge` and `system` carry no id — the challenges list and the
+ * training log take no parameter.
+ */
+export function resolveNotificationTarget(row: NotificationTargetRow) {
+  const target = (type: NotificationTargetType, id?: string | null): NotificationTarget => ({
+    type,
+    ...(id ? { id } : {}),
+  });
+
+  switch (row.kind) {
+    case "kudos":
+    case "comment":
+      return row.activityId ? target("activity", row.activityId) : undefined;
+    case "follow":
+      return row.targetUserId ? target("athlete", row.targetUserId) : undefined;
+    case "club":
+      return row.clubId ? target("club", row.clubId) : undefined;
+    case "segment":
+      if (row.segmentId) {
+        return target("segment", row.segmentId);
+      }
+      return row.activityId ? target("activity", row.activityId) : undefined;
+    case "challenge":
+      // No per-challenge route exists; the list is the closest real destination.
+      return target("challenge");
+    case "system":
+      // The weekly recap references no entity, but the training log is where the
+      // numbers it summarizes actually live.
+      return target("training");
+    default:
+      return undefined;
+  }
+}
+
 /**
  * Keyset cursor over (created_at, id).
  *

@@ -64,7 +64,14 @@ export function NotificationTray() {
           <ul className="divide-y divide-border">
             {recent.map((n) => (
               <li key={n.id}>
-                <NotificationRow n={n} onMarkRead={inbox.markOne} compact />
+                <NotificationRow
+                  n={n}
+                  onMarkRead={inbox.markOne}
+                  // Following a link from the tray must dismiss the popover,
+                  // otherwise it hangs over the destination page.
+                  onNavigate={() => setOpen(false)}
+                  compact
+                />
               </li>
             ))}
           </ul>
