@@ -1,4 +1,14 @@
-import { date, integer, numeric, pgTable, primaryKey, text, timestamp } from "drizzle-orm/pg-core";
+import {
+  boolean,
+  date,
+  integer,
+  numeric,
+  pgTable,
+  primaryKey,
+  text,
+  timestamp,
+  unique,
+} from "drizzle-orm/pg-core";
 
 export const users = pgTable("users", {
   id: text("id").primaryKey(),
@@ -190,5 +200,94 @@ export const activityKudos = pgTable(
   },
   (table) => ({
     pk: primaryKey({ columns: [table.userId, table.activityId] }),
+  }),
+);
+
+export const communityChallenges = pgTable("community_challenges", {
+  challengeId: text("challenge_id")
+    .primaryKey()
+    .references(() => challenges.id, { onDelete: "cascade" }),
+  slug: text("slug").notNull().unique(),
+  localArea: text("local_area").notNull(),
+  startsAt: date("starts_at").notNull(),
+  baselineDistanceKm: numeric("baseline_distance_km", { precision: 12, scale: 2 })
+    .notNull()
+    .default("0"),
+  baselinePeople: integer("baseline_people").notNull().default(0),
+  baselineBadges: integer("baseline_badges").notNull().default(0),
+  liveMovingCount: integer("live_moving_count").notNull().default(0),
+});
+
+export const communityContributions = pgTable(
+  "community_contributions",
+  {
+    id: text("id").primaryKey(),
+    challengeId: text("challenge_id")
+      .notNull()
+      .references(() => challenges.id, { onDelete: "cascade" }),
+    userId: text("user_id")
+      .notNull()
+      .references(() => users.id, { onDelete: "cascade" }),
+    activityId: text("activity_id").references(() => activities.id, { onDelete: "set null" }),
+    distanceKm: numeric("distance_km", { precision: 10, scale: 2 }).notNull(),
+    note: text("note").notNull(),
+    localArea: text("local_area").notNull(),
+    latitude: numeric("latitude", { precision: 9, scale: 6 }).notNull(),
+    longitude: numeric("longitude", { precision: 9, scale: 6 }).notNull(),
+    routeKey: text("route_key").notNull(),
+    tone: text("tone").notNull(),
+    baseKudos: integer("base_kudos").notNull().default(0),
+    repliesCount: integer("replies_count").notNull().default(0),
+    publishedAt: timestamp("published_at", { withTimezone: true }).notNull().defaultNow(),
+  },
+  (table) => ({
+    oneBadgePerAthlete: unique("community_contributions_challenge_user_unique").on(
+      table.challengeId,
+      table.userId,
+    ),
+  }),
+);
+
+export const communityContributionReactions = pgTable(
+  "community_contribution_reactions",
+  {
+    contributionId: text("contribution_id")
+      .notNull()
+      .references(() => communityContributions.id, { onDelete: "cascade" }),
+    userId: text("user_id")
+      .notNull()
+      .references(() => users.id, { onDelete: "cascade" }),
+    createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+  },
+  (table) => ({
+    pk: primaryKey({ columns: [table.contributionId, table.userId] }),
+  }),
+);
+
+export const communityNotificationReceipts = pgTable(
+  "community_notification_receipts",
+  {
+    id: text("id").primaryKey(),
+    challengeId: text("challenge_id")
+      .notNull()
+      .references(() => challenges.id, { onDelete: "cascade" }),
+    recipientId: text("recipient_id")
+      .notNull()
+      .references(() => users.id, { onDelete: "cascade" }),
+    anchorContributionId: text("anchor_contribution_id")
+      .notNull()
+      .references(() => communityContributions.id, { onDelete: "cascade" }),
+    bundledContributions: integer("bundled_contributions").notNull(),
+    bundledDistanceKm: numeric("bundled_distance_km", { precision: 10, scale: 2 }).notNull(),
+    openedAt: timestamp("opened_at", { withTimezone: true }),
+    dismissedAt: timestamp("dismissed_at", { withTimezone: true }),
+    active: boolean("active").notNull().default(true),
+    createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+  },
+  (table) => ({
+    oneReceiptPerChallenge: unique("community_notifications_challenge_recipient_unique").on(
+      table.challengeId,
+      table.recipientId,
+    ),
   }),
 );

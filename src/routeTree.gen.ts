@@ -19,8 +19,10 @@ import { Route as ChallengesRouteImport } from './routes/challenges'
 import { Route as AuthRouteImport } from './routes/auth'
 import { Route as AthletesRouteImport } from './routes/athletes'
 import { Route as IndexRouteImport } from './routes/index'
+import { Route as ChallengesIndexRouteImport } from './routes/challenges.index'
 import { Route as SegmentIdRouteImport } from './routes/segment.$id'
 import { Route as ClubIdRouteImport } from './routes/club.$id'
+import { Route as ChallengesIdRouteImport } from './routes/challenges.$id'
 import { Route as AthleteIdRouteImport } from './routes/athlete.$id'
 import { Route as ActivityIdRouteImport } from './routes/activity.$id'
 
@@ -74,6 +76,11 @@ const IndexRoute = IndexRouteImport.update({
   path: '/',
   getParentRoute: () => rootRouteImport,
 } as any)
+const ChallengesIndexRoute = ChallengesIndexRouteImport.update({
+  id: '/',
+  path: '/',
+  getParentRoute: () => ChallengesRoute,
+} as any)
 const SegmentIdRoute = SegmentIdRouteImport.update({
   id: '/segment/$id',
   path: '/segment/$id',
@@ -83,6 +90,11 @@ const ClubIdRoute = ClubIdRouteImport.update({
   id: '/club/$id',
   path: '/club/$id',
   getParentRoute: () => rootRouteImport,
+} as any)
+const ChallengesIdRoute = ChallengesIdRouteImport.update({
+  id: '/$id',
+  path: '/$id',
+  getParentRoute: () => ChallengesRoute,
 } as any)
 const AthleteIdRoute = AthleteIdRouteImport.update({
   id: '/athlete/$id',
@@ -99,7 +111,7 @@ export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
   '/athletes': typeof AthletesRoute
   '/auth': typeof AuthRoute
-  '/challenges': typeof ChallengesRoute
+  '/challenges': typeof ChallengesRouteWithChildren
   '/clubs': typeof ClubsRoute
   '/onboarding': typeof OnboardingRoute
   '/record': typeof RecordRoute
@@ -108,14 +120,15 @@ export interface FileRoutesByFullPath {
   '/training': typeof TrainingRoute
   '/activity/$id': typeof ActivityIdRoute
   '/athlete/$id': typeof AthleteIdRoute
+  '/challenges/$id': typeof ChallengesIdRoute
   '/club/$id': typeof ClubIdRoute
   '/segment/$id': typeof SegmentIdRoute
+  '/challenges/': typeof ChallengesIndexRoute
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
   '/athletes': typeof AthletesRoute
   '/auth': typeof AuthRoute
-  '/challenges': typeof ChallengesRoute
   '/clubs': typeof ClubsRoute
   '/onboarding': typeof OnboardingRoute
   '/record': typeof RecordRoute
@@ -124,15 +137,17 @@ export interface FileRoutesByTo {
   '/training': typeof TrainingRoute
   '/activity/$id': typeof ActivityIdRoute
   '/athlete/$id': typeof AthleteIdRoute
+  '/challenges/$id': typeof ChallengesIdRoute
   '/club/$id': typeof ClubIdRoute
   '/segment/$id': typeof SegmentIdRoute
+  '/challenges': typeof ChallengesIndexRoute
 }
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
   '/': typeof IndexRoute
   '/athletes': typeof AthletesRoute
   '/auth': typeof AuthRoute
-  '/challenges': typeof ChallengesRoute
+  '/challenges': typeof ChallengesRouteWithChildren
   '/clubs': typeof ClubsRoute
   '/onboarding': typeof OnboardingRoute
   '/record': typeof RecordRoute
@@ -141,8 +156,10 @@ export interface FileRoutesById {
   '/training': typeof TrainingRoute
   '/activity/$id': typeof ActivityIdRoute
   '/athlete/$id': typeof AthleteIdRoute
+  '/challenges/$id': typeof ChallengesIdRoute
   '/club/$id': typeof ClubIdRoute
   '/segment/$id': typeof SegmentIdRoute
+  '/challenges/': typeof ChallengesIndexRoute
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
@@ -159,14 +176,15 @@ export interface FileRouteTypes {
     | '/training'
     | '/activity/$id'
     | '/athlete/$id'
+    | '/challenges/$id'
     | '/club/$id'
     | '/segment/$id'
+    | '/challenges/'
   fileRoutesByTo: FileRoutesByTo
   to:
     | '/'
     | '/athletes'
     | '/auth'
-    | '/challenges'
     | '/clubs'
     | '/onboarding'
     | '/record'
@@ -175,8 +193,10 @@ export interface FileRouteTypes {
     | '/training'
     | '/activity/$id'
     | '/athlete/$id'
+    | '/challenges/$id'
     | '/club/$id'
     | '/segment/$id'
+    | '/challenges'
   id:
     | '__root__'
     | '/'
@@ -191,15 +211,17 @@ export interface FileRouteTypes {
     | '/training'
     | '/activity/$id'
     | '/athlete/$id'
+    | '/challenges/$id'
     | '/club/$id'
     | '/segment/$id'
+    | '/challenges/'
   fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
   IndexRoute: typeof IndexRoute
   AthletesRoute: typeof AthletesRoute
   AuthRoute: typeof AuthRoute
-  ChallengesRoute: typeof ChallengesRoute
+  ChallengesRoute: typeof ChallengesRouteWithChildren
   ClubsRoute: typeof ClubsRoute
   OnboardingRoute: typeof OnboardingRoute
   RecordRoute: typeof RecordRoute
@@ -284,6 +306,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof IndexRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/challenges/': {
+      id: '/challenges/'
+      path: '/'
+      fullPath: '/challenges/'
+      preLoaderRoute: typeof ChallengesIndexRouteImport
+      parentRoute: typeof ChallengesRoute
+    }
     '/segment/$id': {
       id: '/segment/$id'
       path: '/segment/$id'
@@ -297,6 +326,13 @@ declare module '@tanstack/react-router' {
       fullPath: '/club/$id'
       preLoaderRoute: typeof ClubIdRouteImport
       parentRoute: typeof rootRouteImport
+    }
+    '/challenges/$id': {
+      id: '/challenges/$id'
+      path: '/$id'
+      fullPath: '/challenges/$id'
+      preLoaderRoute: typeof ChallengesIdRouteImport
+      parentRoute: typeof ChallengesRoute
     }
     '/athlete/$id': {
       id: '/athlete/$id'
@@ -315,11 +351,25 @@ declare module '@tanstack/react-router' {
   }
 }
 
+interface ChallengesRouteChildren {
+  ChallengesIdRoute: typeof ChallengesIdRoute
+  ChallengesIndexRoute: typeof ChallengesIndexRoute
+}
+
+const ChallengesRouteChildren: ChallengesRouteChildren = {
+  ChallengesIdRoute: ChallengesIdRoute,
+  ChallengesIndexRoute: ChallengesIndexRoute,
+}
+
+const ChallengesRouteWithChildren = ChallengesRoute._addFileChildren(
+  ChallengesRouteChildren,
+)
+
 const rootRouteChildren: RootRouteChildren = {
   IndexRoute: IndexRoute,
   AthletesRoute: AthletesRoute,
   AuthRoute: AuthRoute,
-  ChallengesRoute: ChallengesRoute,
+  ChallengesRoute: ChallengesRouteWithChildren,
   ClubsRoute: ClubsRoute,
   OnboardingRoute: OnboardingRoute,
   RecordRoute: RecordRoute,

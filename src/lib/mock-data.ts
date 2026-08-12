@@ -73,6 +73,7 @@ export interface Challenge {
   endsAt: string;
   badge: string;
   joined?: boolean;
+  community?: boolean;
 }
 
 export interface AppData {

@@ -5,6 +5,7 @@ import {
   SEEDED_ATHLETES,
   SEEDED_CHALLENGES,
   SEEDED_CLUBS,
+  SEEDED_COMMUNITY_CONTRIBUTIONS,
   SEEDED_SEGMENTS,
   generateSeedActivities,
 } from "./seed.js";
@@ -108,6 +109,57 @@ async function seedDatabase() {
           metricType: challenge.metricType,
         })
         .onConflictDoNothing();
+    }
+
+    await tx
+      .insert(schema.communityChallenges)
+      .values({
+        challengeId: "community-boulder",
+        slug: "community-momentum",
+        localArea: "Boulder",
+        startsAt: "2026-08-20",
+        baselineDistanceKm: "1801.60",
+        baselinePeople: 422,
+        baselineBadges: 606,
+        liveMovingCount: 18,
+      })
+      .onConflictDoUpdate({
+        target: schema.communityChallenges.challengeId,
+        set: {
+          localArea: "Boulder",
+          baselineDistanceKm: "1801.60",
+          baselinePeople: 422,
+          baselineBadges: 606,
+          liveMovingCount: 18,
+        },
+      });
+
+    for (const contribution of SEEDED_COMMUNITY_CONTRIBUTIONS) {
+      await tx
+        .insert(schema.communityContributions)
+        .values({
+          id: contribution.id,
+          challengeId: contribution.challengeId,
+          userId: contribution.userId,
+          distanceKm: String(contribution.distanceKm),
+          note: contribution.note,
+          localArea: contribution.localArea,
+          latitude: String(contribution.latitude),
+          longitude: String(contribution.longitude),
+          routeKey: contribution.routeKey,
+          tone: contribution.tone,
+          baseKudos: contribution.baseKudos,
+          repliesCount: contribution.repliesCount,
+          publishedAt: new Date(Date.now() - contribution.minutesAgo * 60_000),
+        })
+        .onConflictDoUpdate({
+          target: schema.communityContributions.id,
+          set: {
+            note: contribution.note,
+            baseKudos: contribution.baseKudos,
+            repliesCount: contribution.repliesCount,
+          },
+        });
     }
 
     const activities = generateSeedActivities();

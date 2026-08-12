@@ -2,6 +2,7 @@ import { Link, useRouterState } from "@tanstack/react-router";
 import {
   Home,
   Activity,
+  ArrowUpRight,
   Compass,
   Trophy,
   Users,
@@ -9,11 +10,19 @@ import {
   Plus,
   Search,
   Bell,
+  Clock3,
   Settings,
 } from "lucide-react";
 import { ME, clearAppData } from "@/lib/mock-data";
-import { FormEvent, ReactNode, useState } from "react";
-import { logout } from "@/lib/api";
+import { FormEvent, ReactNode, useEffect, useState } from "react";
+import {
+  fetchCommunityChallenge,
+  logout,
+  updateCommunityNotification,
+  type CommunityChallengeData,
+} from "@/lib/api";
+import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
+import { usePostHog } from "@posthog/react";
 
 const NAV = [
   { to: "/", label: "Feed", icon: Home },
@@ -25,9 +34,49 @@ const NAV = [
 ] as const;
 
 export function AppShell({ children }: { children: ReactNode }) {
+  const posthog = usePostHog();
   const { location } = useRouterState();
   const path = location.pathname;
   const [searchQuery, setSearchQuery] = useState("");
+  const [notificationsOpen, setNotificationsOpen] = useState(false);
+  const [communityUpdate, setCommunityUpdate] = useState<CommunityChallengeData | null>(null);
+
+  useEffect(() => {
+    let active = true;
+    void fetchCommunityChallenge().then(
+      (result) => {
+        if (active) setCommunityUpdate(result);
+      },
+      () => {
+        // The rest of the app should remain usable if notifications are unavailable.
+      },
+    );
+    return () => {
+      active = false;
+    };
+  }, []);
+
+  const notification = communityUpdate?.notification;
+  const notificationParticipant = communityUpdate?.participants.find(
+    (participant) => participant.id === notification?.anchorContributionId,
+  );
+
+  function openCommunityNotification() {
+    if (!notification || !communityUpdate) return;
+    setCommunityUpdate({
+      ...communityUpdate,
+      notification: { ...notification, pending: false },
+    });
+    void updateCommunityNotification(notification.id, "open");
+    posthog.capture("community_momentum_notification_opened", {
+      challenge_id: communityUpdate.challenge.id,
+      local_area: communityUpdate.challenge.localArea,
+      notification_policy: "meaningful_cluster",
+      bundled_contributions: notification.bundledContributions,
+      bundled_distance_km: notification.bundledDistanceKm,
+      entry_surface: "app_header",
+    });
+  }
 
   function handleSearch(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
@@ -131,13 +180,87 @@ export function AppShell({ children }: { children: ReactNode }) {
               />
             </form>
             <div className="ml-auto flex items-center gap-2">
-              <button
-                className="h-10 w-10 grid place-items-center rounded-md hover:bg-muted relative"
-                aria-label="Notifications"
-              >
-                <Bell className="h-4 w-4" />
-                <span className="absolute top-2 right-2 h-2 w-2 rounded-full bg-primary" />
-              </button>
+              <Popover open={notificationsOpen} onOpenChange={setNotificationsOpen}>
+                <PopoverTrigger asChild>
+                  <button
+                    type="button"
+                    className="relative grid h-10 w-10 place-items-center rounded-md hover:bg-muted"
+                    aria-label="Notifications"
+                    title="Open notifications"
+                  >
+                    <Bell className="h-4 w-4" />
+                    {notification?.pending && (
+                      <span className="absolute right-2 top-2 h-2 w-2 rounded-full bg-primary" />
+                    )}
+                  </button>
+                </PopoverTrigger>
+                <PopoverContent align="end" sideOffset={8} className="w-[360px] p-0">
+                  <div className="flex items-center justify-between border-b border-border px-4 py-3">
+                    <div>
+                      <div className="font-display text-sm font-semibold">Notifications</div>
+                      <div className="mt-0.5 text-xs text-muted-foreground">
+                        Local activity updates
+                      </div>
+                    </div>
+                    {notification?.pending && (
+                      <span className="rounded-full bg-primary/10 px-2 py-1 font-mono text-[9px] uppercase tracking-[0.14em] text-primary">
+                        New
+                      </span>
+                    )}
+                  </div>
+
+                  {notification && communityUpdate ? (
+                    <Link
+                      to="/challenges/$id"
+                      params={{ id: communityUpdate.challenge.id }}
+                      search={{ state: "returned" }}
+                      onClick={openCommunityNotification}
+                      className="group block p-4 text-left transition-colors hover:bg-muted/70"
+                    >
+                      <div className="flex gap-3">
+                        <div className="relative shrink-0">
+                          {notificationParticipant ? (
+                            <img
+                              src={notificationParticipant.avatar}
+                              alt=""
+                              className="h-10 w-10 rounded-full object-cover"
+                            />
+                          ) : (
+                            <div className="grid h-10 w-10 place-items-center rounded-full bg-secondary text-secondary-foreground">
+                              <Trophy className="h-4 w-4" />
+                            </div>
+                          )}
+                          <span className="absolute -bottom-1 -right-1 h-3 w-3 rounded-full border-2 border-popover bg-primary" />
+                        </div>
+                        <div className="min-w-0 flex-1">
+                          <div className="font-display text-sm font-semibold leading-5">
+                            {communityUpdate.challenge.localArea} just moved{" "}
+                            {notification.bundledDistanceKm.toFixed(1)} km
+                          </div>
+                          <p className="mt-1 text-xs leading-5 text-muted-foreground">
+                            {notificationParticipant?.name.split(" ")[0] ?? "Local athletes"} and{" "}
+                            {Math.max(notification.bundledContributions - 1, 0)} others added new
+                            badges. See the latest challenge momentum.
+                          </p>
+                          <div className="mt-2 flex items-center justify-between">
+                            <span className="inline-flex items-center gap-1 text-[11px] text-muted-foreground">
+                              <Clock3 className="h-3 w-3" /> Just now
+                            </span>
+                            <span className="inline-flex items-center gap-1 text-xs font-medium text-primary">
+                              View challenge
+                              <ArrowUpRight className="h-3 w-3 transition-transform group-hover:-translate-y-0.5 group-hover:translate-x-0.5" />
+                            </span>
+                          </div>
+                        </div>
+                      </div>
+                    </Link>
+                  ) : (
+                    <div className="px-4 py-8 text-center text-sm text-muted-foreground">
+                      You’re all caught up.
+                    </div>
+                  )}
+                </PopoverContent>
+              </Popover>
               <Link
                 to="/record"
                 className="hidden md:inline-flex items-center gap-2 h-10 px-3 rounded-md border border-border text-sm hover:bg-muted"

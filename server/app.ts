@@ -21,6 +21,14 @@ import {
   requireAuth,
   verifyPassword,
 } from "./auth.js";
+import {
+  getCommunityChallenge,
+  NoEligibleCommunityActivityError,
+  postCommunityContribution,
+  toggleCommunityReaction,
+  updateCommunityNotification,
+} from "./community.js";
+import { validateCommunityNote } from "./community-view.js";
 
 export function createApp() {
   const app = express();
@@ -216,6 +224,106 @@ export function createApp() {
       next(error);
     }
   });
+
+  app.get("/api/community-challenges/:id", requireAuth, async (request, response, next) => {
+    try {
+      const scope = request.query.scope === "following" ? "following" : "all";
+      const challenge = await getCommunityChallenge(
+        request.userId!,
+        String(request.params.id),
+        scope,
+      );
+
+      if (!challenge) {
+        response.status(404).json({ error: "Community challenge not found" });
+        return;
+      }
+
+      response.json(challenge);
+    } catch (error) {
+      next(error);
+    }
+  });
+
+  app.post(
+    "/api/community-challenges/:id/contributions",
+    requireAuth,
+    async (request, response, next) => {
+      try {
+        const note = validateCommunityNote(request.body.note);
+
+        if (!note) {
+          response.status(400).json({ error: "A note between 1 and 500 characters is required" });
+          return;
+        }
+
+        try {
+          const result = await postCommunityContribution({
+            userId: request.userId!,
+            challengeId: String(request.params.id),
+            activityId: request.body.activityId ? String(request.body.activityId) : null,
+            note,
+          });
+          response.status(201).json(result);
+        } catch (error) {
+          if (error instanceof NoEligibleCommunityActivityError) {
+            response.status(409).json({ error: error.message });
+            return;
+          }
+          throw error;
+        }
+      } catch (error) {
+        next(error);
+      }
+    },
+  );
+
+  app.post(
+    "/api/community-contributions/:id/reaction",
+    requireAuth,
+    async (request, response, next) => {
+      try {
+        const result = await toggleCommunityReaction(request.userId!, String(request.params.id));
+
+        if (!result) {
+          response.status(404).json({ error: "Contribution not found" });
+          return;
+        }
+
+        response.json(result);
+      } catch (error) {
+        next(error);
+      }
+    },
+  );
+
+  app.post(
+    "/api/community-notifications/:id/:action",
+    requireAuth,
+    async (request, response, next) => {
+      try {
+        const action = String(request.params.action);
+        if (action !== "open" && action !== "dismiss") {
+          response.status(400).json({ error: "Unsupported notification action" });
+          return;
+        }
+
+        const result = await updateCommunityNotification(
+          request.userId!,
+          String(request.params.id),
+          action,
+        );
+        if (!result) {
+          response.status(404).json({ error: "Notification not found" });
+          return;
+        }
+
+        response.status(204).end();
+      } catch (error) {
+        next(error);
+      }
+    },
+  );
 
   if (existsSync(clientIndexPath)) {
     app.use("/api", (_request, response) => {
