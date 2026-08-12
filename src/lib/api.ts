@@ -200,4 +200,101 @@ export async function toggleChallengeJoin(challengeId: string) {
   return payload;
 }
 
+export type CommunityParticipant = {
+  id: string;
+  athleteId: string;
+  name: string;
+  initials: string;
+  avatar: string;
+  city: string;
+  distanceKm: number;
+  note: string;
+  publishedAt: string;
+  lat: number;
+  lng: number;
+  routeKey: string;
+  tone: "orange" | "green" | "yellow" | "ink";
+  kudos: number;
+  replies: number;
+  reacted: boolean;
+  isFollowing: boolean;
+  isMine: boolean;
+};
+
+export type CommunityChallengeData = {
+  challenge: {
+    id: string;
+    slug: string;
+    name: string;
+    localArea: string;
+    startsAt: string;
+    endsAt: string;
+    goalKm: number;
+    badge: string;
+  };
+  summary: {
+    distanceKm: number;
+    peopleMoving: number;
+    badgesPlanted: number;
+    liveMovingCount: number;
+    remainingKm: number;
+    addedToday: number;
+    cities: number;
+  };
+  participants: CommunityParticipant[];
+  myContribution: CommunityParticipant | null;
+  eligibleActivity: {
+    activityId: string;
+    title: string;
+    distanceKm: number;
+    badgesEarned: number;
+  } | null;
+  notification: {
+    id: string;
+    anchorContributionId: string;
+    bundledContributions: number;
+    bundledDistanceKm: number;
+    createdAt: string;
+    pending: boolean;
+  } | null;
+};
+
+export async function fetchCommunityChallenge(
+  challengeId = "community-boulder",
+  scope: "all" | "following" = "all",
+) {
+  return apiFetch<CommunityChallengeData>(
+    `/api/community-challenges/${challengeId}?scope=${scope}`,
+  );
+}
+
+export async function postCommunityContribution(
+  challengeId: string,
+  payload: { activityId?: string | null; note: string },
+) {
+  return apiFetch<CommunityChallengeData>(
+    `/api/community-challenges/${challengeId}/contributions`,
+    {
+      method: "POST",
+      body: JSON.stringify(payload),
+    },
+  );
+}
+
+export async function toggleCommunityContributionReaction(contributionId: string) {
+  return apiFetch<{ reacted: boolean; kudos: number }>(
+    `/api/community-contributions/${contributionId}/reaction`,
+    { method: "POST" },
+  );
+}
+
+export async function updateCommunityNotification(
+  notificationId: string,
+  action: "open" | "dismiss",
+) {
+  return apiFetch<void>(`/api/community-notifications/${notificationId}/${action}`, {
+    method: "POST",
+  });
+}
+
 export { ApiError };

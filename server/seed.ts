@@ -71,6 +71,22 @@ export interface SeedChallenge {
   metricType: MetricType;
 }
 
+export interface SeedCommunityContribution {
+  id: string;
+  challengeId: string;
+  userId: string;
+  distanceKm: number;
+  note: string;
+  localArea: string;
+  latitude: number;
+  longitude: number;
+  routeKey: string;
+  tone: "orange" | "green" | "yellow" | "ink";
+  baseKudos: number;
+  repliesCount: number;
+  minutesAgo: number;
+}
+
 const ATHLETE_PHOTOS = [
   "https://images.unsplash.com/photo-1502685104226-ee32379fefbe?w=160&h=160&fit=crop",
   "https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?w=160&h=160&fit=crop",
@@ -335,6 +351,16 @@ export const SEEDED_CLUBS: SeedClub[] = [
 
 export const SEEDED_CHALLENGES: SeedChallenge[] = [
   {
+    id: "community-boulder",
+    name: "Boulder Together",
+    sport: "Run",
+    goalKm: 2000,
+    participants: 427,
+    endsAt: "2026-08-27",
+    badge: "BT",
+    metricType: "distance_km",
+  },
+  {
     id: "ch1",
     name: "April Distance Run",
     sport: "Run",
@@ -383,6 +409,84 @@ export const SEEDED_CHALLENGES: SeedChallenge[] = [
     endsAt: "2026-04-30",
     badge: "SWIM",
     metricType: "distance_km",
+  },
+];
+
+export const SEEDED_COMMUNITY_CONTRIBUTIONS: SeedCommunityContribution[] = [
+  {
+    id: "momentum-maya",
+    challengeId: "community-boulder",
+    userId: "a1",
+    distanceKm: 8.4,
+    note: "Sunrise miles before the city woke up. That makes 4 this week.",
+    localArea: "North Boulder",
+    latitude: 40.0417,
+    longitude: -105.2818,
+    routeKey: "maya",
+    tone: "green",
+    baseKudos: 32,
+    repliesCount: 4,
+    minutesAgo: 12,
+  },
+  {
+    id: "momentum-diego",
+    challengeId: "community-boulder",
+    userId: "a2",
+    distanceKm: 12.1,
+    note: "Rain made this one count twice, right? Keep the line moving.",
+    localArea: "Gunbarrel",
+    latitude: 40.0634,
+    longitude: -105.1842,
+    routeKey: "diego",
+    tone: "yellow",
+    baseKudos: 18,
+    repliesCount: 2,
+    minutesAgo: 28,
+  },
+  {
+    id: "momentum-lena",
+    challengeId: "community-boulder",
+    userId: "a3",
+    distanceKm: 5.7,
+    note: "Easy pace, big payoff. See you all at the weekend finish line.",
+    localArea: "Louisville",
+    latitude: 39.9778,
+    longitude: -105.1394,
+    routeKey: "lena",
+    tone: "orange",
+    baseKudos: 24,
+    repliesCount: 7,
+    minutesAgo: 60,
+  },
+  {
+    id: "momentum-noah",
+    challengeId: "community-boulder",
+    userId: "a4",
+    distanceKm: 6.2,
+    note: "The trail crew showed up today. Muddy shoes, full hearts.",
+    localArea: "South Boulder",
+    latitude: 39.9742,
+    longitude: -105.2677,
+    routeKey: "noah",
+    tone: "ink",
+    baseKudos: 41,
+    repliesCount: 5,
+    minutesAgo: 120,
+  },
+  {
+    id: "momentum-priya",
+    challengeId: "community-boulder",
+    userId: "a5",
+    distanceKm: 10,
+    note: "Double digits for the community total. Who’s next?",
+    localArea: "Boulder",
+    latitude: 40.0124,
+    longitude: -105.3016,
+    routeKey: "priya",
+    tone: "green",
+    baseKudos: 29,
+    repliesCount: 3,
+    minutesAgo: 180,
   },
 ];
 

@@ -13,6 +13,7 @@ export default defineConfig({
     },
   },
   server: {
+    host: "127.0.0.1",
     proxy: {
       "/api": process.env.API_PROXY_TARGET ?? "http://localhost:3002",
       "/ingest/static": {

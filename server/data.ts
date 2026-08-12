@@ -250,8 +250,16 @@ export async function createUser(input: {
     country: "CA",
     bio: "New to Stride.",
     followersCount: 0,
-    followingCount: 0,
+    followingCount: 2,
   });
+
+  await db
+    .insert(follows)
+    .values([
+      { followerId: id, followedId: "a1" },
+      { followerId: id, followedId: "a5" },
+    ])
+    .onConflictDoNothing();
 
   return { id };
 }
@@ -429,6 +437,7 @@ export async function buildBootstrap(userId: string) {
     endsAt: row.endsAt,
     badge: row.badge,
     joined: joinedChallengeIds.has(row.id),
+    community: row.id === "community-boulder",
   }));
 
   return {
