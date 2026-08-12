@@ -1,5 +1,6 @@
 import { Pool } from "pg";
 import { drizzle } from "drizzle-orm/node-postgres";
+import { resolveDatabaseScope } from "./database-scope.js";
 import * as schema from "./db/schema.js";
 import {
   SEEDED_ATHLETES,
@@ -15,8 +16,13 @@ if (!dbUrl) {
   throw new Error("DB_URL is required");
 }
 
+const databaseScope = resolveDatabaseScope();
+
 export const pool = new Pool({
   connectionString: dbUrl,
+  ...(databaseScope.preview
+    ? { options: `-csearch_path=${databaseScope.applicationSchema},public` }
+    : {}),
 });
 
 export const db = drizzle(pool, { schema });
