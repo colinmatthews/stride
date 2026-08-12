@@ -19,6 +19,7 @@ import { Route as ChallengesRouteImport } from './routes/challenges'
 import { Route as AuthRouteImport } from './routes/auth'
 import { Route as AthletesRouteImport } from './routes/athletes'
 import { Route as IndexRouteImport } from './routes/index'
+import { Route as SettingsSubscriptionRouteImport } from './routes/settings.subscription'
 import { Route as SegmentIdRouteImport } from './routes/segment.$id'
 import { Route as ClubIdRouteImport } from './routes/club.$id'
 import { Route as AthleteIdRouteImport } from './routes/athlete.$id'
@@ -74,6 +75,11 @@ const IndexRoute = IndexRouteImport.update({
   path: '/',
   getParentRoute: () => rootRouteImport,
 } as any)
+const SettingsSubscriptionRoute = SettingsSubscriptionRouteImport.update({
+  id: '/settings/subscription',
+  path: '/settings/subscription',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const SegmentIdRoute = SegmentIdRouteImport.update({
   id: '/segment/$id',
   path: '/segment/$id',
@@ -110,6 +116,7 @@ export interface FileRoutesByFullPath {
   '/athlete/$id': typeof AthleteIdRoute
   '/club/$id': typeof ClubIdRoute
   '/segment/$id': typeof SegmentIdRoute
+  '/settings/subscription': typeof SettingsSubscriptionRoute
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
@@ -126,6 +133,7 @@ export interface FileRoutesByTo {
   '/athlete/$id': typeof AthleteIdRoute
   '/club/$id': typeof ClubIdRoute
   '/segment/$id': typeof SegmentIdRoute
+  '/settings/subscription': typeof SettingsSubscriptionRoute
 }
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
@@ -143,6 +151,7 @@ export interface FileRoutesById {
   '/athlete/$id': typeof AthleteIdRoute
   '/club/$id': typeof ClubIdRoute
   '/segment/$id': typeof SegmentIdRoute
+  '/settings/subscription': typeof SettingsSubscriptionRoute
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
@@ -161,6 +170,7 @@ export interface FileRouteTypes {
     | '/athlete/$id'
     | '/club/$id'
     | '/segment/$id'
+    | '/settings/subscription'
   fileRoutesByTo: FileRoutesByTo
   to:
     | '/'
@@ -177,6 +187,7 @@ export interface FileRouteTypes {
     | '/athlete/$id'
     | '/club/$id'
     | '/segment/$id'
+    | '/settings/subscription'
   id:
     | '__root__'
     | '/'
@@ -193,6 +204,7 @@ export interface FileRouteTypes {
     | '/athlete/$id'
     | '/club/$id'
     | '/segment/$id'
+    | '/settings/subscription'
   fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
@@ -210,6 +222,7 @@ export interface RootRouteChildren {
   AthleteIdRoute: typeof AthleteIdRoute
   ClubIdRoute: typeof ClubIdRoute
   SegmentIdRoute: typeof SegmentIdRoute
+  SettingsSubscriptionRoute: typeof SettingsSubscriptionRoute
 }
 
 declare module '@tanstack/react-router' {
@@ -284,6 +297,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof IndexRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/settings/subscription': {
+      id: '/settings/subscription'
+      path: '/settings/subscription'
+      fullPath: '/settings/subscription'
+      preLoaderRoute: typeof SettingsSubscriptionRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/segment/$id': {
       id: '/segment/$id'
       path: '/segment/$id'
@@ -330,6 +350,7 @@ const rootRouteChildren: RootRouteChildren = {
   AthleteIdRoute: AthleteIdRoute,
   ClubIdRoute: ClubIdRoute,
   SegmentIdRoute: SegmentIdRoute,
+  SettingsSubscriptionRoute: SettingsSubscriptionRoute,
 }
 export const routeTree = rootRouteImport
   ._addFileChildren(rootRouteChildren)
