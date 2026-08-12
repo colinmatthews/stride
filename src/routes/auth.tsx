@@ -188,7 +188,9 @@ function AuthPage() {
               <button
                 type="submit"
                 disabled={busy}
-                className="group inline-flex h-[52px] w-full items-center justify-center gap-2 bg-primary px-5 text-sm font-medium text-primary-foreground transition-all hover:gap-3 disabled:opacity-60"
+                className={`group inline-flex h-[52px] w-full items-center justify-center gap-2 px-5 text-sm font-medium text-primary-foreground transition-all hover:gap-3 disabled:opacity-60 ${
+                  mode === "login" ? "bg-blue-600 hover:bg-blue-700" : "bg-primary"
+                }`}
               >
                 {busy && <LoaderCircle className="h-4 w-4 animate-spin" />}
                 {mode === "login" ? "Sign in to Stride" : "Create your account"}
