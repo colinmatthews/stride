@@ -333,14 +333,32 @@ export const SEEDED_CLUBS: SeedClub[] = [
   },
 ];
 
+/**
+ * Challenge end dates are relative to seed time rather than fixed calendar
+ * dates. Hardcoded dates rot: they were in the future when written and are
+ * months past now, which quietly disqualifies every challenge and leaves the
+ * post-run momentum card with nothing to pitch. Relative dates keep this demo
+ * data valid whenever it happens to be seeded.
+ */
+function endsInDays(days: number): string {
+  return new Date(Date.now() + days * 86_400_000).toISOString().slice(0, 10);
+}
+
+/**
+ * Every sport the record screen offers has at least one distance challenge, so
+ * an athlete always lands on a live challenge after saving an activity. The
+ * elevation challenge is deliberately a second Ride option rather than the
+ * only one for its sport — with no climbing logged it contributes nothing, and
+ * a sport whose sole challenge is elevation would show no card at all.
+ */
 export const SEEDED_CHALLENGES: SeedChallenge[] = [
   {
     id: "ch1",
-    name: "April Distance Run",
+    name: "Monthly Distance Run",
     sport: "Run",
     goalKm: 100,
     participants: 184230,
-    endsAt: "2026-04-30",
+    endsAt: endsInDays(24),
     badge: "RUN",
     metricType: "distance_km",
   },
@@ -350,7 +368,7 @@ export const SEEDED_CHALLENGES: SeedChallenge[] = [
     sport: "Ride",
     goalKm: 5000,
     participants: 92450,
-    endsAt: "2026-04-30",
+    endsAt: endsInDays(24),
     badge: "CLIMB",
     metricType: "elevation_m",
   },
@@ -360,7 +378,7 @@ export const SEEDED_CHALLENGES: SeedChallenge[] = [
     sport: "Ride",
     goalKm: 100,
     participants: 64200,
-    endsAt: "2026-05-15",
+    endsAt: endsInDays(39),
     badge: "GF",
     metricType: "distance_km",
   },
@@ -370,7 +388,7 @@ export const SEEDED_CHALLENGES: SeedChallenge[] = [
     sport: "Run",
     goalKm: 10,
     participants: 38120,
-    endsAt: "2026-05-31",
+    endsAt: endsInDays(55),
     badge: "10K",
     metricType: "distance_km",
   },
@@ -380,8 +398,28 @@ export const SEEDED_CHALLENGES: SeedChallenge[] = [
     sport: "Swim",
     goalKm: 20,
     participants: 22100,
-    endsAt: "2026-04-30",
+    endsAt: endsInDays(24),
     badge: "SWIM",
+    metricType: "distance_km",
+  },
+  {
+    id: "ch6",
+    name: "Trail Hike 50K",
+    sport: "Hike",
+    goalKm: 50,
+    participants: 17400,
+    endsAt: endsInDays(31),
+    badge: "HIKE",
+    metricType: "distance_km",
+  },
+  {
+    id: "ch7",
+    name: "Walk 100K",
+    sport: "Walk",
+    goalKm: 100,
+    participants: 41800,
+    endsAt: endsInDays(31),
+    badge: "WALK",
     metricType: "distance_km",
   },
 ];
