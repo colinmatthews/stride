@@ -15,6 +15,9 @@ import {
   LoaderCircle,
 } from "lucide-react";
 import { saveActivity } from "@/lib/api";
+import { useOnlineStatus } from "@/hooks/use-online-status";
+import { NetworkReadinessCard } from "@/components/NetworkReadinessCard";
+import { NetworkTroubleshootSheet } from "@/components/NetworkTroubleshootSheet";
 
 export const Route = createFileRoute("/record")({
   head: () => ({
@@ -481,6 +484,8 @@ function defaultTitle(sport: Sport, date: Date) {
 function TimerMode({ sport }: { sport: Sport }) {
   const posthog = usePostHog();
   const router = useRouter();
+  const online = useOnlineStatus();
+  const [troubleshootOpen, setTroubleshootOpen] = useState(false);
   const [running, setRunning] = useState(false);
   const [paused, setPaused] = useState(false);
   const [elapsed, setElapsed] = useState(0);
@@ -564,6 +569,12 @@ function TimerMode({ sport }: { sport: Sport }) {
 
   return (
     <section className="mt-8 border border-border">
+      <div className="border-b border-border bg-surface p-3">
+        <NetworkReadinessCard
+          online={online}
+          onOpenTroubleshoot={() => setTroubleshootOpen(true)}
+        />
+      </div>
       <div className="bg-secondary p-10 text-center text-secondary-foreground">
         <div className="inline-flex items-center gap-2 font-mono text-[10px] uppercase tracking-[0.22em] text-secondary-foreground/70">
           <ActivityIcon className="h-3 w-3" /> {sport}
@@ -636,6 +647,11 @@ function TimerMode({ sport }: { sport: Sport }) {
               />
             </label>
           </div>
+          {!online && (
+            <div className="mt-4 border border-destructive/40 bg-destructive/8 px-3 py-2 text-[12px] leading-5 text-destructive">
+              You’re offline — saving will fail until you reconnect.
+            </div>
+          )}
           <div className="mt-6 flex items-center justify-end gap-3">
             <button
               onClick={reset}
@@ -661,6 +677,7 @@ function TimerMode({ sport }: { sport: Sport }) {
           </div>
         </div>
       )}
+      <NetworkTroubleshootSheet open={troubleshootOpen} onOpenChange={setTroubleshootOpen} />
     </section>
   );
 }
