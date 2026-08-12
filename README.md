@@ -54,6 +54,10 @@ Database:
 - `npm run db:generate` — generate a Drizzle migration from schema changes
 - `npm run db:migrate` — apply pending migrations
 
+Render pull request previews share the disposable preview database. Each preview automatically
+creates and uses a PostgreSQL schema derived from `RENDER_SERVICE_NAME`, including a separate
+Drizzle migration journal, so migrations from one pull request cannot affect another preview.
+
 Synthetic data (fills out a realistic product):
 - `npm run synth:users` — generate personas → `data/synth-users.json`
 - `npm run synth:db` — seed Postgres from the generated users
