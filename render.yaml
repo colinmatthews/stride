@@ -14,8 +14,8 @@ services:
     envVars:
       - key: NODE_VERSION
         value: "22"
-      # Service previews copy this connection string from the base service.
-      # Keep this database disposable and free of production or sensitive data.
+      # Service previews share this disposable database but use an isolated
+      # PostgreSQL schema derived from RENDER_SERVICE_NAME.
       - key: DB_URL
         fromDatabase:
           name: stride-course-db

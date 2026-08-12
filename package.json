@@ -11,7 +11,7 @@
     "build:client": "vite build",
     "build:server": "tsc -p tsconfig.server.json",
     "db:generate": "drizzle-kit generate",
-    "db:migrate": "drizzle-kit migrate",
+    "db:migrate": "tsx scripts/migrate-db.ts",
     "synth:users": "tsx scripts/synth/generate-users.ts",
     "synth:db": "tsx scripts/synth/seed-db.ts",
     "synth:posthog": "tsx scripts/synth/seed-posthog.ts",
