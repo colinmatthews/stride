@@ -48,7 +48,7 @@
   --card-foreground: oklch(0.18 0.02 60);
   --popover: oklch(1 0 0);
   --popover-foreground: oklch(0.18 0.02 60);
-  --primary: oklch(0.68 0.21 38);              /* signal orange */
+  --primary: oklch(0.6 0.22 25);               /* signal red */
   --primary-foreground: oklch(0.99 0 0);
   --secondary: oklch(0.22 0.02 60);            /* deep ink */
   --secondary-foreground: oklch(0.98 0 0);
