@@ -1,3 +1,5 @@
+import { fmtPace as fmtPaceMetric } from "./units";
+
 export type Sport = "Run" | "Ride" | "Swim" | "Hike" | "Walk";
 
 export interface Athlete {
@@ -149,10 +151,12 @@ export function fmtDuration(seconds: number): string {
   return `${minutes}:${pad(secs)}`;
 }
 
+/**
+ * Metric pace. UI that should follow the athlete's unit preference uses
+ * `useUnits().pace()` instead — see `src/lib/units.ts`.
+ */
 export function fmtPace(secPerKm: number): string {
-  const minutes = Math.floor(secPerKm / 60);
-  const seconds = Math.floor(secPerKm % 60);
-  return `${minutes}:${pad(seconds)}/km`;
+  return fmtPaceMetric(secPerKm, "metric");
 }
 
 export function fmtDate(iso: string): string {

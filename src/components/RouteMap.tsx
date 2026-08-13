@@ -1,4 +1,5 @@
 import { routePath } from "@/lib/mock-data";
+import { useUnits } from "@/lib/units-context";
 
 interface Props {
   seed: number;
@@ -30,6 +31,7 @@ export function RouteMap({
   distanceKm,
 }: Props) {
   const path = routePath(seed, width, height);
+  const units = useUnits();
 
   const colors =
     variant === "dark"
@@ -75,12 +77,7 @@ export function RouteMap({
           <rect width={width} height={height} />
         </clipPath>
         <pattern id={gridId} x="0" y="0" width="56" height="56" patternUnits="userSpaceOnUse">
-          <path
-            d={`M 56 0 L 0 0 0 56`}
-            fill="none"
-            stroke={colors.street}
-            strokeWidth="0.6"
-          />
+          <path d={`M 56 0 L 0 0 0 56`} fill="none" stroke={colors.street} strokeWidth="0.6" />
         </pattern>
       </defs>
 
@@ -90,12 +87,7 @@ export function RouteMap({
 
         {/* park (optional) */}
         {features.park && (
-          <path
-            d={features.park}
-            fill={colors.park}
-            stroke={colors.park}
-            strokeWidth="1"
-          />
+          <path d={features.park} fill={colors.park} stroke={colors.park} strokeWidth="1" />
         )}
 
         {/* water (optional) */}
@@ -210,7 +202,7 @@ export function RouteMap({
               letterSpacing="0.1em"
               fill={colors.label}
             >
-              1 KM
+              1 {units.distanceUnit.toUpperCase()}
             </text>
             {distanceKm !== undefined && (
               <text
@@ -222,7 +214,7 @@ export function RouteMap({
                 letterSpacing="0.18em"
                 fill={colors.label}
               >
-                {distanceKm.toFixed(2)} KM · ROUTE
+                {units.distanceValue(distanceKm)} {units.distanceUnit.toUpperCase()} · ROUTE
               </text>
             )}
           </g>
@@ -303,9 +295,7 @@ function smoothPath(path: string): string {
   const lineMatches = [...path.matchAll(/L([\d.]+),([\d.]+)/g)];
   const points: [number, number][] = [
     [Number(moveMatch[1]), Number(moveMatch[2])],
-    ...lineMatches.map(
-      (match) => [Number(match[1]), Number(match[2])] as [number, number],
-    ),
+    ...lineMatches.map((match) => [Number(match[1]), Number(match[2])] as [number, number]),
   ];
   if (points.length < 3) return path;
 

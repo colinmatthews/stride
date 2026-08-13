@@ -13,6 +13,8 @@ import {
 import { ATHLETES, ME } from "@/lib/mock-data";
 import { toggleAthleteFollow } from "@/lib/api";
 import { usePostHog } from "@posthog/react";
+import { useUnits } from "@/lib/units-context";
+import { UnitToggle } from "@/components/UnitToggle";
 
 export const ONBOARDING_STORAGE_KEY = "stride:onboarding:v1";
 
@@ -32,7 +34,9 @@ const SPORTS: { id: Sport; label: string; hint: string; icon: typeof Bike }[] = 
   { id: "multi", label: "Multisport", hint: "Triathlon · hybrid", icon: Mountain },
 ];
 
-const GOAL_PRESETS = [15, 30, 50, 80, 120];
+// Presets in each system's own round numbers rather than converted values —
+// "10 mi" reads like a goal, "9.3 mi" reads like a rounding error.
+const GOAL_PRESETS = { metric: [15, 30, 50, 80, 120], imperial: [10, 20, 30, 50, 75] };
 
 const DONE_IMG =
   "https://images.unsplash.com/photo-1502904550040-7534597429ae?w=1200&q=80&auto=format&fit=crop";
@@ -335,7 +339,12 @@ function GoalStep({
   setGoalKm: (n: number) => void;
   sport: Sport | null;
 }) {
-  const unitLabel = sport === "swim" ? "km in the pool" : "km per week";
+  const units = useUnits();
+  const unit = units.distanceUnit;
+  const unitLabel = sport === "swim" ? `${unit} in the pool` : `${unit} per week`;
+  // The slider works in whatever the athlete is reading; goalKm stays metric.
+  const goal = Math.round(units.toDistance(goalKm));
+  const presets = GOAL_PRESETS[units.system];
   return (
     <div>
       <StepHeader
@@ -348,7 +357,7 @@ function GoalStep({
         <div className="flex items-baseline justify-between">
           <div>
             <div className="stat-num text-7xl font-bold leading-none tracking-[-0.04em]">
-              {goalKm}
+              {goal}
             </div>
             <div className="mt-2 font-mono text-[11px] uppercase tracking-[0.22em] text-muted-foreground">
               {unitLabel}
@@ -359,31 +368,32 @@ function GoalStep({
               Ramp target
             </div>
             <div className="stat-num mt-1 text-xl font-bold">+5% / wk</div>
+            <UnitToggle className="mt-3" />
           </div>
         </div>
 
         <input
           type="range"
           min={5}
-          max={200}
+          max={units.system === "imperial" ? 125 : 200}
           step={5}
-          value={goalKm}
-          onChange={(event) => setGoalKm(Number(event.target.value))}
+          value={goal}
+          onChange={(event) => setGoalKm(units.fromDistance(Number(event.target.value)))}
           className="mt-8 w-full accent-[var(--primary)]"
         />
 
         <div className="mt-6 flex flex-wrap gap-2">
-          {GOAL_PRESETS.map((preset) => (
+          {presets.map((preset) => (
             <button
               key={preset}
-              onClick={() => setGoalKm(preset)}
+              onClick={() => setGoalKm(units.fromDistance(preset))}
               className={`px-4 py-2 text-sm font-medium transition-colors ${
-                goalKm === preset
+                goal === preset
                   ? "bg-secondary text-secondary-foreground"
                   : "border border-border text-foreground hover:border-foreground/50"
               }`}
             >
-              {preset} km
+              {preset} {unit}
             </button>
           ))}
         </div>
@@ -467,6 +477,7 @@ function DoneStep({
   goalKm: number;
   followCount: number;
 }) {
+  const units = useUnits();
   const sportLabel = SPORTS.find((s) => s.id === sport)?.label ?? "Athlete";
   return (
     <div>
@@ -478,7 +489,7 @@ function DoneStep({
 
       <div className="mt-10 grid gap-0 border border-border bg-surface sm:grid-cols-3">
         <RecapCell label="Discipline" value={sportLabel} />
-        <RecapCell label="Weekly target" value={`${goalKm} km`} />
+        <RecapCell label="Weekly target" value={units.distance(goalKm, 0)} />
         <RecapCell
           label="Following"
           value={`${followCount} athlete${followCount === 1 ? "" : "s"}`}

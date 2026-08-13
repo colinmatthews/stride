@@ -1,5 +1,6 @@
 import { Outlet, Link, createRootRoute, HeadContent } from "@tanstack/react-router";
 import { PostHogProvider } from "@posthog/react";
+import { UnitsProvider } from "@/lib/units-context";
 
 function NotFoundComponent() {
   return (
@@ -65,7 +66,7 @@ function RootShell({ children }: { children: React.ReactNode }) {
           debug: import.meta.env.DEV,
         }}
       >
-        {children}
+        <UnitsProvider>{children}</UnitsProvider>
       </PostHogProvider>
     </>
   );

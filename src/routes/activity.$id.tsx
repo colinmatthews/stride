@@ -29,7 +29,6 @@ import {
   ACTIVITIES,
   fmtDate,
   fmtDuration,
-  fmtPace,
   getActivity,
   getActivityPhoto,
   getAthlete,
@@ -41,6 +40,7 @@ import { RouteMap } from "@/components/RouteMap";
 import { SportBadge } from "@/components/SportBadge";
 import { Stat } from "@/components/Stat";
 import { addActivityComment, fetchActivity, toggleActivityKudo } from "@/lib/api";
+import { useUnits } from "@/lib/units-context";
 
 export const Route = createFileRoute("/activity/$id")({
   loader: async ({ params }) => {
@@ -88,8 +88,12 @@ function ActivityDetail() {
   type Comment = { id: string; athleteId: string; text: string };
   const [comments, setComments] = useState<Comment[]>(activity.comments);
 
-  const elev = elevationProfile(activity.routeSeed);
-  const splits = activity.splits ?? [];
+  const units = useUnits();
+  const elev = elevationProfile(activity.routeSeed).map((point) => ({
+    ...point,
+    elev: Math.round(units.toElevation(point.elev)),
+  }));
+  const splits = units.resplit(activity.splits ?? []);
 
   const submitComment = async () => {
     if (!comment.trim()) return;
@@ -161,22 +165,33 @@ function ActivityDetail() {
 
           {/* Hero stats */}
           <div className="grid grid-cols-4 gap-6 my-8 pb-8 border-b border-border">
-            <Stat label="Distance" value={activity.distanceKm.toFixed(2)} unit="km" emphasis />
+            <Stat
+              label="Distance"
+              value={units.distanceValue(activity.distanceKm)}
+              unit={units.distanceUnit}
+              emphasis
+            />
             <Stat label="Time" value={fmtDuration(activity.movingSeconds)} />
             {activity.sport === "Ride" ? (
-              <Stat label="Avg speed" value={activity.avgSpeedKmh?.toFixed(1) ?? "—"} unit="km/h" />
+              <Stat
+                label="Avg speed"
+                value={
+                  activity.avgSpeedKmh !== undefined ? units.speedValue(activity.avgSpeedKmh) : "—"
+                }
+                unit={units.speedUnit}
+              />
             ) : (
               <Stat
                 label="Pace"
-                value={
-                  activity.avgPaceSecPerKm
-                    ? fmtPace(activity.avgPaceSecPerKm).replace("/km", "")
-                    : "—"
-                }
-                unit="/km"
+                value={activity.avgPaceSecPerKm ? units.paceValue(activity.avgPaceSecPerKm) : "—"}
+                unit={units.paceUnit}
               />
             )}
-            <Stat label="Elevation" value={activity.elevationM} unit="m" />
+            <Stat
+              label="Elevation"
+              value={units.elevationValue(activity.elevationM)}
+              unit={units.elevationUnit}
+            />
           </div>
 
           {/* Map + photo */}
@@ -275,7 +290,7 @@ function ActivityDetail() {
                           borderRadius: 8,
                           fontSize: 12,
                         }}
-                        formatter={(v) => fmtPace(Number(v))}
+                        formatter={(v) => units.pace(Number(v))}
                       />
                       <Bar dataKey="paceSec" fill="var(--primary)" radius={[4, 4, 0, 0]} />
                     </BarChart>
@@ -285,7 +300,7 @@ function ActivityDetail() {
                   <table className="w-full text-sm">
                     <thead className="text-xs uppercase tracking-wider text-muted-foreground">
                       <tr className="text-left">
-                        <th className="py-2 font-medium">Km</th>
+                        <th className="py-2 font-medium capitalize">{units.distanceUnit}</th>
                         <th className="py-2 font-medium">Pace</th>
                         <th className="py-2 font-medium">HR</th>
                         <th className="py-2 font-medium text-right">Elev</th>
@@ -295,12 +310,12 @@ function ActivityDetail() {
                       {splits.map((s) => (
                         <tr key={s.km} className="border-t border-border">
                           <td className="py-2 font-mono">{s.km}</td>
-                          <td className="py-2 font-mono">
-                            {fmtPace(s.paceSec).replace("/km", "")}
-                          </td>
+                          <td className="py-2 font-mono">{units.paceValue(s.paceSec)}</td>
                           <td className="py-2 font-mono">{s.hr}</td>
                           <td className="py-2 font-mono text-right">
-                            {s.elev > 0 ? `+${s.elev}` : s.elev}
+                            {s.elev > 0
+                              ? `+${units.elevationValue(s.elev)}`
+                              : units.elevationValue(s.elev)}
                           </td>
                         </tr>
                       ))}
@@ -331,7 +346,7 @@ function ActivityDetail() {
                         <div>
                           <div className="font-medium text-sm">{seg.name}</div>
                           <div className="text-xs text-muted-foreground">
-                            {seg.distanceKm.toFixed(1)} km · {seg.avgGrade.toFixed(1)}%
+                            {units.distance(seg.distanceKm, 1)} · {seg.avgGrade.toFixed(1)}%
                           </div>
                         </div>
                         <div className="text-right">
@@ -488,7 +503,7 @@ function ActivityDetail() {
                       <div className="min-w-0 flex-1">
                         <div className="text-sm font-medium truncate">{a.title}</div>
                         <div className="text-xs text-muted-foreground">
-                          {a.distanceKm.toFixed(1)} km · {fmtDuration(a.movingSeconds)}
+                          {units.distance(a.distanceKm, 1)} · {fmtDuration(a.movingSeconds)}
                         </div>
                       </div>
                     </button>
