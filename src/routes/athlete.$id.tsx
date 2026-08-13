@@ -5,9 +5,58 @@ import { ACTIVITIES, ATHLETES, type Activity, fmtDate, fmtDuration, getAthlete, 
 import { AppShell } from "@/components/AppShell";
 import { ActivityCard } from "@/components/ActivityCard";
 import { ResponsiveContainer, BarChart, Bar, XAxis, YAxis, Tooltip, CartesianGrid } from "recharts";
-import { MapPin, Trophy, UserPlus, Check } from "lucide-react";
+import { MapPin, Trophy, UserPlus, Check, ChevronDown, Lock } from "lucide-react";
 import { SportBadge } from "@/components/SportBadge";
 import { fetchActivities, toggleAthleteFollow } from "@/lib/api";
+import { Badge } from "@/components/ui/badge";
+
+interface Tier {
+  name: string;
+  min: number;
+  icon: string;
+  blurb: string;
+}
+
+const TIERS: Tier[] = [
+  {
+    name: "Getting started",
+    min: 0,
+    icon: "🌱",
+    blurb: "Every athlete starts here. Log your first few efforts.",
+  },
+  {
+    name: "Building momentum",
+    min: 5,
+    icon: "🔥",
+    blurb: "You're showing up more than once a week. Keep it going.",
+  },
+  {
+    name: "Consistent",
+    min: 10,
+    icon: "⚡",
+    blurb: "Regular enough that Stride can start spotting real trends in your training.",
+  },
+  {
+    name: "Committed",
+    min: 18,
+    icon: "🏅",
+    blurb: "You've logged more than most athletes ever do. Segments start to feel like home turf.",
+  },
+  {
+    name: "Elite",
+    min: 28,
+    icon: "🏆",
+    blurb: "Top tier of logged training. Nothing left to prove — just keep training.",
+  },
+];
+
+function tierIndexFor(count: number) {
+  let idx = 0;
+  for (let i = 0; i < TIERS.length; i += 1) {
+    if (count >= TIERS[i].min) idx = i;
+  }
+  return idx;
+}
 
 export const Route = createFileRoute("/athlete/$id")({
   loader: async ({ params }) => {
@@ -48,6 +97,13 @@ function AthletePage() {
   const totalKm = acts.reduce((s, a) => s + a.distanceKm, 0);
   const totalTime = acts.reduce((s, a) => s + a.movingSeconds, 0);
   const totalElev = acts.reduce((s, a) => s + a.elevationM, 0);
+
+  const tierIdx = tierIndexFor(acts.length);
+  const currentTier = TIERS[tierIdx];
+  const nextTier = TIERS[tierIdx + 1];
+  const tierProgressPct = nextTier
+    ? Math.min(100, ((acts.length - currentTier.min) / (nextTier.min - currentTier.min)) * 100)
+    : 100;
 
   const isMe = athlete.id === "me";
   const loadMore = async () => {
@@ -224,18 +280,23 @@ function AthletePage() {
             </ul>
           </div>
           <div className="bg-surface rounded-xl border border-border p-5">
-            <h3 className="text-xs uppercase tracking-[0.14em] text-muted-foreground mb-3 flex items-center gap-2">
-              <Trophy className="h-3.5 w-3.5 text-primary" /> Trophy case
+            <h3 className="mb-3 flex items-center gap-2 text-xs uppercase tracking-[0.14em] text-muted-foreground">
+              <Trophy className="h-3.5 w-3.5 text-primary" /> Training tier
             </h3>
-            <div className="grid grid-cols-3 gap-2">
-              {["🥇", "🏔️", "🏃", "💯", "🔥", "⚡"].map((e, i) => (
-                <div
-                  key={i}
-                  className="aspect-square rounded-lg bg-surface-2 grid place-items-center text-2xl"
-                >
-                  {e}
-                </div>
-              ))}
+            <div className="mb-3 flex items-center gap-2">
+              <span className="text-2xl">{currentTier.icon}</span>
+              <div className="min-w-0 flex-1">
+                <div className="text-sm font-semibold">{currentTier.name}</div>
+                {nextTier && (
+                  <div className="text-xs text-muted-foreground">
+                    {Math.max(0, nextTier.min - acts.length)} to {nextTier.name}
+                  </div>
+                )}
+              </div>
+            </div>
+            {nextTier && <ProgressBar pct={tierProgressPct} />}
+            <div className="mt-4">
+              <TierLadder currentIdx={tierIdx} count={acts.length} />
             </div>
           </div>
           <div className="bg-surface rounded-xl border border-border p-5">
@@ -285,6 +346,74 @@ function weeklyStatsForActivities(activities: Activity[]) {
   }
 
   return weeks;
+}
+
+function TierLadder({ currentIdx, count }: { currentIdx: number; count: number }) {
+  const [openIdx, setOpenIdx] = useState<number>(currentIdx);
+
+  return (
+    <ul className="space-y-2">
+      {TIERS.map((tier, i) => {
+        const unlocked = i <= currentIdx;
+        const isOpen = openIdx === i;
+        const next = TIERS[i + 1];
+        return (
+          <li key={tier.name}>
+            <button
+              onClick={() => setOpenIdx(isOpen ? -1 : i)}
+              className={`w-full rounded-lg border p-3 text-left transition-colors ${
+                unlocked
+                  ? "border-[color:var(--pr)]/30 bg-[color:var(--pr)]/6"
+                  : "border-border bg-surface-2 opacity-70"
+              }`}
+            >
+              <div className="flex items-center gap-2">
+                <span className="text-lg">
+                  {unlocked ? tier.icon : <Lock className="h-4 w-4 text-muted-foreground" />}
+                </span>
+                <span className="flex-1 truncate text-sm font-semibold">{tier.name}</span>
+                <ChevronDown
+                  className={`h-3.5 w-3.5 shrink-0 text-muted-foreground transition-transform ${isOpen ? "rotate-180" : ""}`}
+                />
+              </div>
+              {i === currentIdx && (
+                <Badge className="mt-2 bg-[color:var(--pr)]/15 text-[color:var(--pr)] hover:bg-[color:var(--pr)]/15">
+                  Current
+                </Badge>
+              )}
+              {isOpen && (
+                <div className="mt-2 text-xs text-muted-foreground">
+                  <p>{tier.blurb}</p>
+                  {unlocked ? (
+                    i === currentIdx && next ? (
+                      <p className="mt-1.5 font-medium text-foreground">
+                        {count}/{next.min} activities logged · {Math.max(0, next.min - count)} more
+                        to reach {next.name}
+                      </p>
+                    ) : (
+                      <p className="mt-1.5 font-medium text-[color:var(--pr)]">Unlocked</p>
+                    )
+                  ) : (
+                    <p className="mt-1.5 font-medium text-foreground">
+                      Requires {tier.min}+ logged activities
+                    </p>
+                  )}
+                </div>
+              )}
+            </button>
+          </li>
+        );
+      })}
+    </ul>
+  );
+}
+
+function ProgressBar({ pct }: { pct: number }) {
+  return (
+    <div className="h-1.5 overflow-hidden rounded-full bg-muted">
+      <div className="h-full bg-[color:var(--pr)]" style={{ width: `${pct}%` }} />
+    </div>
+  );
 }
 
 function BigStat({ label, value }: { label: string; value: string | number }) {
