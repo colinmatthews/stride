@@ -1,6 +1,6 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { useMemo, useState } from "react";
-import { fmtDuration, type Activity, type Sport } from "@/lib/mock-data";
+import { ME, fmtDuration, type Activity, type Sport } from "@/lib/mock-data";
 import { fetchActivities } from "@/lib/api";
 import { AppShell } from "@/components/AppShell";
 import {
@@ -17,6 +17,10 @@ import {
   Legend,
 } from "recharts";
 import { SportBadge } from "@/components/SportBadge";
+import { Share } from "lucide-react";
+import { WeeklyRecapModal } from "@/components/WeeklyRecapModal";
+import { useRecapShare, useWeeklyRecap } from "@/hooks/use-weekly-recap";
+import { formatWeekRange } from "@/lib/recap-card";
 
 export const Route = createFileRoute("/training")({
   head: () => ({
@@ -42,6 +46,8 @@ function Training() {
   const [my, setMy] = useState(initialPage.activities);
   const [nextCursor, setNextCursor] = useState(initialPage.nextCursor);
   const [loadingMore, setLoadingMore] = useState(false);
+  const weeklyRecap = useWeeklyRecap();
+  const recapShare = useRecapShare();
   const weeks = useMemo(() => weeklyStatsForActivities(my), [my]);
   const [sport, setSport] = useState<"All" | Sport>("All");
 
@@ -78,10 +84,45 @@ function Training() {
 
   return (
     <AppShell>
+      {recapShare.request && (
+        <WeeklyRecapModal
+          recap={recapShare.request.recap}
+          athlete={{ name: ME.name, handle: ME.handle }}
+          surface={recapShare.request.surface}
+          onDismiss={recapShare.close}
+        />
+      )}
+
       <div className="mb-8">
         <p className="text-sm text-muted-foreground">Every effort, logged.</p>
         <h1 className="text-3xl font-display font-bold tracking-tight mt-1">Training log</h1>
       </div>
+
+      {weeklyRecap && (
+        <section className="mb-8 rounded-xl border border-border bg-surface p-5">
+          <div className="flex items-start justify-between">
+            <div>
+              <div className="font-mono text-[10px] uppercase tracking-[0.22em] text-muted-foreground">
+                Week of {formatWeekRange(weeklyRecap.weekStart, weeklyRecap.weekEnd)}
+              </div>
+              <h2 className="mt-1 font-display text-base font-semibold">Weekly recap</h2>
+            </div>
+            <button
+              onClick={() => recapShare.open(weeklyRecap, "training_log")}
+              className="inline-flex h-9 items-center gap-2 rounded-md bg-primary px-3 text-sm font-medium text-primary-foreground transition-opacity hover:opacity-90"
+            >
+              <Share className="h-4 w-4" /> Share recap
+            </button>
+          </div>
+
+          <div className="mt-4 grid grid-cols-4 gap-4">
+            <Card label="Distance" value={`${weeklyRecap.distanceKm.toFixed(1)} km`} />
+            <Card label="Time" value={fmtDuration(weeklyRecap.movingSeconds)} />
+            <Card label="Runs" value={weeklyRecap.runCount} />
+            <Card label="Streak" value={`${weeklyRecap.streakWeeks} wk`} />
+          </div>
+        </section>
+      )}
 
       <div className="grid grid-cols-4 gap-4 mb-8">
         <Card label="Activities" value={totals.count} />

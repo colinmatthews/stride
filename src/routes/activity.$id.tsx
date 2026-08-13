@@ -1,6 +1,8 @@
 import { createFileRoute, Link, useRouter, notFound } from "@tanstack/react-router";
 import { useState } from "react";
 import { usePostHog } from "@posthog/react";
+import { buildActivitySharedEvent } from "@/lib/analytics";
+import { shareOrCopy } from "@/lib/share";
 import {
   ResponsiveContainer,
   LineChart,
@@ -103,6 +105,29 @@ function ActivityDetail() {
     setComment("");
   };
 
+  const share = async () => {
+    const outcome = await shareOrCopy({
+      title: activity.title,
+      text: `${activity.distanceKm.toFixed(2)} km · ${activity.sport}`,
+      url: window.location.href,
+    });
+
+    // Previously this was `navigator.share?.(…).catch(() => {})` — a cancelled
+    // sheet, an unsupported browser and a real share were indistinguishable and
+    // none of them were measured.
+    if (outcome.status === "shared") {
+      const event = buildActivitySharedEvent({
+        surface: "activity_detail",
+        destination: outcome.destination,
+        activityId: activity.id,
+        hasImage: false,
+      });
+      posthog.capture(event.name, event.properties);
+    } else if (outcome.status === "failed") {
+      posthog.captureException(outcome.error);
+    }
+  };
+
   const toggleKudos = async () => {
     const result = await toggleActivityKudo(activity.id);
     setKudoed(result.kudoed);
@@ -145,7 +170,7 @@ function ActivityDetail() {
               </div>
             </div>
             <button
-              onClick={() => navigator.share?.({ title: activity.title }).catch(() => {})}
+              onClick={share}
               className="h-9 px-3 rounded-md border border-border text-sm flex items-center gap-2 hover:bg-muted"
             >
               <Share2 className="h-4 w-4" /> Share

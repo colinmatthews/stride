@@ -1,6 +1,6 @@
 import { createFileRoute, useRouter } from "@tanstack/react-router";
 import { useEffect, useRef, useState } from "react";
-import { fmtDuration, fmtPace, type Sport } from "@/lib/mock-data";
+import { ME, fmtDuration, fmtPace, type Sport } from "@/lib/mock-data";
 import { AppShell } from "@/components/AppShell";
 import { usePostHog } from "@posthog/react";
 import {
@@ -15,6 +15,8 @@ import {
   LoaderCircle,
 } from "lucide-react";
 import { saveActivity } from "@/lib/api";
+import { WeeklyRecapModal } from "@/components/WeeklyRecapModal";
+import { useWeeklyRecapGate } from "@/hooks/use-weekly-recap";
 
 export const Route = createFileRoute("/record")({
   head: () => ({
@@ -156,6 +158,8 @@ function ManualForm({ sport }: { sport: Sport }) {
   const [avgHr, setAvgHr] = useState("");
   const [error, setError] = useState("");
   const [busy, setBusy] = useState(false);
+  const recapGate = useWeeklyRecapGate();
+  const [continueToActivity, setContinueToActivity] = useState<(() => void) | null>(null);
 
   const distanceKm = Number(distance) || 0;
   const totalSeconds =
@@ -201,7 +205,17 @@ function ManualForm({ sport }: { sport: Sport }) {
         elevation_m: Number(elevation) || 0,
         entry_mode: "manual",
       });
-      router.navigate({ to: "/activity/$id", params: { id: activity.id } });
+
+      const goToActivity = () =>
+        router.navigate({ to: "/activity/$id", params: { id: activity.id } });
+
+      if (await recapGate.evaluate(sport)) {
+        setContinueToActivity(() => goToActivity);
+        setBusy(false);
+        return;
+      }
+
+      goToActivity();
     } catch (err) {
       posthog.captureException(err);
       setError("Couldn't save activity. Try again.");
@@ -209,8 +223,19 @@ function ManualForm({ sport }: { sport: Sport }) {
     }
   }
 
+  const recapModal =
+    recapGate.recap && continueToActivity ? (
+      <WeeklyRecapModal
+        recap={recapGate.recap}
+        athlete={{ name: ME.name, handle: ME.handle }}
+        surface="weekly_recap_modal"
+        onDismiss={continueToActivity}
+      />
+    ) : null;
+
   return (
     <section className="mt-8 border border-border bg-surface">
+      {recapModal}
       <div className="border-b border-border p-6">
         <div className="font-mono text-[10px] uppercase tracking-[0.22em] text-muted-foreground">
           The essentials
@@ -488,6 +513,8 @@ function TimerMode({ sport }: { sport: Sport }) {
   const [title, setTitle] = useState("");
   const [description, setDescription] = useState("");
   const [saving, setSaving] = useState(false);
+  const recapGate = useWeeklyRecapGate();
+  const [continueToActivity, setContinueToActivity] = useState<(() => void) | null>(null);
   const ref = useRef<number | null>(null);
 
   useEffect(() => {
@@ -544,7 +571,17 @@ function TimerMode({ sport }: { sport: Sport }) {
         elevation_m: Math.floor(distance * 12),
         entry_mode: "timer",
       });
-      router.navigate({ to: "/activity/$id", params: { id: activity.id } });
+
+      const goToActivity = () =>
+        router.navigate({ to: "/activity/$id", params: { id: activity.id } });
+
+      if (await recapGate.evaluate(sport)) {
+        setContinueToActivity(() => goToActivity);
+        setSaving(false);
+        return;
+      }
+
+      goToActivity();
     } catch (err) {
       posthog.captureException(err);
       setSaving(false);
@@ -562,8 +599,19 @@ function TimerMode({ sport }: { sport: Sport }) {
 
   const finished = !running && elapsed > 0;
 
+  const recapModal =
+    recapGate.recap && continueToActivity ? (
+      <WeeklyRecapModal
+        recap={recapGate.recap}
+        athlete={{ name: ME.name, handle: ME.handle }}
+        surface="weekly_recap_modal"
+        onDismiss={continueToActivity}
+      />
+    ) : null;
+
   return (
     <section className="mt-8 border border-border">
+      {recapModal}
       <div className="bg-secondary p-10 text-center text-secondary-foreground">
         <div className="inline-flex items-center gap-2 font-mono text-[10px] uppercase tracking-[0.22em] text-secondary-foreground/70">
           <ActivityIcon className="h-3 w-3" /> {sport}
