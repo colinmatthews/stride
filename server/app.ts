@@ -9,6 +9,7 @@ import {
   findUserForAuth,
   getActivityById,
   listActivities,
+  resolveSyncFailure,
   toggleChallengeEntry,
   toggleClubMembership,
   toggleFollow,
@@ -158,7 +159,11 @@ export function createApp() {
           ? Number(request.body.avgPaceSecPerKm)
           : undefined,
         avgSpeedKmh: request.body.avgSpeedKmh ? Number(request.body.avgSpeedKmh) : undefined,
-        routeSeed: Number(request.body.routeSeed ?? 1),
+        routeSeed:
+          request.body.routeSeed === undefined || request.body.routeSeed === null
+            ? undefined
+            : Number(request.body.routeSeed),
+        date: request.body.date ? new Date(String(request.body.date)) : undefined,
       });
 
       const activity = await getActivityById(request.userId!, activityId);
@@ -188,6 +193,21 @@ export function createApp() {
       }
 
       response.status(201).json(await addComment(request.userId!, activityId, text));
+    } catch (error) {
+      next(error);
+    }
+  });
+
+  app.post("/api/sync-failures/:id/resolve", requireAuth, async (request, response, next) => {
+    try {
+      const resolved = await resolveSyncFailure(request.userId!, String(request.params.id));
+
+      if (!resolved) {
+        response.status(404).json({ error: "Sync failure not found" });
+        return;
+      }
+
+      response.status(204).end();
     } catch (error) {
       next(error);
     }

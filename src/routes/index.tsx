@@ -10,9 +10,20 @@ import {
   TrendingUp,
   Users,
 } from "lucide-react";
-import { ACTIVITIES, ATHLETES, CHALLENGES, ME, fmtDuration, getAthlete } from "@/lib/mock-data";
+import {
+  ACTIVITIES,
+  ATHLETES,
+  CHALLENGES,
+  ME,
+  SYNC_FAILURES,
+  fmtDuration,
+  getAthlete,
+  type Activity,
+  type SyncFailure,
+} from "@/lib/mock-data";
 import { AppShell } from "@/components/AppShell";
 import { ActivityCard } from "@/components/ActivityCard";
+import { SyncFailedCard } from "@/components/SyncFailedCard";
 import { FollowButton } from "@/components/FollowButton";
 
 export const Route = createFileRoute("/")({
@@ -53,6 +64,24 @@ function FeedPage() {
         activity.athleteId === "me" || Boolean(getAthlete(activity.athleteId).isFollowing),
     ).slice(0, 20);
   }, [filter, feedRevision]);
+
+  // Failed syncs are the user's own missing activities, so they only ever
+  // slot into the feed where that activity would've appeared for the athlete
+  // themselves — never into the Clubs filter, which excludes "me" entirely.
+  const feedItems = useMemo(() => {
+    const failures: { kind: "failure"; date: string; failure: SyncFailure }[] =
+      filter === "Clubs"
+        ? []
+        : SYNC_FAILURES.filter((failure) => failure.athleteId === "me").map((failure) => ({
+            kind: "failure" as const,
+            date: failure.attemptedAt,
+            failure,
+          }));
+    const activities: { kind: "activity"; date: string; activity: Activity }[] = visible.map(
+      (activity) => ({ kind: "activity" as const, date: activity.date, activity }),
+    );
+    return [...failures, ...activities].sort((a, b) => +new Date(b.date) - +new Date(a.date));
+  }, [visible, filter, feedRevision]);
 
   const myWeekKm = ACTIVITIES.filter((activity) => activity.athleteId === "me")
     .slice(0, 5)
@@ -97,8 +126,14 @@ function FeedPage() {
           </div>
 
           <div className="space-y-5">
-            {visible.length > 0 ? (
-              visible.map((activity) => <ActivityCard key={activity.id} activity={activity} />)
+            {feedItems.length > 0 ? (
+              feedItems.map((item) =>
+                item.kind === "failure" ? (
+                  <SyncFailedCard key={item.failure.id} failure={item.failure} />
+                ) : (
+                  <ActivityCard key={item.activity.id} activity={item.activity} />
+                ),
+              )
             ) : (
               <EmptyFeed filter={filter} />
             )}

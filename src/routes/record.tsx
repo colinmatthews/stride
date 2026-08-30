@@ -1,7 +1,17 @@
 import { createFileRoute, useRouter } from "@tanstack/react-router";
 import { useEffect, useRef, useState } from "react";
-import { fmtDuration, fmtPace, type Sport } from "@/lib/mock-data";
+import { z } from "zod";
+import {
+  fmtDuration,
+  fmtPace,
+  fmtTimeAgo,
+  getSyncFailure,
+  ROUTE_PRESETS,
+  type Sport,
+  type SyncFailure,
+} from "@/lib/mock-data";
 import { AppShell } from "@/components/AppShell";
+import { RouteMap } from "@/components/RouteMap";
 import { usePostHog } from "@posthog/react";
 import {
   Play,
@@ -9,14 +19,18 @@ import {
   Square,
   MapPin,
   Activity as ActivityIcon,
+  AlertTriangle,
   PencilLine,
   Timer as TimerIcon,
   ArrowRight,
   LoaderCircle,
 } from "lucide-react";
-import { saveActivity } from "@/lib/api";
+import { saveActivity, resolveSyncFailure } from "@/lib/api";
 
 export const Route = createFileRoute("/record")({
+  validateSearch: z.object({
+    failureId: z.string().optional(),
+  }),
   head: () => ({
     meta: [
       { title: "Record — Stride" },
@@ -30,8 +44,10 @@ const SPORTS: Sport[] = ["Run", "Ride", "Swim", "Hike", "Walk"];
 type Mode = "manual" | "timer";
 
 function Record() {
+  const { failureId } = Route.useSearch();
+  const failure = failureId ? getSyncFailure(failureId) : undefined;
   const [mode, setMode] = useState<Mode>("manual");
-  const [sport, setSport] = useState<Sport>("Run");
+  const [sport, setSport] = useState<Sport>(failure?.sportGuess ?? "Run");
 
   return (
     <AppShell>
@@ -49,6 +65,8 @@ function Record() {
             Record activity
           </h1>
         </div>
+
+        {failure && <RecoveredSyncBanner failure={failure} />}
 
         <div className="mt-8 grid grid-cols-2 border border-border">
           <ModeTab
@@ -69,9 +87,36 @@ function Record() {
 
         <SportPicker sport={sport} setSport={setSport} />
 
-        {mode === "manual" ? <ManualForm sport={sport} /> : <TimerMode sport={sport} />}
+        {mode === "manual" ? (
+          <ManualForm sport={sport} prefill={failure} />
+        ) : (
+          <TimerMode sport={sport} />
+        )}
       </div>
     </AppShell>
+  );
+}
+
+function RecoveredSyncBanner({ failure }: { failure: SyncFailure }) {
+  return (
+    <div className="mt-6 flex items-start gap-3 border border-destructive/30 bg-destructive/5 px-5 py-4">
+      <AlertTriangle className="mt-0.5 h-4 w-4 shrink-0 text-destructive" />
+      <div className="min-w-0">
+        <div className="text-sm font-semibold text-foreground">
+          Recovered from a failed sync — {failure.deviceName}
+        </div>
+        <p className="mt-1 text-xs leading-relaxed text-muted-foreground">
+          Attempted {fmtTimeAgo(failure.attemptedAt)}
+          {failure.gpsPointsCaptured > 0
+            ? ` · ${failure.gpsPointsCaptured} GPS points recovered`
+            : " · no GPS data came through"}
+          . Sport and timestamp are filled in below
+          {failure.gpsPointsCaptured > 0 ? ", along with the reconstructed route" : ""} — just add
+          the final distance{failure.gpsPointsCaptured === 0 ? ", a route if you'd like one," : ""}{" "}
+          and any notes.
+        </p>
+      </div>
+    </div>
   );
 }
 
@@ -143,7 +188,7 @@ function SportPicker({ sport, setSport }: { sport: Sport; setSport: (s: Sport) =
   );
 }
 
-function ManualForm({ sport }: { sport: Sport }) {
+function ManualForm({ sport, prefill }: { sport: Sport; prefill?: SyncFailure }) {
   const posthog = usePostHog();
   const router = useRouter();
   const [title, setTitle] = useState("");
@@ -154,6 +199,7 @@ function ManualForm({ sport }: { sport: Sport }) {
   const [seconds, setSeconds] = useState("");
   const [elevation, setElevation] = useState("");
   const [avgHr, setAvgHr] = useState("");
+  const [routeSeed, setRouteSeed] = useState<number | undefined>(prefill?.routeSeed);
   const [error, setError] = useState("");
   const [busy, setBusy] = useState(false);
 
@@ -192,15 +238,20 @@ function ManualForm({ sport }: { sport: Sport }) {
         avgHr: avgHr ? Number(avgHr) : undefined,
         avgPaceSecPerKm: paceSecPerKm,
         avgSpeedKmh: speedKmh,
-        routeSeed: Math.floor(Math.random() * 1000),
+        routeSeed: prefill ? routeSeed : Math.floor(Math.random() * 1000),
+        date: prefill?.attemptedAt,
       });
       posthog.capture("activity_saved", {
         sport,
         distance_km: Math.round(distanceKm * 100) / 100,
         moving_seconds: totalSeconds,
         elevation_m: Number(elevation) || 0,
-        entry_mode: "manual",
+        entry_mode: prefill ? "recovered_sync" : "manual",
       });
+      if (prefill) {
+        await resolveSyncFailure(prefill.id);
+        posthog.capture("sync_failed_recovered", { device_name: prefill.deviceName });
+      }
       router.navigate({ to: "/activity/$id", params: { id: activity.id } });
     } catch (err) {
       posthog.captureException(err);
@@ -268,6 +319,10 @@ function ManualForm({ sport }: { sport: Sport }) {
         </div>
       </div>
 
+      {prefill && (
+        <RouteSection prefill={prefill} routeSeed={routeSeed} setRouteSeed={setRouteSeed} />
+      )}
+
       <div className="border-b border-border p-6">
         <div className="font-mono text-[10px] uppercase tracking-[0.22em] text-muted-foreground">
           Optional
@@ -320,6 +375,86 @@ function ManualForm({ sport }: { sport: Sport }) {
         </button>
       </div>
     </section>
+  );
+}
+
+function RouteSection({
+  prefill,
+  routeSeed,
+  setRouteSeed,
+}: {
+  prefill: SyncFailure;
+  routeSeed: number | undefined;
+  setRouteSeed: (seed: number | undefined) => void;
+}) {
+  if (prefill.gpsPointsCaptured > 0 && prefill.routeSeed !== undefined) {
+    return (
+      <div className="border-b border-border p-6">
+        <div className="font-mono text-[10px] uppercase tracking-[0.22em] text-muted-foreground">
+          Route
+        </div>
+        <div className="mt-3 overflow-hidden border border-border">
+          <RouteMap
+            seed={prefill.routeSeed}
+            width={600}
+            height={160}
+            className="h-40 w-full"
+            showScale={false}
+          />
+        </div>
+        <p className="mt-2 text-xs text-muted-foreground">
+          Reconstructed from {prefill.gpsPointsCaptured} recovered GPS points.
+        </p>
+      </div>
+    );
+  }
+
+  return (
+    <div className="border-b border-border p-6">
+      <div className="font-mono text-[10px] uppercase tracking-[0.22em] text-muted-foreground">
+        Route
+      </div>
+      <p className="mt-2 text-xs text-muted-foreground">
+        No GPS came through for this one. Pick a route to attach, or leave it blank.
+      </p>
+      <div className="mt-4 grid grid-cols-2 gap-3 sm:grid-cols-5">
+        <button
+          type="button"
+          onClick={() => setRouteSeed(undefined)}
+          className={`flex h-20 flex-col items-center justify-center gap-1 border text-xs transition-colors ${
+            routeSeed === undefined
+              ? "border-foreground bg-muted text-foreground"
+              : "border-border bg-background text-muted-foreground hover:border-foreground/50"
+          }`}
+        >
+          <MapPin className="h-4 w-4" />
+          No route
+        </button>
+        {ROUTE_PRESETS.map((preset) => (
+          <button
+            type="button"
+            key={preset.id}
+            onClick={() => setRouteSeed(preset.seed)}
+            className={`overflow-hidden border transition-colors ${
+              routeSeed === preset.seed
+                ? "border-foreground"
+                : "border-border hover:border-foreground/50"
+            }`}
+          >
+            <RouteMap
+              seed={preset.seed}
+              width={160}
+              height={70}
+              className="h-16 w-full"
+              showScale={false}
+            />
+            <div className="truncate bg-surface px-2 py-1 text-[10px] text-muted-foreground">
+              {preset.label}
+            </div>
+          </button>
+        ))}
+      </div>
+    </div>
   );
 }
 

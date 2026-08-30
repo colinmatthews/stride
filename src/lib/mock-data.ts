@@ -30,11 +30,35 @@ export interface Activity {
   comments: { id: string; athleteId: string; text: string }[];
   achievements: number;
   photo?: string;
-  routeSeed: number;
+  routeSeed?: number;
   splits?: { km: number; paceSec: number; hr: number; elev: number }[];
   segments?: { id: string; rank: number }[];
   kudoed?: boolean;
 }
+
+// STR-27: an activity a device attempted to sync and failed to deliver.
+// Surfaced in the feed as a recovery prompt until the athlete fills it in
+// manually or the failure is otherwise resolved.
+export interface SyncFailure {
+  id: string;
+  athleteId: string;
+  deviceName: string;
+  deviceType: "watch" | "bike" | "strap" | "phone";
+  attemptedAt: string;
+  sportGuess: Sport;
+  gpsPointsCaptured: number;
+  routeSeed?: number;
+  reason: string;
+}
+
+// Named, stable route shapes a user can attach by hand when no GPS came
+// through for a recovered sync failure.
+export const ROUTE_PRESETS: { id: string; label: string; seed: number }[] = [
+  { id: "loop", label: "Neighborhood loop", seed: 101 },
+  { id: "outback", label: "Out & back", seed: 202 },
+  { id: "trail", label: "Trail spur", seed: 303 },
+  { id: "river", label: "Riverside path", seed: 404 },
+];
 
 export interface Segment {
   id: string;
@@ -79,6 +103,7 @@ export interface AppData {
   me: Athlete;
   athletes: Athlete[];
   activities: Activity[];
+  syncFailures: SyncFailure[];
   segments: Segment[];
   clubs: Club[];
   challenges: Challenge[];
@@ -99,6 +124,7 @@ const EMPTY_ATHLETE: Athlete = {
 export let ME: Athlete = EMPTY_ATHLETE;
 export let ATHLETES: Athlete[] = [];
 export let ACTIVITIES: Activity[] = [];
+export let SYNC_FAILURES: SyncFailure[] = [];
 export let SEGMENTS: Segment[] = [];
 export let CLUBS: Club[] = [];
 export let CHALLENGES: Challenge[] = [];
@@ -107,6 +133,7 @@ export function initializeAppData(data: AppData) {
   ME = data.me;
   ATHLETES = data.athletes;
   ACTIVITIES = data.activities;
+  SYNC_FAILURES = data.syncFailures;
   SEGMENTS = data.segments;
   CLUBS = data.clubs;
   CHALLENGES = data.challenges;
@@ -124,10 +151,19 @@ export function mergeActivities(activities: Activity[]) {
   );
 }
 
+export function getSyncFailure(id: string): SyncFailure | undefined {
+  return SYNC_FAILURES.find((failure) => failure.id === id);
+}
+
+export function removeSyncFailure(id: string) {
+  SYNC_FAILURES = SYNC_FAILURES.filter((failure) => failure.id !== id);
+}
+
 export function clearAppData() {
   ME = EMPTY_ATHLETE;
   ATHLETES = [];
   ACTIVITIES = [];
+  SYNC_FAILURES = [];
   SEGMENTS = [];
   CLUBS = [];
   CHALLENGES = [];
@@ -216,7 +252,7 @@ const ACTIVITY_PHOTOS: Record<string, string[]> = {
 // so the feed doesn't shuffle on every render.
 export function getActivityPhoto(activity: Pick<Activity, "sport" | "routeSeed">): string {
   const pool = ACTIVITY_PHOTOS[activity.sport] ?? ACTIVITY_PHOTOS.Run;
-  const index = Math.abs(activity.routeSeed) % pool.length;
+  const index = Math.abs(activity.routeSeed ?? 0) % pool.length;
   return pool[index];
 }
 
