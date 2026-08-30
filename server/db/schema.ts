@@ -59,7 +59,26 @@ export const activities = pgTable("activities", {
   kudos: integer("kudos").notNull().default(0),
   achievements: integer("achievements").notNull().default(0),
   photo: text("photo"),
-  routeSeed: integer("route_seed").notNull(),
+  routeSeed: integer("route_seed"),
+});
+
+// STR-27: activities that a device attempted to sync and failed to deliver.
+// Surfaced in the feed as a recovery prompt until the athlete either fills in
+// the activity manually (resolvedAt gets set) or the failure ages out.
+export const syncFailures = pgTable("sync_failures", {
+  id: text("id").primaryKey(),
+  athleteId: text("athlete_id")
+    .notNull()
+    .references(() => users.id, { onDelete: "cascade" }),
+  deviceName: text("device_name").notNull(),
+  deviceType: text("device_type").notNull(),
+  attemptedAt: timestamp("attempted_at", { withTimezone: true }).notNull(),
+  sportGuess: text("sport_guess").notNull(),
+  gpsPointsCaptured: integer("gps_points_captured").notNull().default(0),
+  routeSeed: integer("route_seed"),
+  reason: text("reason").notNull(),
+  resolvedAt: timestamp("resolved_at", { withTimezone: true }),
+  createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
 });
 
 export const activityComments = pgTable("activity_comments", {

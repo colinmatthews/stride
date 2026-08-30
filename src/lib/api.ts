@@ -5,6 +5,7 @@ import {
   CLUBS,
   ME,
   mergeActivities,
+  removeSyncFailure,
   type Activity,
   type AppData,
 } from "./mock-data";
@@ -103,7 +104,10 @@ export async function saveActivity(payload: {
   avgHr?: number;
   avgPaceSecPerKm?: number;
   avgSpeedKmh?: number;
-  routeSeed: number;
+  routeSeed?: number;
+  // Backfills the activity's date to when a recovered sync was originally
+  // attempted, instead of defaulting to now.
+  date?: string;
 }) {
   const activity = await apiFetch<Activity>("/api/activities", {
     method: "POST",
@@ -112,6 +116,13 @@ export async function saveActivity(payload: {
 
   mergeActivities([activity]);
   return activity;
+}
+
+export async function resolveSyncFailure(failureId: string) {
+  await apiFetch<void>(`/api/sync-failures/${failureId}/resolve`, {
+    method: "POST",
+  });
+  removeSyncFailure(failureId);
 }
 
 export async function toggleActivityKudo(activityId: string) {

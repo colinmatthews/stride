@@ -15,6 +15,13 @@
       "when": 1786549628196,
       "tag": "0001_repair_challenges_schema",
       "breakpoints": true
+    },
+    {
+      "idx": 2,
+      "version": "7",
+      "when": 1788114913089,
+      "tag": "0002_smiling_stardust",
+      "breakpoints": true
     }
   ]
 }

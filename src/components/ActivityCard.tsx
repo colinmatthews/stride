@@ -99,15 +99,19 @@ export function ActivityCard({ activity }: Props) {
                 alt={activity.title}
                 className="h-44 w-full object-cover transition-transform duration-500 group-hover/card:scale-[1.02]"
               />
-              <RouteMap
-                seed={activity.routeSeed}
-                width={400}
-                height={200}
-                className="h-44 w-full"
-                distanceKm={activity.distanceKm}
-              />
+              {activity.routeSeed !== undefined ? (
+                <RouteMap
+                  seed={activity.routeSeed}
+                  width={400}
+                  height={200}
+                  className="h-44 w-full"
+                  distanceKm={activity.distanceKm}
+                />
+              ) : (
+                <NoRoutePlaceholder className="h-44 w-full" />
+              )}
             </div>
-          ) : (
+          ) : activity.routeSeed !== undefined ? (
             <RouteMap
               seed={activity.routeSeed}
               width={800}
@@ -115,6 +119,8 @@ export function ActivityCard({ activity }: Props) {
               className="h-52 w-full"
               distanceKm={activity.distanceKm}
             />
+          ) : (
+            <NoRoutePlaceholder className="h-52 w-full" />
           )}
         </div>
       </Link>
@@ -151,6 +157,19 @@ export function ActivityCard({ activity }: Props) {
         </span>
       </footer>
     </article>
+  );
+}
+
+// STR-27: recovered sync failures can be filled in with no GPS data, leaving
+// the activity's routeSeed unset. Render a placeholder instead of asking
+// RouteMap to draw a route that doesn't exist.
+function NoRoutePlaceholder({ className }: { className?: string }) {
+  return (
+    <div
+      className={`flex items-center justify-center bg-muted text-xs text-muted-foreground ${className ?? ""}`}
+    >
+      No route recorded
+    </div>
   );
 }
 

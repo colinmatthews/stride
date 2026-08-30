@@ -1,5 +1,5 @@
 import { randomUUID } from "node:crypto";
-import { and, asc, desc, eq, gt, inArray, lt, min, sum, type SQL } from "drizzle-orm";
+import { and, asc, desc, eq, gt, inArray, isNull, lt, min, sum, type SQL } from "drizzle-orm";
 import { db } from "./db.js";
 import {
   activities as activitiesTable,
@@ -13,9 +13,11 @@ import {
   clubs as clubsTable,
   follows,
   segments as segmentsTable,
+  syncFailures as syncFailuresTable,
   users,
 } from "./db/schema.js";
 import { USER_AVATARS } from "./seed.js";
+import { mapSyncFailure } from "./sync-failure-dto.js";
 
 const BOOTSTRAP_ACTIVITY_LIMIT = 40;
 const MAX_ACTIVITY_PAGE_LIMIT = 100;
@@ -42,7 +44,7 @@ type ActivityDto = {
   comments: { id: string; athleteId: string; text: string }[];
   achievements: number;
   photo?: string;
-  routeSeed: number;
+  routeSeed?: number;
   splits?: { km: number; paceSec: number; hr: number; elev: number }[];
   segments?: { id: string; rank: number }[];
   kudoed?: boolean;
@@ -206,7 +208,7 @@ async function hydrateActivities(rows: ActivityRow[], userId: string): Promise<A
     comments: commentsByActivity.get(row.id) ?? [],
     achievements: row.achievements,
     photo: row.photo ?? undefined,
-    routeSeed: row.routeSeed,
+    routeSeed: row.routeSeed ?? undefined,
     splits: splitsByActivity.get(row.id),
     segments: segmentEffortsByActivity.get(row.id),
     kudoed: myKudoedActivityIds.has(row.id),
@@ -322,6 +324,7 @@ export async function buildBootstrap(userId: string) {
     usersResult,
     followsResult,
     activityPage,
+    syncFailuresResult,
     segmentsResult,
     mySegmentBests,
     clubsResult,
@@ -336,6 +339,7 @@ export async function buildBootstrap(userId: string) {
       .from(follows)
       .where(eq(follows.followerId, userId)),
     listFeedActivities(userId, BOOTSTRAP_ACTIVITY_LIMIT),
+    listSyncFailures(userId),
     db.select().from(segmentsTable).orderBy(asc(segmentsTable.name)),
     db
       .select({
@@ -436,6 +440,7 @@ export async function buildBootstrap(userId: string) {
     athletes: [me, ...athletes.filter((athlete) => athlete.id !== "me")],
     activities: activityPage.activities,
     activityNextCursor: activityPage.nextCursor,
+    syncFailures: syncFailuresResult,
     segments,
     clubs,
     challenges,
@@ -453,7 +458,11 @@ export async function createActivity(input: {
   avgHr?: number;
   avgPaceSecPerKm?: number;
   avgSpeedKmh?: number;
-  routeSeed: number;
+  routeSeed?: number;
+  // Set when this activity is being backfilled from a recovered sync
+  // failure — lets the logged activity carry the original attempt time
+  // instead of "now".
+  date?: Date;
 }) {
   const id = `act-${randomUUID()}`;
 
@@ -463,7 +472,7 @@ export async function createActivity(input: {
     sport: input.sport,
     title: input.title,
     description: input.description ?? null,
-    date: new Date(),
+    date: input.date ?? new Date(),
     distanceKm: String(input.distanceKm),
     movingSeconds: input.movingSeconds,
     elevationM: input.elevationM,
@@ -473,10 +482,47 @@ export async function createActivity(input: {
     kudos: 0,
     achievements: 0,
     photo: null,
-    routeSeed: input.routeSeed,
+    routeSeed: input.routeSeed ?? null,
   });
 
   return id;
+}
+
+export async function listSyncFailures(userId: string) {
+  const rows = await db
+    .select()
+    .from(syncFailuresTable)
+    .where(and(eq(syncFailuresTable.athleteId, userId), isNull(syncFailuresTable.resolvedAt)))
+    .orderBy(desc(syncFailuresTable.attemptedAt));
+
+  return rows.map((row) => mapSyncFailure(row, userId));
+}
+
+export async function getSyncFailureById(userId: string, failureId: string) {
+  const rows = await db
+    .select()
+    .from(syncFailuresTable)
+    .where(and(eq(syncFailuresTable.id, failureId), eq(syncFailuresTable.athleteId, userId)))
+    .limit(1);
+  const row = rows[0];
+
+  return row ? mapSyncFailure(row, userId) : null;
+}
+
+export async function resolveSyncFailure(userId: string, failureId: string) {
+  const result = await db
+    .update(syncFailuresTable)
+    .set({ resolvedAt: new Date() })
+    .where(
+      and(
+        eq(syncFailuresTable.id, failureId),
+        eq(syncFailuresTable.athleteId, userId),
+        isNull(syncFailuresTable.resolvedAt),
+      ),
+    )
+    .returning({ id: syncFailuresTable.id });
+
+  return result.length > 0;
 }
 
 export async function toggleKudo(userId: string, activityId: string) {

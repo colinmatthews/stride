@@ -88,7 +88,9 @@ function ActivityDetail() {
   type Comment = { id: string; athleteId: string; text: string };
   const [comments, setComments] = useState<Comment[]>(activity.comments);
 
-  const elev = elevationProfile(activity.routeSeed);
+  // STR-27: recovered sync failures filled in without GPS data have no
+  // routeSeed — skip the elevation profile rather than fabricating one.
+  const elev = activity.routeSeed !== undefined ? elevationProfile(activity.routeSeed) : [];
   const splits = activity.splits ?? [];
 
   const submitComment = async () => {
@@ -181,13 +183,19 @@ function ActivityDetail() {
 
           {/* Map + photo */}
           <section className="rounded-xl overflow-hidden border border-border">
-            <RouteMap
-              seed={activity.routeSeed}
-              width={1000}
-              height={420}
-              className="w-full h-[380px]"
-              distanceKm={activity.distanceKm}
-            />
+            {activity.routeSeed !== undefined ? (
+              <RouteMap
+                seed={activity.routeSeed}
+                width={1000}
+                height={420}
+                className="w-full h-[380px]"
+                distanceKm={activity.distanceKm}
+              />
+            ) : (
+              <div className="flex h-[380px] w-full items-center justify-center bg-muted text-sm text-muted-foreground">
+                No route recorded
+              </div>
+            )}
           </section>
           {activity.photo && (
             <img
@@ -198,52 +206,54 @@ function ActivityDetail() {
           )}
 
           {/* Elevation */}
-          <section className="mt-8">
-            <h2 className="text-lg font-display font-semibold mb-3 flex items-center gap-2">
-              <Mountain className="h-4 w-4 text-primary" /> Elevation
-            </h2>
-            <div className="bg-surface rounded-xl border border-border p-4">
-              <div className="h-52">
-                <ResponsiveContainer width="100%" height="100%">
-                  <AreaChart data={elev}>
-                    <defs>
-                      <linearGradient id="elevGrad" x1="0" y1="0" x2="0" y2="1">
-                        <stop offset="0%" stopColor="var(--primary)" stopOpacity={0.4} />
-                        <stop offset="100%" stopColor="var(--primary)" stopOpacity={0} />
-                      </linearGradient>
-                    </defs>
-                    <CartesianGrid stroke="var(--border)" vertical={false} />
-                    <XAxis
-                      dataKey="x"
-                      tick={{ fontSize: 11, fill: "var(--muted-foreground)" }}
-                      axisLine={false}
-                      tickLine={false}
-                    />
-                    <YAxis
-                      tick={{ fontSize: 11, fill: "var(--muted-foreground)" }}
-                      axisLine={false}
-                      tickLine={false}
-                      width={32}
-                    />
-                    <Tooltip
-                      contentStyle={{
-                        background: "var(--surface)",
-                        border: "1px solid var(--border)",
-                        borderRadius: 8,
-                        fontSize: 12,
-                      }}
-                    />
-                    <Area
-                      dataKey="elev"
-                      stroke="var(--primary)"
-                      strokeWidth={2}
-                      fill="url(#elevGrad)"
-                    />
-                  </AreaChart>
-                </ResponsiveContainer>
+          {elev.length > 0 && (
+            <section className="mt-8">
+              <h2 className="text-lg font-display font-semibold mb-3 flex items-center gap-2">
+                <Mountain className="h-4 w-4 text-primary" /> Elevation
+              </h2>
+              <div className="bg-surface rounded-xl border border-border p-4">
+                <div className="h-52">
+                  <ResponsiveContainer width="100%" height="100%">
+                    <AreaChart data={elev}>
+                      <defs>
+                        <linearGradient id="elevGrad" x1="0" y1="0" x2="0" y2="1">
+                          <stop offset="0%" stopColor="var(--primary)" stopOpacity={0.4} />
+                          <stop offset="100%" stopColor="var(--primary)" stopOpacity={0} />
+                        </linearGradient>
+                      </defs>
+                      <CartesianGrid stroke="var(--border)" vertical={false} />
+                      <XAxis
+                        dataKey="x"
+                        tick={{ fontSize: 11, fill: "var(--muted-foreground)" }}
+                        axisLine={false}
+                        tickLine={false}
+                      />
+                      <YAxis
+                        tick={{ fontSize: 11, fill: "var(--muted-foreground)" }}
+                        axisLine={false}
+                        tickLine={false}
+                        width={32}
+                      />
+                      <Tooltip
+                        contentStyle={{
+                          background: "var(--surface)",
+                          border: "1px solid var(--border)",
+                          borderRadius: 8,
+                          fontSize: 12,
+                        }}
+                      />
+                      <Area
+                        dataKey="elev"
+                        stroke="var(--primary)"
+                        strokeWidth={2}
+                        fill="url(#elevGrad)"
+                      />
+                    </AreaChart>
+                  </ResponsiveContainer>
+                </div>
               </div>
-            </div>
-          </section>
+            </section>
+          )}
 
           {/* Splits */}
           {splits.length > 0 && (
