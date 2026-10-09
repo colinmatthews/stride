@@ -3,6 +3,7 @@ import { createApp } from "./app.js";
 import { initializeDatabase } from "./db.js";
 
 const port = Number(process.env.PORT ?? 3002);
+// this is a new comment
 
 async function start() {
   await initializeDatabase();
