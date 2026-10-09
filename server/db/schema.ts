@@ -1,4 +1,14 @@
-import { date, integer, numeric, pgTable, primaryKey, text, timestamp } from "drizzle-orm/pg-core";
+import {
+  date,
+  integer,
+  numeric,
+  pgTable,
+  primaryKey,
+  text,
+  timestamp,
+  uniqueIndex,
+} from "drizzle-orm/pg-core";
+import { sql } from "drizzle-orm";
 
 export const users = pgTable("users", {
   id: text("id").primaryKey(),
@@ -50,7 +60,7 @@ export const activities = pgTable("activities", {
   title: text("title").notNull(),
   description: text("description"),
   date: timestamp("date", { withTimezone: true }).notNull(),
-  distanceKm: numeric("distance_km", { precision: 10, scale: 2 }).notNull(),
+  distanceKm: numeric("distance_km", { precision: 10, scale: 3 }).notNull(),
   movingSeconds: integer("moving_seconds").notNull(),
   elevationM: integer("elevation_m").notNull(),
   avgHr: integer("avg_hr"),
@@ -60,7 +70,36 @@ export const activities = pgTable("activities", {
   achievements: integer("achievements").notNull().default(0),
   photo: text("photo"),
   routeSeed: integer("route_seed").notNull(),
+  entryMode: text("entry_mode").notNull().default("manual"),
+  measurementSource: text("measurement_source"),
+  poolLengthM: integer("pool_length_m"),
+  poolLengths: integer("pool_lengths"),
 });
+
+export const recordingSessions = pgTable(
+  "recording_sessions",
+  {
+    id: text("id").primaryKey(),
+    userId: text("user_id")
+      .notNull()
+      .references(() => users.id, { onDelete: "cascade" }),
+    sport: text("sport").notNull(),
+    status: text("status").notNull(),
+    startedAt: timestamp("started_at", { withTimezone: true }).notNull().defaultNow(),
+    updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow(),
+    movingSeconds: integer("moving_seconds").notNull().default(0),
+    distanceMeters: numeric("distance_meters", { precision: 12, scale: 2 }).notNull().default("0"),
+    elevationGainM: numeric("elevation_gain_m", { precision: 10, scale: 2 }),
+    poolLengthM: integer("pool_length_m"),
+    poolLengths: integer("pool_lengths"),
+    activityId: text("activity_id").references(() => activities.id),
+  },
+  (table) => ({
+    oneOpenSessionPerUser: uniqueIndex("recording_sessions_one_open_per_user")
+      .on(table.userId)
+      .where(sql`${table.status} in ('recording', 'paused', 'stopped')`),
+  }),
+);
 
 export const activityComments = pgTable("activity_comments", {
   id: text("id").primaryKey(),

@@ -27,6 +27,8 @@ npm run dev            # runs client (vite) + server (tsx watch) concurrently
 
 Client: <http://localhost:5173> — Server: <http://localhost:3002>
 
+The Vite dev server proxies `/api` requests to the Express server.
+
 ## Required env vars
 
 | Var                                | Purpose                           |

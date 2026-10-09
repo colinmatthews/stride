@@ -59,7 +59,7 @@ export const Route = createFileRoute("/activity/$id")({
           { title: `${loaderData.activity.title} — Stride` },
           {
             name: "description",
-            content: `${loaderData.activity.sport} · ${loaderData.activity.distanceKm.toFixed(2)} km`,
+            content: `${loaderData.activity.sport} · ${loaderData.activity.sport === "Swim" ? `${Math.round(loaderData.activity.distanceKm * 1000)} m` : `${loaderData.activity.distanceKm.toFixed(2)} km`}`,
           },
         ]
       : [],
@@ -117,7 +117,7 @@ function ActivityDetail() {
 
   return (
     <AppShell>
-      <div className="grid grid-cols-[1fr_360px] gap-8">
+      <div className="grid grid-cols-1 gap-8 xl:grid-cols-[minmax(0,1fr)_320px]">
         <div className="min-w-0">
           {/* Header */}
           <div className="flex items-start gap-4 mb-6">
@@ -160,8 +160,17 @@ function ActivityDetail() {
           )}
 
           {/* Hero stats */}
-          <div className="grid grid-cols-4 gap-6 my-8 pb-8 border-b border-border">
-            <Stat label="Distance" value={activity.distanceKm.toFixed(2)} unit="km" emphasis />
+          <div className="my-8 grid grid-cols-2 gap-6 border-b border-border pb-8 sm:grid-cols-4">
+            <Stat
+              label="Distance"
+              value={
+                activity.sport === "Swim"
+                  ? Math.round(activity.distanceKm * 1000)
+                  : activity.distanceKm.toFixed(2)
+              }
+              unit={activity.sport === "Swim" ? "m" : "km"}
+              emphasis
+            />
             <Stat label="Time" value={fmtDuration(activity.movingSeconds)} />
             {activity.sport === "Ride" ? (
               <Stat label="Avg speed" value={activity.avgSpeedKmh?.toFixed(1) ?? "—"} unit="km/h" />
@@ -170,25 +179,43 @@ function ActivityDetail() {
                 label="Pace"
                 value={
                   activity.avgPaceSecPerKm
-                    ? fmtPace(activity.avgPaceSecPerKm).replace("/km", "")
+                    ? fmtPace(
+                        activity.sport === "Swim"
+                          ? activity.avgPaceSecPerKm / 10
+                          : activity.avgPaceSecPerKm,
+                      ).replace("/km", "")
                     : "—"
                 }
-                unit="/km"
+                unit={activity.sport === "Swim" ? "/100m" : "/km"}
               />
             )}
-            <Stat label="Elevation" value={activity.elevationM} unit="m" />
+            {activity.sport === "Swim" && activity.poolLengths !== undefined ? (
+              <Stat label="Pool lengths" value={activity.poolLengths} />
+            ) : activity.measurementSource === "gps-no-elevation" ? (
+              <Stat label="Elevation" value="—" />
+            ) : (
+              <Stat label="Elevation" value={activity.elevationM} unit="m" />
+            )}
           </div>
 
           {/* Map + photo */}
-          <section className="rounded-xl overflow-hidden border border-border">
-            <RouteMap
-              seed={activity.routeSeed}
-              width={1000}
-              height={420}
-              className="w-full h-[380px]"
-              distanceKm={activity.distanceKm}
-            />
-          </section>
+          {activity.entryMode === "timer" ? (
+            <section className="flex h-40 items-center justify-center rounded-xl border border-border bg-surface px-5 text-center text-sm text-muted-foreground">
+              {activity.sport === "Swim"
+                ? `${activity.poolLengths ?? 0} lengths in a ${activity.poolLengthM ?? 25} m pool · no route recorded`
+                : "GPS measured your distance. Your route was not stored."}
+            </section>
+          ) : (
+            <section className="rounded-xl overflow-hidden border border-border">
+              <RouteMap
+                seed={activity.routeSeed}
+                width={1000}
+                height={420}
+                className="w-full h-[380px]"
+                distanceKm={activity.distanceKm}
+              />
+            </section>
+          )}
           {activity.photo && (
             <img
               src={getActivityPhoto(activity)}
@@ -198,52 +225,54 @@ function ActivityDetail() {
           )}
 
           {/* Elevation */}
-          <section className="mt-8">
-            <h2 className="text-lg font-display font-semibold mb-3 flex items-center gap-2">
-              <Mountain className="h-4 w-4 text-primary" /> Elevation
-            </h2>
-            <div className="bg-surface rounded-xl border border-border p-4">
-              <div className="h-52">
-                <ResponsiveContainer width="100%" height="100%">
-                  <AreaChart data={elev}>
-                    <defs>
-                      <linearGradient id="elevGrad" x1="0" y1="0" x2="0" y2="1">
-                        <stop offset="0%" stopColor="var(--primary)" stopOpacity={0.4} />
-                        <stop offset="100%" stopColor="var(--primary)" stopOpacity={0} />
-                      </linearGradient>
-                    </defs>
-                    <CartesianGrid stroke="var(--border)" vertical={false} />
-                    <XAxis
-                      dataKey="x"
-                      tick={{ fontSize: 11, fill: "var(--muted-foreground)" }}
-                      axisLine={false}
-                      tickLine={false}
-                    />
-                    <YAxis
-                      tick={{ fontSize: 11, fill: "var(--muted-foreground)" }}
-                      axisLine={false}
-                      tickLine={false}
-                      width={32}
-                    />
-                    <Tooltip
-                      contentStyle={{
-                        background: "var(--surface)",
-                        border: "1px solid var(--border)",
-                        borderRadius: 8,
-                        fontSize: 12,
-                      }}
-                    />
-                    <Area
-                      dataKey="elev"
-                      stroke="var(--primary)"
-                      strokeWidth={2}
-                      fill="url(#elevGrad)"
-                    />
-                  </AreaChart>
-                </ResponsiveContainer>
+          {activity.entryMode !== "timer" && (
+            <section className="mt-8">
+              <h2 className="text-lg font-display font-semibold mb-3 flex items-center gap-2">
+                <Mountain className="h-4 w-4 text-primary" /> Elevation
+              </h2>
+              <div className="bg-surface rounded-xl border border-border p-4">
+                <div className="h-52">
+                  <ResponsiveContainer width="100%" height="100%">
+                    <AreaChart data={elev}>
+                      <defs>
+                        <linearGradient id="elevGrad" x1="0" y1="0" x2="0" y2="1">
+                          <stop offset="0%" stopColor="var(--primary)" stopOpacity={0.4} />
+                          <stop offset="100%" stopColor="var(--primary)" stopOpacity={0} />
+                        </linearGradient>
+                      </defs>
+                      <CartesianGrid stroke="var(--border)" vertical={false} />
+                      <XAxis
+                        dataKey="x"
+                        tick={{ fontSize: 11, fill: "var(--muted-foreground)" }}
+                        axisLine={false}
+                        tickLine={false}
+                      />
+                      <YAxis
+                        tick={{ fontSize: 11, fill: "var(--muted-foreground)" }}
+                        axisLine={false}
+                        tickLine={false}
+                        width={32}
+                      />
+                      <Tooltip
+                        contentStyle={{
+                          background: "var(--surface)",
+                          border: "1px solid var(--border)",
+                          borderRadius: 8,
+                          fontSize: 12,
+                        }}
+                      />
+                      <Area
+                        dataKey="elev"
+                        stroke="var(--primary)"
+                        strokeWidth={2}
+                        fill="url(#elevGrad)"
+                      />
+                    </AreaChart>
+                  </ResponsiveContainer>
+                </div>
               </div>
-            </div>
-          </section>
+            </section>
+          )}
 
           {/* Splits */}
           {splits.length > 0 && (

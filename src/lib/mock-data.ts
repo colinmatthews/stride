@@ -31,6 +31,10 @@ export interface Activity {
   achievements: number;
   photo?: string;
   routeSeed: number;
+  entryMode?: string;
+  measurementSource?: string;
+  poolLengthM?: number;
+  poolLengths?: number;
   splits?: { km: number; paceSec: number; hr: number; elev: number }[];
   segments?: { id: string; rank: number }[];
   kudoed?: boolean;

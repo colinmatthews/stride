@@ -114,6 +114,49 @@ export async function saveActivity(payload: {
   return activity;
 }
 
+export interface RecordingSession {
+  id: string;
+  sport: Activity["sport"];
+  status: "recording" | "paused" | "stopped";
+  startedAt: string;
+  updatedAt: string;
+  movingSeconds: number;
+  distanceMeters: number;
+  elevationGainM: number | null;
+  poolLengthM: number | null;
+  poolLengths: number | null;
+  activityId: string | null;
+}
+
+export type RecordingSnapshot = Pick<
+  RecordingSession,
+  "status" | "movingSeconds" | "distanceMeters" | "elevationGainM" | "poolLengths"
+>;
+
+export const fetchCurrentRecording = () =>
+  apiFetch<RecordingSession | null>("/api/recordings/current");
+
+export const startRecording = (sport: Activity["sport"], poolLengthM?: 25 | 50) =>
+  apiFetch<RecordingSession>("/api/recordings", {
+    method: "POST",
+    body: JSON.stringify({ sport, ...(poolLengthM ? { poolLengthM } : {}) }),
+  });
+
+export const updateRecording = (id: string, snapshot: RecordingSnapshot) =>
+  apiFetch<RecordingSession>(`/api/recordings/${id}`, {
+    method: "PATCH",
+    body: JSON.stringify(snapshot),
+  });
+
+export const finishRecording = (id: string, title: string, description?: string) =>
+  apiFetch<Activity>(`/api/recordings/${id}/finish`, {
+    method: "POST",
+    body: JSON.stringify({ title, description }),
+  });
+
+export const discardRecording = (id: string) =>
+  apiFetch<void>(`/api/recordings/${id}`, { method: "DELETE" });
+
 export async function toggleActivityKudo(activityId: string) {
   const payload = await apiFetch<{ kudos: number; kudoed: boolean }>(
     `/api/activities/${activityId}/kudos`,

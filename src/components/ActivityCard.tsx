@@ -67,7 +67,15 @@ export function ActivityCard({ activity }: Props) {
       </Link>
 
       <div className="grid grid-cols-3 gap-0 border-y border-border/70 mx-5 mt-4">
-        <CardStat label="Distance" value={activity.distanceKm.toFixed(2)} unit="km" />
+        <CardStat
+          label="Distance"
+          value={
+            activity.sport === "Swim"
+              ? Math.round(activity.distanceKm * 1000)
+              : activity.distanceKm.toFixed(2)
+          }
+          unit={activity.sport === "Swim" ? "m" : "km"}
+        />
         {activity.sport === "Ride" ? (
           <CardStat
             label="Avg speed"
@@ -87,12 +95,24 @@ export function ActivityCard({ activity }: Props) {
             border
           />
         )}
-        <CardStat label="Elev" value={activity.elevationM} unit="m" border />
+        {activity.sport === "Swim" && activity.poolLengths !== undefined ? (
+          <CardStat label="Lengths" value={activity.poolLengths} border />
+        ) : activity.measurementSource === "gps-no-elevation" ? (
+          <CardStat label="Elev" value="—" border />
+        ) : (
+          <CardStat label="Elev" value={activity.elevationM} unit="m" border />
+        )}
       </div>
 
       <Link to="/activity/$id" params={{ id: activity.id }} className="mt-5 block">
         <div className="relative overflow-hidden">
-          {activity.photo ? (
+          {activity.entryMode === "timer" ? (
+            <div className="flex h-52 items-center justify-center bg-muted px-5 text-center text-sm text-muted-foreground">
+              {activity.sport === "Swim"
+                ? "Pool session · no route recorded"
+                : "Distance measured with GPS · route not stored"}
+            </div>
+          ) : activity.photo ? (
             <div className="grid grid-cols-2 gap-px bg-border">
               <img
                 src={getActivityPhoto(activity)}

@@ -10,6 +10,8 @@ import {
   Search,
   Bell,
   Settings,
+  Menu,
+  X,
 } from "lucide-react";
 import { ME, clearAppData } from "@/lib/mock-data";
 import { FormEvent, ReactNode, useState } from "react";
@@ -28,6 +30,7 @@ export function AppShell({ children }: { children: ReactNode }) {
   const { location } = useRouterState();
   const path = location.pathname;
   const [searchQuery, setSearchQuery] = useState("");
+  const [mobileNavOpen, setMobileNavOpen] = useState(false);
 
   function handleSearch(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
@@ -48,7 +51,7 @@ export function AppShell({ children }: { children: ReactNode }) {
   return (
     <div className="min-h-screen bg-background text-foreground flex">
       {/* Sidebar */}
-      <aside className="w-60 shrink-0 border-r border-border bg-surface flex flex-col sticky top-0 h-screen">
+      <aside className="hidden w-60 shrink-0 border-r border-border bg-surface md:flex flex-col sticky top-0 h-screen">
         <div className="px-5 py-5 border-b border-border">
           <Link to="/" className="flex items-center gap-3">
             <div className="grid h-9 w-9 place-items-center rounded-sm bg-secondary font-display text-base font-bold text-secondary-foreground">
@@ -118,8 +121,20 @@ export function AppShell({ children }: { children: ReactNode }) {
       {/* Main */}
       <div className="flex-1 min-w-0">
         <header className="sticky top-0 z-20 bg-background/85 backdrop-blur border-b border-border">
-          <div className="flex h-16 items-center gap-4 px-8">
-            <form onSubmit={handleSearch} className="relative w-full max-w-md">
+          <div className="flex h-16 items-center gap-4 px-4 sm:px-8">
+            <button
+              type="button"
+              className="grid h-10 w-10 place-items-center md:hidden"
+              aria-label={mobileNavOpen ? "Close navigation" : "Open navigation"}
+              aria-expanded={mobileNavOpen}
+              onClick={() => setMobileNavOpen((open) => !open)}
+            >
+              {mobileNavOpen ? <X className="h-5 w-5" /> : <Menu className="h-5 w-5" />}
+            </button>
+            <Link to="/" className="font-display text-lg font-semibold md:hidden">
+              Stride
+            </Link>
+            <form onSubmit={handleSearch} className="relative hidden w-full max-w-md sm:block">
               <Search className="h-4 w-4 absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground" />
               <input
                 value={searchQuery}
@@ -146,8 +161,33 @@ export function AppShell({ children }: { children: ReactNode }) {
               </Link>
             </div>
           </div>
+          {mobileNavOpen && (
+            <nav
+              className="border-t border-border bg-surface p-3 md:hidden"
+              aria-label="Mobile navigation"
+            >
+              {[
+                ...NAV,
+                { to: "/record", label: "Record activity", icon: Plus },
+                { to: "/search", label: "Search", icon: Search },
+              ].map((item) => {
+                const Icon = item.icon;
+                return (
+                  <Link
+                    key={item.to}
+                    to={item.to}
+                    onClick={() => setMobileNavOpen(false)}
+                    className="flex items-center gap-3 rounded-md px-3 py-2 text-sm hover:bg-muted"
+                  >
+                    <Icon className="h-4 w-4" />
+                    {item.label}
+                  </Link>
+                );
+              })}
+            </nav>
+          )}
         </header>
-        <main className="max-w-[1280px] mx-auto px-8 py-8">{children}</main>
+        <main className="max-w-[1280px] mx-auto px-4 py-6 sm:px-8 sm:py-8">{children}</main>
       </div>
     </div>
   );

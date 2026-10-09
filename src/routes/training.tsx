@@ -199,9 +199,17 @@ function Training() {
                 <td className="px-4 py-3">
                   <SportBadge sport={a.sport} />
                 </td>
-                <td className="px-4 py-3 text-right font-mono">{a.distanceKm.toFixed(2)}</td>
+                <td className="px-4 py-3 text-right font-mono">
+                  {a.sport === "Swim"
+                    ? `${Math.round(a.distanceKm * 1000)} m`
+                    : `${a.distanceKm.toFixed(2)} km`}
+                </td>
                 <td className="px-4 py-3 text-right font-mono">{fmtDuration(a.movingSeconds)}</td>
-                <td className="px-4 py-3 text-right font-mono">{a.elevationM} m</td>
+                <td className="px-4 py-3 text-right font-mono">
+                  {a.sport === "Swim" || a.measurementSource === "gps-no-elevation"
+                    ? "—"
+                    : `${a.elevationM} m`}
+                </td>
               </tr>
             ))}
             {filtered.length === 0 && (

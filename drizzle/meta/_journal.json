@@ -8,6 +8,20 @@
       "when": 1776733831868,
       "tag": "0000_furry_iron_man",
       "breakpoints": true
+    },
+    {
+      "idx": 1,
+      "version": "7",
+      "when": 1791565054712,
+      "tag": "0001_mushy_the_captain",
+      "breakpoints": true
+    },
+    {
+      "idx": 2,
+      "version": "7",
+      "when": 1791565371942,
+      "tag": "0002_light_proteus",
+      "breakpoints": true
     }
   ]
 }

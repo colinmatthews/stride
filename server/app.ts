@@ -1,6 +1,7 @@
 import { existsSync } from "node:fs";
 import path from "node:path";
 import express from "express";
+import { z } from "zod";
 import {
   addComment,
   buildBootstrap,
@@ -21,6 +22,22 @@ import {
   requireAuth,
   verifyPassword,
 } from "./auth.js";
+import { registerRecordingRoutes } from "./recording.js";
+
+const activityInputSchema = z
+  .object({
+    sport: z.enum(["Run", "Ride", "Swim", "Hike", "Walk"]),
+    title: z.string().trim().min(1).max(120),
+    description: z.string().trim().max(2000).optional(),
+    distanceKm: z.number().finite().positive().max(1000),
+    movingSeconds: z.number().int().positive().max(604800),
+    elevationM: z.number().int().min(0).max(50000),
+    avgHr: z.number().int().min(20).max(250).optional(),
+    avgPaceSecPerKm: z.number().int().positive().max(36000).optional(),
+    avgSpeedKmh: z.number().finite().positive().max(150).optional(),
+    routeSeed: z.number().int().min(0).max(1000000000),
+  })
+  .strict();
 
 export function createApp() {
   const app = express();
@@ -114,6 +131,8 @@ export function createApp() {
     }
   });
 
+  registerRecordingRoutes(app);
+
   app.get("/api/activities", requireAuth, async (request, response, next) => {
     try {
       response.json(
@@ -145,20 +164,14 @@ export function createApp() {
 
   app.post("/api/activities", requireAuth, async (request, response, next) => {
     try {
+      const parsed = activityInputSchema.safeParse(request.body);
+      if (!parsed.success) {
+        response.status(400).json({ error: "Invalid activity details" });
+        return;
+      }
       const activityId = await createActivity({
         userId: request.userId!,
-        sport: request.body.sport,
-        title: String(request.body.title ?? ""),
-        description: request.body.description ? String(request.body.description) : undefined,
-        distanceKm: Number(request.body.distanceKm ?? 0),
-        movingSeconds: Number(request.body.movingSeconds ?? 0),
-        elevationM: Number(request.body.elevationM ?? 0),
-        avgHr: request.body.avgHr ? Number(request.body.avgHr) : undefined,
-        avgPaceSecPerKm: request.body.avgPaceSecPerKm
-          ? Number(request.body.avgPaceSecPerKm)
-          : undefined,
-        avgSpeedKmh: request.body.avgSpeedKmh ? Number(request.body.avgSpeedKmh) : undefined,
-        routeSeed: Number(request.body.routeSeed ?? 1),
+        ...parsed.data,
       });
 
       const activity = await getActivityById(request.userId!, activityId);

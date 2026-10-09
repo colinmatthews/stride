@@ -43,6 +43,10 @@ type ActivityDto = {
   achievements: number;
   photo?: string;
   routeSeed: number;
+  entryMode?: string;
+  measurementSource?: string;
+  poolLengthM?: number;
+  poolLengths?: number;
   splits?: { km: number; paceSec: number; hr: number; elev: number }[];
   segments?: { id: string; rank: number }[];
   kudoed?: boolean;
@@ -207,6 +211,10 @@ async function hydrateActivities(rows: ActivityRow[], userId: string): Promise<A
     achievements: row.achievements,
     photo: row.photo ?? undefined,
     routeSeed: row.routeSeed,
+    entryMode: row.entryMode,
+    measurementSource: row.measurementSource ?? undefined,
+    poolLengthM: row.poolLengthM ?? undefined,
+    poolLengths: row.poolLengths ?? undefined,
     splits: splitsByActivity.get(row.id),
     segments: segmentEffortsByActivity.get(row.id),
     kudoed: myKudoedActivityIds.has(row.id),

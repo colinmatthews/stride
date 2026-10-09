@@ -1,20 +1,11 @@
 import { createFileRoute, useRouter } from "@tanstack/react-router";
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useState } from "react";
 import { fmtDuration, fmtPace, type Sport } from "@/lib/mock-data";
 import { AppShell } from "@/components/AppShell";
 import { usePostHog } from "@posthog/react";
-import {
-  Play,
-  Pause,
-  Square,
-  MapPin,
-  Activity as ActivityIcon,
-  PencilLine,
-  Timer as TimerIcon,
-  ArrowRight,
-  LoaderCircle,
-} from "lucide-react";
-import { saveActivity } from "@/lib/api";
+import { PencilLine, Timer as TimerIcon, ArrowRight, LoaderCircle } from "lucide-react";
+import { fetchCurrentRecording, saveActivity } from "@/lib/api";
+import { SpotlightRecorder } from "@/components/SpotlightRecorder";
 
 export const Route = createFileRoute("/record")({
   head: () => ({
@@ -32,6 +23,23 @@ type Mode = "manual" | "timer";
 function Record() {
   const [mode, setMode] = useState<Mode>("manual");
   const [sport, setSport] = useState<Sport>("Run");
+  const [hasRecording, setHasRecording] = useState(false);
+
+  useEffect(() => {
+    let mounted = true;
+    void fetchCurrentRecording()
+      .then((current) => {
+        if (mounted && current) {
+          setSport(current.sport);
+          setHasRecording(true);
+          setMode("timer");
+        }
+      })
+      .catch(() => undefined);
+    return () => {
+      mounted = false;
+    };
+  }, []);
 
   return (
     <AppShell>
@@ -54,6 +62,7 @@ function Record() {
           <ModeTab
             active={mode === "manual"}
             onClick={() => setMode("manual")}
+            disabled={hasRecording}
             icon={PencilLine}
             label="Manual entry"
             hint="Log what you already did"
@@ -67,9 +76,13 @@ function Record() {
           />
         </div>
 
-        <SportPicker sport={sport} setSport={setSport} />
+        <SportPicker sport={sport} setSport={setSport} disabled={hasRecording} />
 
-        {mode === "manual" ? <ManualForm sport={sport} /> : <TimerMode sport={sport} />}
+        {mode === "manual" ? (
+          <ManualForm sport={sport} />
+        ) : (
+          <SpotlightRecorder sport={sport} onSessionChange={setHasRecording} />
+        )}
       </div>
     </AppShell>
   );
@@ -81,33 +94,39 @@ function ModeTab({
   icon: Icon,
   label,
   hint,
+  disabled,
 }: {
   active: boolean;
   onClick: () => void;
   icon: typeof PencilLine;
   label: string;
   hint: string;
+  disabled?: boolean;
 }) {
   return (
     <button
+      type="button"
+      disabled={disabled}
       onClick={onClick}
-      className={`flex items-center gap-4 p-5 text-left transition-colors ${
+      className={`flex items-center gap-2 p-3 text-left transition-colors sm:gap-4 sm:p-5 ${
         active
           ? "bg-secondary text-secondary-foreground"
           : "bg-surface text-foreground hover:bg-muted"
       }`}
     >
       <div
-        className={`grid h-10 w-10 shrink-0 place-items-center ${
+        className={`grid h-8 w-8 shrink-0 place-items-center sm:h-10 sm:w-10 ${
           active ? "bg-primary text-primary-foreground" : "bg-muted text-foreground"
         }`}
       >
         <Icon className="h-5 w-5" />
       </div>
       <div className="min-w-0">
-        <div className="font-display text-base font-semibold tracking-tight">{label}</div>
+        <div className="font-display text-sm font-semibold tracking-tight sm:text-base">
+          {label}
+        </div>
         <div
-          className={`mt-0.5 font-mono text-[10px] uppercase tracking-[0.22em] ${
+          className={`mt-0.5 hidden font-mono text-[10px] uppercase tracking-[0.22em] sm:block ${
             active ? "text-secondary-foreground/70" : "text-muted-foreground"
           }`}
         >
@@ -118,7 +137,15 @@ function ModeTab({
   );
 }
 
-function SportPicker({ sport, setSport }: { sport: Sport; setSport: (s: Sport) => void }) {
+function SportPicker({
+  sport,
+  setSport,
+  disabled,
+}: {
+  sport: Sport;
+  setSport: (s: Sport) => void;
+  disabled?: boolean;
+}) {
   return (
     <div className="mt-8">
       <div className="font-mono text-[10px] uppercase tracking-[0.22em] text-muted-foreground">
@@ -128,6 +155,8 @@ function SportPicker({ sport, setSport }: { sport: Sport; setSport: (s: Sport) =
         {SPORTS.map((s) => (
           <button
             key={s}
+            type="button"
+            disabled={disabled}
             onClick={() => setSport(s)}
             className={`h-11 px-3 text-sm font-medium transition-colors ${
               sport === s
@@ -473,205 +502,4 @@ function defaultTitle(sport: Sport, date: Date) {
             ? "walk"
             : "run";
   return `${window} ${noun}`;
-}
-
-/* -----------------------------------------------------------------------
- *   Timer mode — existing live-tracking flow, restyled to match aesthetic
- * ---------------------------------------------------------------------*/
-function TimerMode({ sport }: { sport: Sport }) {
-  const posthog = usePostHog();
-  const router = useRouter();
-  const [running, setRunning] = useState(false);
-  const [paused, setPaused] = useState(false);
-  const [elapsed, setElapsed] = useState(0);
-  const [distance, setDistance] = useState(0);
-  const [title, setTitle] = useState("");
-  const [description, setDescription] = useState("");
-  const [saving, setSaving] = useState(false);
-  const ref = useRef<number | null>(null);
-
-  useEffect(() => {
-    if (running && !paused) {
-      ref.current = window.setInterval(() => {
-        setElapsed((e) => e + 1);
-        setDistance((d) => d + (sport === "Ride" ? 0.0083 : sport === "Swim" ? 0.0007 : 0.0042));
-      }, 1000);
-    }
-    return () => {
-      if (ref.current) window.clearInterval(ref.current);
-    };
-  }, [running, paused, sport]);
-
-  const start = () => {
-    setRunning(true);
-    setPaused(false);
-  };
-  const pause = () => setPaused((p) => !p);
-  const stop = () => {
-    if (ref.current) window.clearInterval(ref.current);
-    setRunning(false);
-    setPaused(false);
-  };
-  const reset = () => {
-    setElapsed(0);
-    setDistance(0);
-    setTitle("");
-    setDescription("");
-  };
-  const save = async () => {
-    setSaving(true);
-    try {
-      const pace =
-        sport === "Ride" ? undefined : Math.max(180, Math.floor(elapsed / Math.max(0.1, distance)));
-      const speed =
-        sport === "Ride" ? Math.round((distance / (elapsed / 3600)) * 10) / 10 : undefined;
-      const activity = await saveActivity({
-        sport,
-        title: title || defaultTitle(sport, new Date()),
-        description: description || undefined,
-        distanceKm: Math.round(distance * 100) / 100,
-        movingSeconds: elapsed,
-        elevationM: Math.floor(distance * 12),
-        avgHr: 150,
-        avgPaceSecPerKm: pace,
-        avgSpeedKmh: speed,
-        routeSeed: Math.floor(Math.random() * 1000),
-      });
-      posthog.capture("activity_saved", {
-        sport,
-        distance_km: Math.round(distance * 100) / 100,
-        moving_seconds: elapsed,
-        elevation_m: Math.floor(distance * 12),
-        entry_mode: "timer",
-      });
-      router.navigate({ to: "/activity/$id", params: { id: activity.id } });
-    } catch (err) {
-      posthog.captureException(err);
-      setSaving(false);
-    }
-  };
-
-  const pace =
-    sport === "Ride"
-      ? distance > 0
-        ? `${(distance / (elapsed / 3600 || 1)).toFixed(1)} km/h`
-        : "0.0 km/h"
-      : distance > 0
-        ? fmtPace(elapsed / distance)
-        : "—";
-
-  const finished = !running && elapsed > 0;
-
-  return (
-    <section className="mt-8 border border-border">
-      <div className="bg-secondary p-10 text-center text-secondary-foreground">
-        <div className="inline-flex items-center gap-2 font-mono text-[10px] uppercase tracking-[0.22em] text-secondary-foreground/70">
-          <ActivityIcon className="h-3 w-3" /> {sport}
-          {running && !paused && <span className="h-2 w-2 rounded-full bg-primary animate-pulse" />}
-        </div>
-        <div className="stat-num mt-4 text-7xl text-primary">{fmtDuration(elapsed)}</div>
-        <div className="mt-8 grid grid-cols-3 gap-6">
-          <TimerStat label="Distance" value={`${distance.toFixed(2)} km`} />
-          <TimerStat label={sport === "Ride" ? "Speed" : "Pace"} value={pace} />
-          <TimerStat label="Calories" value={`${Math.round((elapsed / 60) * 10)}`} />
-        </div>
-
-        <div className="mt-8 flex items-center justify-center gap-4">
-          {!running ? (
-            <button
-              onClick={start}
-              disabled={finished}
-              className="grid h-16 w-16 place-items-center rounded-full bg-primary text-primary-foreground transition-transform hover:scale-105 disabled:cursor-not-allowed disabled:opacity-40"
-            >
-              <Play className="h-7 w-7 fill-current" />
-            </button>
-          ) : (
-            <>
-              <button
-                onClick={pause}
-                className="grid h-14 w-14 place-items-center rounded-full bg-surface text-foreground"
-              >
-                {paused ? (
-                  <Play className="h-6 w-6 fill-current" />
-                ) : (
-                  <Pause className="h-6 w-6 fill-current" />
-                )}
-              </button>
-              <button
-                onClick={stop}
-                className="grid h-14 w-14 place-items-center rounded-full bg-destructive text-destructive-foreground"
-              >
-                <Square className="h-5 w-5 fill-current" />
-              </button>
-            </>
-          )}
-        </div>
-        <div className="mt-4 inline-flex items-center gap-1 font-mono text-[10px] uppercase tracking-[0.22em] text-secondary-foreground/70">
-          <MapPin className="h-3 w-3" /> GPS simulated
-        </div>
-      </div>
-
-      {finished && (
-        <div className="bg-surface p-6">
-          <div className="font-mono text-[10px] uppercase tracking-[0.22em] text-muted-foreground">
-            Finish up
-          </div>
-          <div className="mt-4 space-y-4">
-            <TextField
-              label="Title"
-              value={title}
-              onChange={setTitle}
-              placeholder={defaultTitle(sport, new Date())}
-            />
-            <label className="block">
-              <div className="mb-2 font-mono text-[10px] uppercase tracking-[0.22em] text-muted-foreground">
-                Description
-              </div>
-              <textarea
-                value={description}
-                onChange={(event) => setDescription(event.target.value)}
-                rows={3}
-                placeholder="How did it go?"
-                className="w-full resize-none border border-border bg-background px-3 py-2 text-sm outline-none transition-colors focus:border-foreground"
-              />
-            </label>
-          </div>
-          <div className="mt-6 flex items-center justify-end gap-3">
-            <button
-              onClick={reset}
-              className="h-10 border border-border bg-surface px-4 text-sm text-foreground transition-colors hover:bg-muted"
-            >
-              Discard
-            </button>
-            <button
-              onClick={save}
-              disabled={saving}
-              className="inline-flex h-10 items-center gap-2 bg-primary px-5 text-sm font-medium text-primary-foreground disabled:opacity-50"
-            >
-              {saving ? (
-                <>
-                  <LoaderCircle className="h-4 w-4 animate-spin" /> Saving
-                </>
-              ) : (
-                <>
-                  Save activity <ArrowRight className="h-4 w-4" />
-                </>
-              )}
-            </button>
-          </div>
-        </div>
-      )}
-    </section>
-  );
-}
-
-function TimerStat({ label, value }: { label: string; value: string }) {
-  return (
-    <div>
-      <div className="font-mono text-[10px] uppercase tracking-[0.22em] text-secondary-foreground/70">
-        {label}
-      </div>
-      <div className="stat-num mt-1 text-2xl font-bold">{value}</div>
-    </div>
-  );
 }
