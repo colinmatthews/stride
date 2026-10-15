@@ -27,6 +27,9 @@ export const pool = new Pool({
 
 export const db = drizzle(pool, { schema });
 
+// Either the shared client or an open transaction, for helpers that may run inside one.
+export type DbExecutor = typeof db | Parameters<Parameters<typeof db.transaction>[0]>[0];
+
 export async function initializeDatabase() {
   await seedDatabase();
 }
