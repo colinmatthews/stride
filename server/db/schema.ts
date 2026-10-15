@@ -1,4 +1,14 @@
-import { date, integer, numeric, pgTable, primaryKey, text, timestamp } from "drizzle-orm/pg-core";
+import {
+  date,
+  integer,
+  jsonb,
+  numeric,
+  pgTable,
+  primaryKey,
+  text,
+  timestamp,
+  uniqueIndex,
+} from "drizzle-orm/pg-core";
 
 export const users = pgTable("users", {
   id: text("id").primaryKey(),
@@ -190,5 +200,42 @@ export const activityKudos = pgTable(
   },
   (table) => ({
     pk: primaryKey({ columns: [table.userId, table.activityId] }),
+  }),
+);
+
+// One row per workout a connected device tried to send us. Failed rows stay
+// here so the athlete can retry and the Stride team can look them up by ref.
+// The only link is to the owning user (removed with the user, like every other
+// per-user table). activity_id is a plain reference with no foreign key, so
+// deleting an activity never touches or blocks this table. Sync code never
+// deletes rows itself.
+export const workoutSyncs = pgTable(
+  "workout_syncs",
+  {
+    id: text("id").primaryKey(),
+    userId: text("user_id")
+      .notNull()
+      .references(() => users.id, { onDelete: "cascade" }),
+    ref: text("ref").notNull().unique(),
+    provider: text("provider").notNull(),
+    deviceName: text("device_name").notNull(),
+    externalId: text("external_id").notNull(),
+    sport: text("sport").notNull(),
+    title: text("title").notNull(),
+    startedAt: timestamp("started_at", { withTimezone: true }).notNull(),
+    payload: jsonb("payload"),
+    status: text("status").notNull(),
+    errorCode: text("error_code"),
+    attempts: integer("attempts").notNull().default(0),
+    activityId: text("activity_id"),
+    createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+    updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow(),
+  },
+  (table) => ({
+    externalIdx: uniqueIndex("workout_syncs_user_provider_external_idx").on(
+      table.userId,
+      table.provider,
+      table.externalId,
+    ),
   }),
 );

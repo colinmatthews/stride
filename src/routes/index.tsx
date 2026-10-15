@@ -14,6 +14,9 @@ import { ACTIVITIES, ATHLETES, CHALLENGES, ME, fmtDuration, getAthlete } from "@
 import { AppShell } from "@/components/AppShell";
 import { ActivityCard } from "@/components/ActivityCard";
 import { FollowButton } from "@/components/FollowButton";
+import { SyncIssueCard, SyncedFromBanner } from "@/components/SyncIssueCard";
+import { useWorkoutSyncs } from "@/hooks/use-workout-syncs";
+import { showsSyncIssues } from "@/lib/workout-syncs";
 
 export const Route = createFileRoute("/")({
   head: () => ({
@@ -44,6 +47,8 @@ function FeedPage() {
   const posthog = usePostHog();
   const [filter, setFilter] = useState<Filter>("Following");
   const [feedRevision, setFeedRevision] = useState(0);
+  const { syncs, recentlySynced } = useWorkoutSyncs();
+  const showSyncs = showsSyncIssues(filter);
   const visible = useMemo(() => {
     if (filter === "You") return ACTIVITIES.filter((activity) => activity.athleteId === "me");
     if (filter === "Clubs")
@@ -52,7 +57,8 @@ function FeedPage() {
       (activity) =>
         activity.athleteId === "me" || Boolean(getAthlete(activity.athleteId).isFollowing),
     ).slice(0, 20);
-  }, [filter, feedRevision]);
+    // recentlySynced changes when a retry adds an activity to ACTIVITIES.
+  }, [filter, feedRevision, recentlySynced]);
 
   const myWeekKm = ACTIVITIES.filter((activity) => activity.athleteId === "me")
     .slice(0, 5)
@@ -97,11 +103,20 @@ function FeedPage() {
           </div>
 
           <div className="space-y-5">
-            {visible.length > 0 ? (
-              visible.map((activity) => <ActivityCard key={activity.id} activity={activity} />)
-            ) : (
-              <EmptyFeed filter={filter} />
-            )}
+            {showSyncs && syncs.map((sync) => <SyncIssueCard key={sync.id} sync={sync} />)}
+            {visible.length > 0
+              ? visible.map((activity) => {
+                  const recovered = recentlySynced.get(activity.id);
+                  return recovered ? (
+                    <div key={activity.id}>
+                      <SyncedFromBanner sync={recovered} />
+                      <ActivityCard activity={activity} />
+                    </div>
+                  ) : (
+                    <ActivityCard key={activity.id} activity={activity} />
+                  );
+                })
+              : !(showSyncs && syncs.length > 0) && <EmptyFeed filter={filter} />}
           </div>
         </div>
 

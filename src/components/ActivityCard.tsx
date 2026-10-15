@@ -4,8 +4,8 @@ import { Heart, MessageCircle, Trophy, MapPin, Clock } from "lucide-react";
 import type { Activity } from "@/lib/mock-data";
 import { fmtDuration, fmtPace, fmtTimeAgo, getActivityPhoto, getAthlete } from "@/lib/mock-data";
 import { toggleActivityKudo } from "@/lib/api";
+import { AthleteCardHeader } from "./AthleteCardHeader";
 import { RouteMap } from "./RouteMap";
-import { SportBadge } from "./SportBadge";
 
 interface Props {
   activity: Activity;
@@ -23,33 +23,18 @@ export function ActivityCard({ activity }: Props) {
 
   return (
     <article className="group/card overflow-hidden border border-border bg-surface transition-colors hover:border-foreground/30">
-      <header className="flex items-start gap-3 px-5 pb-4 pt-5">
-        <Link to="/athlete/$id" params={{ id: ath.id }} className="shrink-0">
-          <img
-            src={ath.avatar}
-            alt={ath.name}
-            className="h-10 w-10 rounded-full object-cover ring-1 ring-border"
-          />
-        </Link>
-        <div className="min-w-0 flex-1">
-          <div className="flex items-center gap-2">
-            <Link
-              to="/athlete/$id"
-              params={{ id: ath.id }}
-              className="truncate text-sm font-semibold hover:underline"
-            >
-              {ath.name}
-            </Link>
-            <SportBadge sport={activity.sport} />
-          </div>
-          <div className="mt-0.5 flex items-center gap-1.5 font-mono text-[10px] uppercase tracking-[0.18em] text-muted-foreground">
+      <AthleteCardHeader
+        athlete={ath}
+        sport={activity.sport}
+        meta={
+          <>
             <span>{fmtTimeAgo(activity.date)}</span>
             <span className="text-border">·</span>
             <MapPin className="h-3 w-3" />
             <span className="truncate">{ath.city}</span>
-          </div>
-        </div>
-      </header>
+          </>
+        }
+      />
 
       <Link
         to="/activity/$id"
