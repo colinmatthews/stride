@@ -192,3 +192,16 @@ export const activityKudos = pgTable(
     pk: primaryKey({ columns: [table.userId, table.activityId] }),
   }),
 );
+
+// One row per athlete in the "5 in your first two weeks" goal. The cohort is
+// stored so treatment and holdout can be compared after the fact.
+export const goalTrackers = pgTable("goal_trackers", {
+  userId: text("user_id")
+    .primaryKey()
+    .references(() => users.id, { onDelete: "cascade" }),
+  cohort: text("cohort").notNull(),
+  checkInSentAt: timestamp("check_in_sent_at", { withTimezone: true }),
+  checkInDismissedAt: timestamp("check_in_dismissed_at", { withTimezone: true }),
+  completedSeenAt: timestamp("completed_seen_at", { withTimezone: true }),
+  createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+});

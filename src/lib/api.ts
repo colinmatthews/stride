@@ -8,6 +8,7 @@ import {
   type Activity,
   type AppData,
 } from "./mock-data";
+import type { GoalTrackerResponse } from "./goal-tracker";
 
 class ApiError extends Error {
   status: number;
@@ -198,6 +199,16 @@ export async function toggleChallengeJoin(challengeId: string) {
   }
 
   return payload;
+}
+
+export async function fetchGoalTracker() {
+  return apiFetch<GoalTrackerResponse>("/api/goal-tracker");
+}
+
+export async function dismissGoalCheckIn() {
+  await apiFetch("/api/goal-tracker/check-in/dismiss", {
+    method: "POST",
+  });
 }
 
 export { ApiError };

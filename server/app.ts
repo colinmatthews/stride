@@ -6,8 +6,10 @@ import {
   buildBootstrap,
   createActivity,
   createUser,
+  dismissGoalCheckIn,
   findUserForAuth,
   getActivityById,
+  getGoalTracker,
   listActivities,
   toggleChallengeEntry,
   toggleClubMembership,
@@ -109,6 +111,23 @@ export function createApp() {
   app.get("/api/bootstrap", requireAuth, async (request, response, next) => {
     try {
       response.json(await buildBootstrap(request.userId!));
+    } catch (error) {
+      next(error);
+    }
+  });
+
+  app.get("/api/goal-tracker", requireAuth, async (request, response, next) => {
+    try {
+      response.json(await getGoalTracker(request.userId!));
+    } catch (error) {
+      next(error);
+    }
+  });
+
+  app.post("/api/goal-tracker/check-in/dismiss", requireAuth, async (request, response, next) => {
+    try {
+      await dismissGoalCheckIn(request.userId!);
+      response.status(204).end();
     } catch (error) {
       next(error);
     }
