@@ -116,7 +116,11 @@ function FeedPage() {
                 <div className="text-[11px] uppercase tracking-wider opacity-70">km</div>
               </div>
               <div>
-                <div className="stat-num text-2xl">{fmtDuration(myWeekTime).split(":")[0]}h</div>
+                <div className="stat-num text-2xl">
+                  {myWeekTime >= 3600
+                    ? `${(myWeekTime / 3600).toFixed(1)}h`
+                    : `${Math.round(myWeekTime / 60)}m`}
+                </div>
                 <div className="text-[11px] uppercase tracking-wider opacity-70">time</div>
               </div>
               <div>

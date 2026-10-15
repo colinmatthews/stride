@@ -67,7 +67,11 @@ export function ActivityCard({ activity }: Props) {
       </Link>
 
       <div className="grid grid-cols-3 gap-0 border-y border-border/70 mx-5 mt-4">
-        <CardStat label="Distance" value={activity.distanceKm.toFixed(2)} unit="km" />
+        <CardStat
+          label="Distance"
+          value={activity.distanceKm.toFixed(activity.sport === "Swim" ? 3 : 2)}
+          unit="km"
+        />
         {activity.sport === "Ride" ? (
           <CardStat
             label="Avg speed"
@@ -87,12 +91,33 @@ export function ActivityCard({ activity }: Props) {
             border
           />
         )}
-        <CardStat label="Elev" value={activity.elevationM} unit="m" border />
+        {activity.sport === "Swim" ? (
+          <CardStat
+            label="Lengths"
+            value={activity.poolLengths ?? "—"}
+            unit={activity.poolLengthM ? `× ${activity.poolLengthM} m` : undefined}
+            border
+          />
+        ) : (
+          <CardStat label="Elev gain" value={activity.elevationM} unit="m" border />
+        )}
       </div>
 
       <Link to="/activity/$id" params={{ id: activity.id }} className="mt-5 block">
         <div className="relative overflow-hidden">
-          {activity.photo ? (
+          {activity.trackingMode ? (
+            <div className="flex h-44 flex-col justify-center bg-secondary px-6 text-secondary-foreground">
+              <span className="font-mono text-[10px] uppercase tracking-[0.22em] opacity-70">
+                {activity.sport === "Swim" ? "Pool workout" : "Outdoor workout"}
+              </span>
+              <span className="stat-num mt-2 text-3xl font-bold">
+                {activity.sport === "Swim"
+                  ? `${activity.poolLengths ?? "—"} lengths${activity.poolLengthM ? ` × ${activity.poolLengthM} m` : ""}`
+                  : `${activity.elevationM} m elevation gain`}
+              </span>
+              <span className="mt-2 text-xs opacity-70">Open activity details</span>
+            </div>
+          ) : activity.photo ? (
             <div className="grid grid-cols-2 gap-px bg-border">
               <img
                 src={getActivityPhoto(activity)}

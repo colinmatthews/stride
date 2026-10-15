@@ -35,6 +35,9 @@ type ActivityDto = {
   distanceKm: number;
   movingSeconds: number;
   elevationM: number;
+  poolLengthM?: number;
+  poolLengths?: number;
+  trackingMode?: "gps" | "manual" | "pool";
   avgHr?: number;
   avgPaceSecPerKm?: number;
   avgSpeedKmh?: number;
@@ -199,6 +202,9 @@ async function hydrateActivities(rows: ActivityRow[], userId: string): Promise<A
     distanceKm: Number(row.distanceKm),
     movingSeconds: row.movingSeconds,
     elevationM: row.elevationM,
+    poolLengthM: row.poolLengthM ?? undefined,
+    poolLengths: row.poolLengths ?? undefined,
+    trackingMode: (row.trackingMode as ActivityDto["trackingMode"]) ?? undefined,
     avgHr: row.avgHr ?? undefined,
     avgPaceSecPerKm: row.avgPaceSecPerKm ?? undefined,
     avgSpeedKmh: numberOrUndefined(row.avgSpeedKmh),
@@ -450,6 +456,9 @@ export async function createActivity(input: {
   distanceKm: number;
   movingSeconds: number;
   elevationM: number;
+  poolLengthM?: number;
+  poolLengths?: number;
+  trackingMode?: "gps" | "manual" | "pool";
   avgHr?: number;
   avgPaceSecPerKm?: number;
   avgSpeedKmh?: number;
@@ -467,6 +476,9 @@ export async function createActivity(input: {
     distanceKm: String(input.distanceKm),
     movingSeconds: input.movingSeconds,
     elevationM: input.elevationM,
+    poolLengthM: input.poolLengthM ?? null,
+    poolLengths: input.poolLengths ?? null,
+    trackingMode: input.trackingMode ?? null,
     avgHr: input.avgHr ?? null,
     avgPaceSecPerKm: input.avgPaceSecPerKm ?? null,
     avgSpeedKmh: input.avgSpeedKmh === undefined ? null : String(input.avgSpeedKmh),

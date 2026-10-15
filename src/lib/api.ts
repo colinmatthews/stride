@@ -100,6 +100,9 @@ export async function saveActivity(payload: {
   distanceKm: number;
   movingSeconds: number;
   elevationM: number;
+  poolLengthM?: number;
+  poolLengths?: number;
+  trackingMode?: "gps" | "manual" | "pool";
   avgHr?: number;
   avgPaceSecPerKm?: number;
   avgSpeedKmh?: number;
