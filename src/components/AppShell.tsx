@@ -10,8 +10,9 @@ import {
   Search,
   Bell,
   Settings,
+  LifeBuoy,
 } from "lucide-react";
-import { ME, clearAppData } from "@/lib/mock-data";
+import { IS_STAFF, ME, clearAppData } from "@/lib/mock-data";
 import { FormEvent, ReactNode, useState } from "react";
 import { logout } from "@/lib/api";
 
@@ -23,6 +24,8 @@ const NAV = [
   { to: "/challenges", label: "Challenges", icon: Trophy },
   { to: "/clubs", label: "Clubs", icon: Users },
 ] as const;
+
+const STAFF_NAV = [{ to: "/retention", label: "Retention", icon: LifeBuoy }] as const;
 
 export function AppShell({ children }: { children: ReactNode }) {
   const { location } = useRouterState();
@@ -63,7 +66,7 @@ export function AppShell({ children }: { children: ReactNode }) {
           </Link>
         </div>
         <nav className="flex-1 p-3 space-y-1">
-          {NAV.map((n) => {
+          {[...NAV, ...(IS_STAFF ? STAFF_NAV : [])].map((n) => {
             const Icon = n.icon;
             const active = n.to === "/" ? path === "/" : path.startsWith(n.to);
             return (

@@ -3,7 +3,7 @@ import { promisify } from "node:util";
 import { and, eq, gt } from "drizzle-orm";
 import type { NextFunction, Request, Response } from "express";
 import { db } from "./db.js";
-import { sessions } from "./db/schema.js";
+import { sessions, users } from "./db/schema.js";
 
 declare module "express-serve-static-core" {
   interface Request {
@@ -116,6 +116,38 @@ export async function requireAuth(request: Request, response: Response, next: Ne
 
     if (!userId) {
       response.status(401).json({ error: "Authentication required" });
+      return;
+    }
+
+    request.userId = userId;
+    next();
+  } catch (error) {
+    next(error);
+  }
+}
+
+export async function isStaffUser(userId: string) {
+  const rows = await db
+    .select({ role: users.role })
+    .from(users)
+    .where(eq(users.id, userId))
+    .limit(1);
+
+  return rows[0]?.role === "staff";
+}
+
+/** Internal tools (e.g. the retention queue) expose other athletes' data — staff only. */
+export async function requireStaff(request: Request, response: Response, next: NextFunction) {
+  try {
+    const userId = await getSessionUserId(request);
+
+    if (!userId) {
+      response.status(401).json({ error: "Authentication required" });
+      return;
+    }
+
+    if (!(await isStaffUser(userId))) {
+      response.status(403).json({ error: "Staff access required" });
       return;
     }
 

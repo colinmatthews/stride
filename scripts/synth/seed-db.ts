@@ -16,6 +16,12 @@ const __dirname = dirname(__filename);
 const USERS_PATH = resolve(__dirname, "../../data/synth-users.json");
 const WINDOW_DAYS = 90;
 
+// About a third of active premium users fade out gradually, matching what PostHog showed
+// (26 of 81 halved their activity over 28 days). Each entry is the chance an activity that
+// landed N weeks ago is kept there; otherwise it moves to before the fade began.
+const FADING_PREMIUM_SHARE = 0.32;
+const FADE_KEEP_BY_WEEKS_AGO = [0.15, 0.25, 0.35, 0.5, 0.7, 0.85];
+
 interface ActivityRow {
   id: string;
   athleteId: string;
@@ -102,14 +108,40 @@ function pickSport(user: SynthUser, rng: Rng): Sport {
   return rng.weighted(persona.sportMix.map((m) => ({ value: m.sport, weight: m.weight })));
 }
 
-function generateActivityFor(user: SynthUser, index: number, now: Date, rng: Rng): ActivityRow | null {
+function isFading(user: SynthUser, rng: Rng): boolean {
+  return (
+    user.plan === "premium" &&
+    user.status === "active" &&
+    rng.derive(`fade-${user.id}`).chance(FADING_PREMIUM_SHARE)
+  );
+}
+
+/** Thins out a fading user's recent weeks by moving activities to before the fade. */
+function fadeDate(date: Date, start: Date, now: Date, rng: Rng): Date {
+  const weeksAgo = Math.floor((now.getTime() - date.getTime()) / (7 * 86_400_000));
+  const keep = FADE_KEEP_BY_WEEKS_AGO[weeksAgo];
+  if (keep === undefined || rng.chance(keep)) return date;
+
+  const fadeStart = now.getTime() - FADE_KEEP_BY_WEEKS_AGO.length * 7 * 86_400_000;
+  if (fadeStart <= start.getTime()) return date;
+  return new Date(start.getTime() + rng.next() * (fadeStart - start.getTime()));
+}
+
+function generateActivityFor(
+  user: SynthUser,
+  index: number,
+  now: Date,
+  rng: Rng,
+  fading = false,
+): ActivityRow | null {
   const { start, end } = activeWindow(user, now);
   const windowMs = end.getTime() - start.getTime();
   if (windowMs <= 0 || user.activityTarget <= 0) return null;
 
   const sport = pickSport(user, rng);
   const profile = SPORT_PROFILES[sport];
-  const date = new Date(start.getTime() + rng.next() * windowMs);
+  const sampled = new Date(start.getTime() + rng.next() * windowMs);
+  const date = fading ? fadeDate(sampled, start, now, rng) : sampled;
 
   const distanceKm = rng.float(profile.distanceKm[0], profile.distanceKm[1]);
   const avgHr = rng.int(profile.avgHr[0], profile.avgHr[1]);
@@ -326,13 +358,45 @@ function generateChallengeEntries(users: SynthUser[], rng: Rng, now: Date): Memb
   return rows;
 }
 
-async function upsertUsers(client: PoolClient, users: SynthUser[]): Promise<void> {
+/** Premium renews monthly on the signup anniversary; free and cancelled plans don't renew. */
+function planRenewsAt(user: Pick<SynthUser, "plan" | "signupDate">, now: Date): Date | null {
+  if (user.plan !== "premium") return null;
+  const renewal = new Date(user.signupDate);
+  while (renewal <= now) renewal.setUTCMonth(renewal.getUTCMonth() + 1);
+  return renewal;
+}
+
+async function upsertUsers(client: PoolClient, users: SynthUser[], now: Date): Promise<void> {
   await bulkInsert(
     client,
     "users",
-    ["id", "email", "name", "handle", "avatar_url", "city", "country", "bio", "created_at"],
+    [
+      "id",
+      "email",
+      "name",
+      "handle",
+      "avatar_url",
+      "city",
+      "country",
+      "bio",
+      "plan",
+      "plan_renews_at",
+      "created_at",
+    ],
     users,
-    (u) => [u.id, u.email, u.name, u.handle, u.avatar, u.city, u.country, u.bio, new Date(u.signupDate)],
+    (u) => [
+      u.id,
+      u.email,
+      u.name,
+      u.handle,
+      u.avatar,
+      u.city,
+      u.country,
+      u.bio,
+      u.plan,
+      planRenewsAt(u, now),
+      new Date(u.signupDate),
+    ],
     `ON CONFLICT (id) DO UPDATE SET
        email = EXCLUDED.email,
        name = EXCLUDED.name,
@@ -341,6 +405,8 @@ async function upsertUsers(client: PoolClient, users: SynthUser[]): Promise<void
        city = EXCLUDED.city,
        country = EXCLUDED.country,
        bio = EXCLUDED.bio,
+       plan = EXCLUDED.plan,
+       plan_renews_at = EXCLUDED.plan_renews_at,
        created_at = EXCLUDED.created_at`,
     500,
   );
@@ -387,7 +453,8 @@ async function insertActivities(client: PoolClient, rows: ActivityRow[]): Promis
       a.photo,
       a.routeSeed,
     ],
-    "ON CONFLICT (id) DO NOTHING",
+    // Dates can shift between runs (e.g. the fading cohort), so keep them in sync.
+    "ON CONFLICT (id) DO UPDATE SET date = EXCLUDED.date",
     500,
   );
 }
@@ -522,8 +589,9 @@ async function main() {
 
   for (const user of users) {
     const userRng = rng.derive(user.id);
+    const fading = isFading(user, rng);
     for (let i = 0; i < user.activityTarget; i += 1) {
-      const activity = generateActivityFor(user, i, now, userRng);
+      const activity = generateActivityFor(user, i, now, userRng, fading);
       if (!activity) continue;
       activities.push(activity);
       splits.push(...generateSplitsFor(activity, userRng));
@@ -547,7 +615,7 @@ async function main() {
     await client.query("BEGIN");
 
     console.log("Upserting users…");
-    await upsertUsers(client, users);
+    await upsertUsers(client, users, now);
 
     console.log("Inserting activities…");
     await insertActivities(client, activities);

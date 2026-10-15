@@ -12,6 +12,7 @@ import { Route as rootRouteImport } from './routes/__root'
 import { Route as TrainingRouteImport } from './routes/training'
 import { Route as SegmentsRouteImport } from './routes/segments'
 import { Route as SearchRouteImport } from './routes/search'
+import { Route as RetentionRouteImport } from './routes/retention'
 import { Route as RecordRouteImport } from './routes/record'
 import { Route as OnboardingRouteImport } from './routes/onboarding'
 import { Route as ClubsRouteImport } from './routes/clubs'
@@ -37,6 +38,11 @@ const SegmentsRoute = SegmentsRouteImport.update({
 const SearchRoute = SearchRouteImport.update({
   id: '/search',
   path: '/search',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const RetentionRoute = RetentionRouteImport.update({
+  id: '/retention',
+  path: '/retention',
   getParentRoute: () => rootRouteImport,
 } as any)
 const RecordRoute = RecordRouteImport.update({
@@ -103,6 +109,7 @@ export interface FileRoutesByFullPath {
   '/clubs': typeof ClubsRoute
   '/onboarding': typeof OnboardingRoute
   '/record': typeof RecordRoute
+  '/retention': typeof RetentionRoute
   '/search': typeof SearchRoute
   '/segments': typeof SegmentsRoute
   '/training': typeof TrainingRoute
@@ -119,6 +126,7 @@ export interface FileRoutesByTo {
   '/clubs': typeof ClubsRoute
   '/onboarding': typeof OnboardingRoute
   '/record': typeof RecordRoute
+  '/retention': typeof RetentionRoute
   '/search': typeof SearchRoute
   '/segments': typeof SegmentsRoute
   '/training': typeof TrainingRoute
@@ -136,6 +144,7 @@ export interface FileRoutesById {
   '/clubs': typeof ClubsRoute
   '/onboarding': typeof OnboardingRoute
   '/record': typeof RecordRoute
+  '/retention': typeof RetentionRoute
   '/search': typeof SearchRoute
   '/segments': typeof SegmentsRoute
   '/training': typeof TrainingRoute
@@ -154,6 +163,7 @@ export interface FileRouteTypes {
     | '/clubs'
     | '/onboarding'
     | '/record'
+    | '/retention'
     | '/search'
     | '/segments'
     | '/training'
@@ -170,6 +180,7 @@ export interface FileRouteTypes {
     | '/clubs'
     | '/onboarding'
     | '/record'
+    | '/retention'
     | '/search'
     | '/segments'
     | '/training'
@@ -186,6 +197,7 @@ export interface FileRouteTypes {
     | '/clubs'
     | '/onboarding'
     | '/record'
+    | '/retention'
     | '/search'
     | '/segments'
     | '/training'
@@ -203,6 +215,7 @@ export interface RootRouteChildren {
   ClubsRoute: typeof ClubsRoute
   OnboardingRoute: typeof OnboardingRoute
   RecordRoute: typeof RecordRoute
+  RetentionRoute: typeof RetentionRoute
   SearchRoute: typeof SearchRoute
   SegmentsRoute: typeof SegmentsRoute
   TrainingRoute: typeof TrainingRoute
@@ -233,6 +246,13 @@ declare module '@tanstack/react-router' {
       path: '/search'
       fullPath: '/search'
       preLoaderRoute: typeof SearchRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/retention': {
+      id: '/retention'
+      path: '/retention'
+      fullPath: '/retention'
+      preLoaderRoute: typeof RetentionRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/record': {
@@ -323,6 +343,7 @@ const rootRouteChildren: RootRouteChildren = {
   ClubsRoute: ClubsRoute,
   OnboardingRoute: OnboardingRoute,
   RecordRoute: RecordRoute,
+  RetentionRoute: RetentionRoute,
   SearchRoute: SearchRoute,
   SegmentsRoute: SegmentsRoute,
   TrainingRoute: TrainingRoute,

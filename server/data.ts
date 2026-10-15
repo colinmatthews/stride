@@ -433,6 +433,7 @@ export async function buildBootstrap(userId: string) {
 
   return {
     me,
+    isStaff: usersResult.find((row) => row.id === userId)?.role === "staff",
     athletes: [me, ...athletes.filter((athlete) => athlete.id !== "me")],
     activities: activityPage.activities,
     activityNextCursor: activityPage.nextCursor,
