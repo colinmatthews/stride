@@ -1,6 +1,7 @@
 import { existsSync } from "node:fs";
 import path from "node:path";
 import express from "express";
+import { z } from "zod";
 import {
   addComment,
   buildBootstrap,
@@ -21,6 +22,26 @@ import {
   requireAuth,
   verifyPassword,
 } from "./auth.js";
+
+const activityInputSchema = z.object({
+  sport: z.enum(["Run", "Ride", "Swim", "Hike", "Walk"]),
+  title: z.string().trim().min(1).max(200),
+  description: z.string().max(5000).optional(),
+  distanceKm: z.number().finite().positive().max(1000),
+  movingSeconds: z
+    .number()
+    .int()
+    .positive()
+    .max(60 * 60 * 24 * 7),
+  elevationM: z.number().int().nonnegative().max(100000),
+  poolLengthM: z.union([z.literal(25), z.literal(50)]).optional(),
+  poolLengths: z.number().int().positive().max(100000).optional(),
+  trackingMode: z.enum(["gps", "manual", "pool"]).optional(),
+  avgHr: z.number().int().nonnegative().optional(),
+  avgPaceSecPerKm: z.number().int().nonnegative().optional(),
+  avgSpeedKmh: z.number().finite().nonnegative().optional(),
+  routeSeed: z.number().int().nonnegative().default(1),
+});
 
 export function createApp() {
   const app = express();
@@ -145,20 +166,48 @@ export function createApp() {
 
   app.post("/api/activities", requireAuth, async (request, response, next) => {
     try {
+      const parsed = activityInputSchema.safeParse(request.body);
+      if (!parsed.success) {
+        response.status(400).json({ error: "Invalid activity details" });
+        return;
+      }
+
+      const input = parsed.data;
+      const hasPoolData = input.poolLengthM !== undefined || input.poolLengths !== undefined;
+      if (
+        (input.sport === "Swim" &&
+          hasPoolData &&
+          (input.poolLengthM === undefined || input.poolLengths === undefined)) ||
+        (input.sport !== "Swim" && (hasPoolData || input.trackingMode === "pool")) ||
+        (input.sport === "Swim" && input.trackingMode === "pool" && !hasPoolData)
+      ) {
+        response.status(400).json({ error: "Invalid pool length details" });
+        return;
+      }
+
+      const distanceKm =
+        input.sport === "Swim" && input.poolLengthM && input.poolLengths
+          ? (input.poolLengthM * input.poolLengths) / 1000
+          : input.distanceKm;
+      if (distanceKm > 1000) {
+        response.status(400).json({ error: "Distance exceeds the supported maximum" });
+        return;
+      }
       const activityId = await createActivity({
         userId: request.userId!,
-        sport: request.body.sport,
-        title: String(request.body.title ?? ""),
-        description: request.body.description ? String(request.body.description) : undefined,
-        distanceKm: Number(request.body.distanceKm ?? 0),
-        movingSeconds: Number(request.body.movingSeconds ?? 0),
-        elevationM: Number(request.body.elevationM ?? 0),
-        avgHr: request.body.avgHr ? Number(request.body.avgHr) : undefined,
-        avgPaceSecPerKm: request.body.avgPaceSecPerKm
-          ? Number(request.body.avgPaceSecPerKm)
-          : undefined,
-        avgSpeedKmh: request.body.avgSpeedKmh ? Number(request.body.avgSpeedKmh) : undefined,
-        routeSeed: Number(request.body.routeSeed ?? 1),
+        sport: input.sport,
+        title: input.title,
+        description: input.description,
+        distanceKm,
+        movingSeconds: input.movingSeconds,
+        elevationM: input.sport === "Swim" ? 0 : input.elevationM,
+        poolLengthM: input.poolLengthM,
+        poolLengths: input.poolLengths,
+        trackingMode: input.trackingMode,
+        avgHr: input.avgHr,
+        avgPaceSecPerKm: input.avgPaceSecPerKm,
+        avgSpeedKmh: input.avgSpeedKmh,
+        routeSeed: input.routeSeed,
       });
 
       const activity = await getActivityById(request.userId!, activityId);

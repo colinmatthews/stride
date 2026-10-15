@@ -20,18 +20,25 @@ Frontend-only fork for quick component prototypes:
 
 ```bash
 npm install
-cp .env.example .env   # then fill in keys
+test -f .env || cp .env.example .env   # then set DB_URL in .env
 npm run db:migrate     # apply Drizzle schema
 npm run dev            # runs client (vite) + server (tsx watch) concurrently
 ```
 
 Client: <http://localhost:5173> — Server: <http://localhost:3002>
 
-## Required env vars
+## Environment variables
+
+Edit `.env` in the repository root. Set `DB_URL` for the running app. If your
+database provider offers a separate direct connection string, set
+`DATABASE_URL` for migrations; otherwise migrations use `DB_URL`. Keep `.env`
+local and private. Other keys below are only needed for their respective
+integrations or synthetic-data scripts.
 
 | Var                                | Purpose                           |
 | ---------------------------------- | --------------------------------- |
-| `DB_URL`                           | Postgres connection string        |
+| `DB_URL`                           | Postgres connection for the app   |
+| `DATABASE_URL`                     | Optional direct Postgres connection for migrations |
 | `VITE_PUBLIC_POSTHOG_PROJECT_TOKEN`| Client PostHog key                |
 | `VITE_PUBLIC_POSTHOG_HOST`         | PostHog host (e.g. us.i.posthog.com) |
 | `POSTHOG_API_KEY`                  | Server-side PostHog key           |
@@ -42,6 +49,13 @@ Client: <http://localhost:5173> — Server: <http://localhost:3002>
 
 Read-only keys (`*_READ_*`) are used by discovery scripts that shouldn't mutate
 third-party state.
+
+The live timer at `/record` uses browser location for outdoor distance and
+elevation when available. Grant location access after starting a Run, Ride,
+Hike, or Walk. You can enter or correct the final distance and elevation before
+saving. For a Swim, select a 25 m or 50 m pool and tap once per completed length;
+the server calculates distance from the length count. The timer saves summary
+metrics, not a GPS route trace.
 
 ## Scripts
 
