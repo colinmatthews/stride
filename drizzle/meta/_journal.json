@@ -15,6 +15,13 @@
       "when": 1786549628196,
       "tag": "0001_repair_challenges_schema",
       "breakpoints": true
+    },
+    {
+      "idx": 2,
+      "version": "7",
+      "when": 1792085865555,
+      "tag": "0002_retention_queue",
+      "breakpoints": true
     }
   ]
 }

@@ -19,8 +19,15 @@ import {
   destroySession,
   hashPassword,
   requireAuth,
+  requireStaff,
   verifyPassword,
 } from "./auth.js";
+import {
+  RetentionNotFoundError,
+  listRetentionQueue,
+  recordRetentionAction,
+} from "./retention-data.js";
+import { parseRetentionAction } from "./retention-validation.js";
 
 export function createApp() {
   const app = express();
@@ -213,6 +220,39 @@ export function createApp() {
     try {
       response.json(await toggleChallengeEntry(request.userId!, String(request.params.id)));
     } catch (error) {
+      next(error);
+    }
+  });
+
+  app.get("/api/retention/queue", requireStaff, async (_request, response, next) => {
+    try {
+      response.json(await listRetentionQueue());
+    } catch (error) {
+      next(error);
+    }
+  });
+
+  app.post("/api/retention/:athleteId/actions", requireStaff, async (request, response, next) => {
+    try {
+      const parsed = parseRetentionAction(request.body);
+
+      if (!parsed.ok) {
+        response.status(400).json({ error: parsed.error });
+        return;
+      }
+
+      response.status(201).json(
+        await recordRetentionAction({
+          actorId: request.userId!,
+          athleteId: String(request.params.athleteId),
+          ...parsed.value,
+        }),
+      );
+    } catch (error) {
+      if (error instanceof RetentionNotFoundError) {
+        response.status(404).json({ error: error.message });
+        return;
+      }
       next(error);
     }
   });

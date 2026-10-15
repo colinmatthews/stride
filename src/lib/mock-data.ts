@@ -77,6 +77,8 @@ export interface Challenge {
 
 export interface AppData {
   me: Athlete;
+  /** Staff can open internal tools such as the retention queue. */
+  isStaff?: boolean;
   athletes: Athlete[];
   activities: Activity[];
   segments: Segment[];
@@ -97,6 +99,7 @@ const EMPTY_ATHLETE: Athlete = {
 };
 
 export let ME: Athlete = EMPTY_ATHLETE;
+export let IS_STAFF = false;
 export let ATHLETES: Athlete[] = [];
 export let ACTIVITIES: Activity[] = [];
 export let SEGMENTS: Segment[] = [];
@@ -105,6 +108,7 @@ export let CHALLENGES: Challenge[] = [];
 
 export function initializeAppData(data: AppData) {
   ME = data.me;
+  IS_STAFF = data.isStaff ?? false;
   ATHLETES = data.athletes;
   ACTIVITIES = data.activities;
   SEGMENTS = data.segments;
@@ -126,6 +130,7 @@ export function mergeActivities(activities: Activity[]) {
 
 export function clearAppData() {
   ME = EMPTY_ATHLETE;
+  IS_STAFF = false;
   ATHLETES = [];
   ACTIVITIES = [];
   SEGMENTS = [];

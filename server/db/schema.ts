@@ -1,4 +1,13 @@
-import { date, integer, numeric, pgTable, primaryKey, text, timestamp } from "drizzle-orm/pg-core";
+import {
+  date,
+  index,
+  integer,
+  numeric,
+  pgTable,
+  primaryKey,
+  text,
+  timestamp,
+} from "drizzle-orm/pg-core";
 
 export const users = pgTable("users", {
   id: text("id").primaryKey(),
@@ -13,6 +22,11 @@ export const users = pgTable("users", {
   bio: text("bio").notNull(),
   followersCount: integer("followers_count").notNull().default(0),
   followingCount: integer("following_count").notNull().default(0),
+  // "free" | "premium" | "cancelled"
+  plan: text("plan").notNull().default("free"),
+  planRenewsAt: timestamp("plan_renews_at", { withTimezone: true }),
+  // "member" | "staff" — staff can open internal tools like the retention queue.
+  role: text("role").notNull().default("member"),
   createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
 });
 
@@ -174,6 +188,35 @@ export const challengeEntries = pgTable(
   },
   (table) => ({
     pk: primaryKey({ columns: [table.userId, table.challengeId] }),
+  }),
+);
+
+// Append-only log of what the retention team did for a flagged athlete. The latest row
+// per athlete is their current queue state; "reopened" undoes an earlier action.
+export const retentionActions = pgTable(
+  "retention_actions",
+  {
+    id: text("id").primaryKey(),
+    athleteId: text("athlete_id")
+      .notNull()
+      .references(() => users.id, { onDelete: "cascade" }),
+    actorId: text("actor_id")
+      .notNull()
+      .references(() => users.id, { onDelete: "cascade" }),
+    // "contacted" | "snoozed" | "dismissed" | "reopened"
+    action: text("action").notNull(),
+    // "Email" | "In-app" | "Coach call" — set when action is "contacted"
+    channel: text("channel"),
+    message: text("message"),
+    note: text("note"),
+    snoozedUntil: timestamp("snoozed_until", { withTimezone: true }),
+    createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+  },
+  (table) => ({
+    athleteCreatedIdx: index("retention_actions_athlete_created_idx").on(
+      table.athleteId,
+      table.createdAt,
+    ),
   }),
 );
 
