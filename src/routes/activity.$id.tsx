@@ -35,6 +35,7 @@ import {
   getAthlete,
   getSegment,
   elevationProfile,
+  type Activity,
 } from "@/lib/mock-data";
 import { AppShell } from "@/components/AppShell";
 import { RouteMap } from "@/components/RouteMap";
@@ -59,7 +60,7 @@ export const Route = createFileRoute("/activity/$id")({
           { title: `${loaderData.activity.title} — Stride` },
           {
             name: "description",
-            content: `${loaderData.activity.sport} · ${loaderData.activity.distanceKm.toFixed(2)} km`,
+            content: activityShareSummary(loaderData.activity),
           },
         ]
       : [],
@@ -77,8 +78,18 @@ export const Route = createFileRoute("/activity/$id")({
   ),
 });
 
+function activityShareSummary(activity: Activity) {
+  const distance = `${activity.distanceKm.toFixed(activity.sport === "Swim" ? 3 : 2)} km`;
+  if (activity.sport === "Swim") {
+    return activity.poolLengths && activity.poolLengthM
+      ? `Swim · ${activity.poolLengths} lengths of ${activity.poolLengthM} m · ${distance}`
+      : `Swim · ${distance}`;
+  }
+  return `${activity.sport} · ${distance} · ${activity.elevationM} m elevation gain`;
+}
+
 function ActivityDetail() {
-  const { activity } = Route.useLoaderData() as { activity: import("@/lib/mock-data").Activity };
+  const { activity } = Route.useLoaderData() as { activity: Activity };
   const posthog = usePostHog();
   const router = useRouter();
   const ath = getAthlete(activity.athleteId);
@@ -87,6 +98,7 @@ function ActivityDetail() {
   const [comment, setComment] = useState("");
   type Comment = { id: string; athleteId: string; text: string };
   const [comments, setComments] = useState<Comment[]>(activity.comments);
+  const [shareStatus, setShareStatus] = useState("");
 
   const elev = elevationProfile(activity.routeSeed);
   const splits = activity.splits ?? [];
@@ -113,6 +125,24 @@ function ActivityDetail() {
       activity_athlete_id: activity.athleteId,
       kudoed: result.kudoed,
     });
+  };
+
+  const shareActivity = async () => {
+    const url = `${window.location.origin}/activity/${encodeURIComponent(activity.id)}`;
+    try {
+      if (navigator.share) {
+        await navigator.share({ title: activity.title, text: activityShareSummary(activity), url });
+        setShareStatus("Shared");
+      } else {
+        await navigator.clipboard.writeText(
+          `${activity.title}\n${activityShareSummary(activity)}\n${url}`,
+        );
+        setShareStatus("Copied link and summary");
+      }
+    } catch (error) {
+      if (error instanceof DOMException && error.name === "AbortError") return;
+      setShareStatus("Could not share this activity");
+    }
   };
 
   return (
@@ -144,12 +174,19 @@ function ActivityDetail() {
                 {fmtDate(activity.date)} · <MapPin className="h-3 w-3 ml-1" /> {ath.city}
               </div>
             </div>
-            <button
-              onClick={() => navigator.share?.({ title: activity.title }).catch(() => {})}
-              className="h-9 px-3 rounded-md border border-border text-sm flex items-center gap-2 hover:bg-muted"
-            >
-              <Share2 className="h-4 w-4" /> Share
-            </button>
+            <div className="text-right">
+              <button
+                onClick={shareActivity}
+                className="h-9 px-3 rounded-md border border-border text-sm inline-flex items-center gap-2 hover:bg-muted"
+              >
+                <Share2 className="h-4 w-4" /> Share
+              </button>
+              {shareStatus && (
+                <div role="status" className="mt-1 text-xs text-muted-foreground">
+                  {shareStatus}
+                </div>
+              )}
+            </div>
           </div>
 
           <h1 className="text-4xl font-display font-bold tracking-tight text-balance">

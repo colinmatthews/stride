@@ -173,6 +173,8 @@ function ManualForm({ sport }: { sport: Sport }) {
   const [title, setTitle] = useState("");
   const [description, setDescription] = useState("");
   const [distance, setDistance] = useState("");
+  const [poolLengthM, setPoolLengthM] = useState<25 | 50>(25);
+  const [poolLengths, setPoolLengths] = useState("");
   const [hours, setHours] = useState("");
   const [minutes, setMinutes] = useState("");
   const [seconds, setSeconds] = useState("");
@@ -181,10 +183,24 @@ function ManualForm({ sport }: { sport: Sport }) {
   const [error, setError] = useState("");
   const [busy, setBusy] = useState(false);
 
-  const distanceKm = Number(distance) || 0;
+  const isSwim = sport === "Swim";
+  const lengthCount = Number(poolLengths);
+  const distanceKm = isSwim ? (lengthCount * poolLengthM) / 1000 : Number(distance);
   const totalSeconds =
     (Number(hours) || 0) * 3600 + (Number(minutes) || 0) * 60 + (Number(seconds) || 0);
-  const isValid = distanceKm > 0 && totalSeconds > 0;
+  const isValid =
+    Number.isFinite(distanceKm) &&
+    Math.round(distanceKm * 1000) > 0 &&
+    distanceKm <= 1000 &&
+    (!isSwim || (Number.isInteger(lengthCount) && lengthCount > 0 && lengthCount <= 20000)) &&
+    totalSeconds > 0 &&
+    Number.isInteger(totalSeconds) &&
+    totalSeconds <= 60 * 60 * 24 * 7 &&
+    (isSwim ||
+      elevation.trim() === "" ||
+      (Number.isInteger(Number(elevation)) &&
+        Number(elevation) >= 0 &&
+        Number(elevation) <= 100000));
 
   const derivedPace =
     sport === "Ride"
@@ -203,6 +219,7 @@ function ManualForm({ sport }: { sport: Sport }) {
     setError("");
     setBusy(true);
     try {
+      const roundedDistanceKm = Math.round(distanceKm * 1000) / 1000;
       const paceSecPerKm = sport === "Ride" ? undefined : Math.round(totalSeconds / distanceKm);
       const speedKmh =
         sport === "Ride" ? Math.round((distanceKm / (totalSeconds / 3600)) * 10) / 10 : undefined;
@@ -210,10 +227,12 @@ function ManualForm({ sport }: { sport: Sport }) {
         sport,
         title: title.trim() || defaultTitle(sport, new Date()),
         description: description.trim() || undefined,
-        distanceKm: Math.round(distanceKm * 100) / 100,
+        distanceKm: roundedDistanceKm,
         movingSeconds: totalSeconds,
-        elevationM: Number(elevation) || 0,
-        trackingMode: "manual",
+        elevationM: isSwim ? 0 : Number(elevation) || 0,
+        poolLengthM: isSwim ? poolLengthM : undefined,
+        poolLengths: isSwim ? lengthCount : undefined,
+        trackingMode: isSwim ? "pool" : "manual",
         avgHr: avgHr ? Number(avgHr) : undefined,
         avgPaceSecPerKm: paceSecPerKm,
         avgSpeedKmh: speedKmh,
@@ -221,9 +240,10 @@ function ManualForm({ sport }: { sport: Sport }) {
       });
       posthog.capture("activity_saved", {
         sport,
-        distance_km: Math.round(distanceKm * 100) / 100,
+        distance_km: roundedDistanceKm,
         moving_seconds: totalSeconds,
-        elevation_m: Number(elevation) || 0,
+        elevation_m: isSwim ? 0 : Number(elevation) || 0,
+        pool_lengths: isSwim ? lengthCount : undefined,
         entry_mode: "manual",
       });
       router.navigate({ to: "/activity/$id", params: { id: activity.id } });
@@ -240,15 +260,41 @@ function ManualForm({ sport }: { sport: Sport }) {
         <div className="font-mono text-[10px] uppercase tracking-[0.22em] text-muted-foreground">
           The essentials
         </div>
-        <div className="mt-4 grid gap-6 sm:grid-cols-2">
-          <NumberField
-            label={sport === "Swim" ? "Distance (km)" : "Distance"}
-            unit="km"
-            value={distance}
-            onChange={setDistance}
-            placeholder="10.0"
-            step="0.01"
-          />
+        <div className={`mt-4 grid gap-6 ${isSwim ? "sm:grid-cols-3" : "sm:grid-cols-2"}`}>
+          {isSwim ? (
+            <>
+              <label className="block">
+                <div className="mb-2 font-mono text-[10px] uppercase tracking-[0.22em] text-muted-foreground">
+                  Pool length
+                </div>
+                <select
+                  value={poolLengthM}
+                  onChange={(event) => setPoolLengthM(Number(event.target.value) as 25 | 50)}
+                  className="h-12 w-full border border-border bg-background px-3 text-lg font-semibold outline-none transition-colors focus:border-foreground"
+                >
+                  <option value={25}>25 m</option>
+                  <option value={50}>50 m</option>
+                </select>
+              </label>
+              <NumberField
+                label="Completed pool lengths"
+                unit="count"
+                value={poolLengths}
+                onChange={setPoolLengths}
+                placeholder="20"
+                step="1"
+              />
+            </>
+          ) : (
+            <NumberField
+              label="Distance"
+              unit="km"
+              value={distance}
+              onChange={setDistance}
+              placeholder="10.0"
+              step="0.001"
+            />
+          )}
           <DurationField
             hours={hours}
             minutes={minutes}
@@ -258,6 +304,15 @@ function ManualForm({ sport }: { sport: Sport }) {
             setSeconds={setSeconds}
           />
         </div>
+
+        {isSwim && (
+          <div className="mt-5 flex items-center justify-between border-t border-border pt-4">
+            <div className="font-mono text-[10px] uppercase tracking-[0.22em] text-muted-foreground">
+              Distance from lengths
+            </div>
+            <div className="stat-num text-lg font-semibold">{distanceKm.toFixed(3)} km</div>
+          </div>
+        )}
 
         <div className="mt-6 flex items-center justify-between border-t border-border pt-4">
           <div className="font-mono text-[10px] uppercase tracking-[0.22em] text-muted-foreground">
@@ -298,14 +353,16 @@ function ManualForm({ sport }: { sport: Sport }) {
           Optional
         </div>
         <div className="mt-4 grid gap-4 sm:grid-cols-2">
-          <NumberField
-            label="Elevation gain"
-            unit="m"
-            value={elevation}
-            onChange={setElevation}
-            placeholder="120"
-            step="1"
-          />
+          {!isSwim && (
+            <NumberField
+              label="Elevation gain"
+              unit="m"
+              value={elevation}
+              onChange={setElevation}
+              placeholder="120"
+              step="1"
+            />
+          )}
           <NumberField
             label="Average heart rate"
             unit="bpm"
@@ -325,7 +382,7 @@ function ManualForm({ sport }: { sport: Sport }) {
 
       <div className="flex items-center justify-between gap-4 p-6">
         <div className="font-mono text-[10px] uppercase tracking-[0.22em] text-muted-foreground">
-          {isValid ? "Ready to log" : "Fill distance and time"}
+          {isValid ? "Ready to log" : isSwim ? "Fill lengths and time" : "Fill distance and time"}
         </div>
         <button
           onClick={save}
