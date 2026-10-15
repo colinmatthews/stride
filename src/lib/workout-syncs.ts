@@ -58,6 +58,11 @@ export function getWorkoutSyncState() {
   return state;
 }
 
+// Unsynced workouts are the athlete's own, so they don't belong under Clubs.
+export function showsSyncIssues(feedFilter: string) {
+  return feedFilter !== "Clubs";
+}
+
 export function initializeWorkoutSyncs(syncs: WorkoutSync[]) {
   setState({ ...EMPTY_STATE, syncs: syncs.filter((sync) => sync.status !== "synced") });
 }

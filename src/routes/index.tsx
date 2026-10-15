@@ -16,6 +16,7 @@ import { ActivityCard } from "@/components/ActivityCard";
 import { FollowButton } from "@/components/FollowButton";
 import { SyncIssueCard, SyncedFromBanner } from "@/components/SyncIssueCard";
 import { useWorkoutSyncs } from "@/hooks/use-workout-syncs";
+import { showsSyncIssues } from "@/lib/workout-syncs";
 
 export const Route = createFileRoute("/")({
   head: () => ({
@@ -47,8 +48,7 @@ function FeedPage() {
   const [filter, setFilter] = useState<Filter>("Following");
   const [feedRevision, setFeedRevision] = useState(0);
   const { syncs, recentlySynced } = useWorkoutSyncs();
-  // Unsynced workouts are the athlete's own, so they don't belong under Clubs.
-  const showSyncs = filter !== "Clubs";
+  const showSyncs = showsSyncIssues(filter);
   const visible = useMemo(() => {
     if (filter === "You") return ACTIVITIES.filter((activity) => activity.athleteId === "me");
     if (filter === "Clubs")

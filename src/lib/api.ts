@@ -8,7 +8,6 @@ import {
   type Activity,
   type AppData,
 } from "./mock-data";
-
 import type { WorkoutSync } from "./workout-syncs";
 
 class ApiError extends Error {

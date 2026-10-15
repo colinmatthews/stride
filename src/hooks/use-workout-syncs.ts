@@ -26,6 +26,14 @@ export function useRetrySync() {
 
       const outcome = await retryWorkoutSync(sync.id);
 
+      if (outcome.kind === "error") {
+        posthog.capture("sync_retry_network_error", {
+          source: sync.deviceName,
+          provider: sync.provider,
+          error_ref: sync.ref,
+        });
+      }
+
       if (outcome.kind === "synced" || outcome.kind === "failed") {
         posthog.capture("sync_retry_result", {
           success: outcome.kind === "synced",

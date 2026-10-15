@@ -12,7 +12,7 @@ import {
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
-import { SportBadge } from "@/components/SportBadge";
+import { AthleteCardHeader } from "@/components/AthleteCardHeader";
 import { useRetrySync, useWorkoutSyncs } from "@/hooks/use-workout-syncs";
 import { ME, fmtTimeAgo } from "@/lib/mock-data";
 import {
@@ -47,28 +47,24 @@ export function SyncIssueCard({ sync }: { sync: WorkoutSync }) {
 
   return (
     <article className={`overflow-hidden border bg-surface ${tone.border}`}>
-      <header className="flex items-start gap-3 px-5 pb-4 pt-5">
-        <img
-          src={ME.avatar}
-          alt={ME.name}
-          className="h-10 w-10 shrink-0 rounded-full object-cover ring-1 ring-border"
-        />
-        <div className="min-w-0 flex-1">
-          <div className="flex items-center gap-2">
-            <span className="truncate text-sm font-semibold">{ME.name}</span>
-            <SportBadge sport={sync.sport} />
-          </div>
-          <div className="mt-0.5 flex items-center gap-1.5 font-mono text-[10px] uppercase tracking-[0.18em] text-muted-foreground">
+      <AthleteCardHeader
+        athlete={ME}
+        sport={sync.sport}
+        linkToProfile={false}
+        meta={
+          <>
             <span className="shrink-0">{fmtTimeAgo(sync.startedAt)}</span>
             <span className="text-border">·</span>
             <span className="truncate">from {sync.deviceName}</span>
-          </div>
-        </div>
-        <span className="inline-flex items-center gap-1.5 font-mono text-[10px] uppercase tracking-[0.18em] text-muted-foreground">
-          <span className={`h-1.5 w-1.5 rounded-full ${tone.dot}`} />
-          {tone.label}
-        </span>
-      </header>
+          </>
+        }
+        aside={
+          <span className="inline-flex items-center gap-1.5 font-mono text-[10px] uppercase tracking-[0.18em] text-muted-foreground">
+            <span className={`h-1.5 w-1.5 rounded-full ${tone.dot}`} />
+            {tone.label}
+          </span>
+        }
+      />
 
       <h3 className="px-5 font-display text-xl font-bold leading-tight tracking-[-0.015em] text-foreground/60">
         {sync.title}
@@ -83,6 +79,7 @@ export function SyncIssueCard({ sync }: { sync: WorkoutSync }) {
 
 function SyncStatusPanel({ sync }: { sync: WorkoutSync }) {
   const { pendingIds } = useWorkoutSyncs();
+  const posthog = usePostHog();
   const retry = useRetrySync();
   const [stepsOpen, setStepsOpen] = useState(false);
   const [offline, setOffline] = useState(false);
@@ -134,7 +131,17 @@ function SyncStatusPanel({ sync }: { sync: WorkoutSync }) {
       <div className="mt-3 flex flex-wrap items-center gap-2 pl-[26px]">
         {stuck ? (
           <Button size="sm" asChild>
-            <Link to="/record">
+            <Link
+              to="/record"
+              onClick={() =>
+                posthog.capture("sync_manual_entry_clicked", {
+                  source: sync.deviceName,
+                  provider: sync.provider,
+                  error_code: sync.errorCode,
+                  error_ref: sync.ref,
+                })
+              }
+            >
               <PencilLine /> Add it manually
             </Link>
           </Button>
