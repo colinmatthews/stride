@@ -1,7 +1,9 @@
 import { createFileRoute, useRouter } from "@tanstack/react-router";
 import { useEffect, useRef, useState } from "react";
-import { fmtDuration, fmtPace, type Sport } from "@/lib/mock-data";
+import { fmtDuration, fmtPace, type Activity, type Sport } from "@/lib/mock-data";
+import type { SaveSummary } from "@/lib/save-summary";
 import { AppShell } from "@/components/AppShell";
+import { SaveCelebrationDialog } from "@/components/celebration/SaveCelebrationDialog";
 import { usePostHog } from "@posthog/react";
 import {
   Play,
@@ -14,7 +16,7 @@ import {
   ArrowRight,
   LoaderCircle,
 } from "lucide-react";
-import { ApiError, saveActivity } from "@/lib/api";
+import { ApiError, fetchSaveSummary, saveActivity } from "@/lib/api";
 
 export const Route = createFileRoute("/record")({
   head: () => ({
@@ -28,10 +30,42 @@ export const Route = createFileRoute("/record")({
 
 const SPORTS: Sport[] = ["Run", "Ride", "Swim", "Hike", "Walk"];
 type Mode = "manual" | "timer";
+type OnSaved = (activity: Activity) => Promise<void>;
 
 function Record() {
+  const posthog = usePostHog();
+  const router = useRouter();
   const [mode, setMode] = useState<Mode>("manual");
   const [sport, setSport] = useState<Sport>("Run");
+  const [summary, setSummary] = useState<SaveSummary | null>(null);
+  const [open, setOpen] = useState(false);
+  const [formKey, setFormKey] = useState(0);
+
+  // The activity is already saved here, so a failed summary must never surface as a save error.
+  async function handleSaved(activity: Activity) {
+    try {
+      setSummary(await fetchSaveSummary(activity.id));
+      setOpen(true);
+    } catch (err) {
+      posthog.captureException(err);
+      router.navigate({ to: "/activity/$id", params: { id: activity.id } });
+    }
+  }
+
+  function closeAndReset() {
+    setOpen(false);
+    setFormKey((key) => key + 1);
+  }
+
+  function handleOpenChange(next: boolean) {
+    if (!next) closeAndReset();
+  }
+
+  function viewActivity() {
+    if (!summary) return;
+    setOpen(false);
+    router.navigate({ to: "/activity/$id", params: { id: summary.activity.id } });
+  }
 
   return (
     <AppShell>
@@ -69,8 +103,19 @@ function Record() {
 
         <SportPicker sport={sport} setSport={setSport} />
 
-        {mode === "manual" ? <ManualForm sport={sport} /> : <TimerMode sport={sport} />}
+        {mode === "manual" ? (
+          <ManualForm key={formKey} sport={sport} onSaved={handleSaved} />
+        ) : (
+          <TimerMode key={formKey} sport={sport} onSaved={handleSaved} />
+        )}
       </div>
+      <SaveCelebrationDialog
+        summary={summary}
+        open={open}
+        onOpenChange={handleOpenChange}
+        onViewActivity={viewActivity}
+        onLogAnother={closeAndReset}
+      />
     </AppShell>
   );
 }
@@ -143,9 +188,8 @@ function SportPicker({ sport, setSport }: { sport: Sport; setSport: (s: Sport) =
   );
 }
 
-function ManualForm({ sport }: { sport: Sport }) {
+function ManualForm({ sport, onSaved }: { sport: Sport; onSaved: OnSaved }) {
   const posthog = usePostHog();
-  const router = useRouter();
   const [title, setTitle] = useState("");
   const [description, setDescription] = useState("");
   const [distance, setDistance] = useState("");
@@ -201,7 +245,7 @@ function ManualForm({ sport }: { sport: Sport }) {
         elevation_m: Number(elevation) || 0,
         entry_mode: "manual",
       });
-      router.navigate({ to: "/activity/$id", params: { id: activity.id } });
+      await onSaved(activity);
     } catch (err) {
       posthog.captureException(err);
       setError("Couldn't save activity. Try again.");
@@ -478,9 +522,8 @@ function defaultTitle(sport: Sport, date: Date) {
 /* -----------------------------------------------------------------------
  *   Timer mode — existing live-tracking flow, restyled to match aesthetic
  * ---------------------------------------------------------------------*/
-function TimerMode({ sport }: { sport: Sport }) {
+function TimerMode({ sport, onSaved }: { sport: Sport; onSaved: OnSaved }) {
   const posthog = usePostHog();
-  const router = useRouter();
   const [running, setRunning] = useState(false);
   const [paused, setPaused] = useState(false);
   const [elapsed, setElapsed] = useState(0);
@@ -547,7 +590,7 @@ function TimerMode({ sport }: { sport: Sport }) {
         elevation_m: Math.floor(distance * 12),
         entry_mode: "timer",
       });
-      router.navigate({ to: "/activity/$id", params: { id: activity.id } });
+      await onSaved(activity);
     } catch (err) {
       posthog.captureException(err);
       setError(
