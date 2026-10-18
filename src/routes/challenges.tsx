@@ -3,7 +3,7 @@ import { useState } from "react";
 import { CHALLENGES } from "@/lib/mock-data";
 import { AppShell } from "@/components/AppShell";
 import { Trophy, Users, Calendar, Check, LoaderCircle } from "lucide-react";
-import { ApiError, toggleChallengeJoin } from "@/lib/api";
+import { ApiError, isClientError, toggleChallengeJoin } from "@/lib/api";
 import { usePostHog } from "@posthog/react";
 
 export const Route = createFileRoute("/challenges")({
@@ -165,13 +165,17 @@ function ChallengesPage() {
                         goal_km: c.goalKm,
                       });
                     } catch (err) {
-                      posthog.captureException(err);
+                      posthog.capture("challenge_join_failed", {
+                        challenge_id: c.id,
+                        action: isJoined ? "leave" : "join",
+                        status: err instanceof ApiError ? err.status : null,
+                      });
+                      if (!isClientError(err)) posthog.captureException(err);
                       setErrors((state) => ({
                         ...state,
-                        [c.id]:
-                          err instanceof ApiError
-                            ? err.message
-                            : "Couldn't update challenge. Try again.",
+                        [c.id]: isClientError(err)
+                          ? err.message
+                          : "Couldn't update challenge. Try again.",
                       }));
                     } finally {
                       setPending((state) => ({ ...state, [c.id]: false }));

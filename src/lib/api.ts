@@ -20,6 +20,10 @@ class ApiError extends Error {
   }
 }
 
+export function isClientError(err: unknown): err is ApiError {
+  return err instanceof ApiError && err.status >= 400 && err.status < 500;
+}
+
 async function apiFetch<T>(input: string, init?: RequestInit): Promise<T> {
   const response = await fetch(input, {
     credentials: "include",

@@ -16,7 +16,7 @@ import {
   ArrowRight,
   LoaderCircle,
 } from "lucide-react";
-import { ApiError, fetchSaveSummary, saveActivity } from "@/lib/api";
+import { ApiError, fetchSaveSummary, isClientError, saveActivity } from "@/lib/api";
 
 export const Route = createFileRoute("/record")({
   head: () => ({
@@ -31,6 +31,20 @@ export const Route = createFileRoute("/record")({
 const SPORTS: Sport[] = ["Run", "Ride", "Swim", "Hike", "Walk"];
 type Mode = "manual" | "timer";
 type OnSaved = (activity: Activity) => Promise<void>;
+type PostHogClient = ReturnType<typeof usePostHog>;
+
+// Rejected input is a user mistake, not a bug, so only server and network failures reach error tracking.
+function reportSaveFailure(posthog: PostHogClient, err: unknown, entryMode: Mode, sport: Sport) {
+  posthog.capture("activity_save_failed", {
+    entry_mode: entryMode,
+    sport,
+    status: err instanceof ApiError ? err.status : null,
+    reason: isClientError(err) ? err.message : null,
+  });
+  if (isClientError(err)) return err.message;
+  posthog.captureException(err);
+  return "Couldn't save activity. Try again.";
+}
 
 function Record() {
   const posthog = usePostHog();
@@ -49,6 +63,7 @@ function Record() {
       setOpen(true);
       posthog.capture("activity_celebration_shown", {
         activity_id: next.activity.id,
+        entry_mode: mode,
         sport: next.activity.sport,
         ordinal: next.ordinal,
         sport_ordinal: next.sportOrdinal,
@@ -57,6 +72,11 @@ function Record() {
         challenge_count: next.challenges.length,
       });
     } catch (err) {
+      posthog.capture("activity_celebration_failed", {
+        activity_id: activity.id,
+        entry_mode: mode,
+        status: err instanceof ApiError ? err.status : null,
+      });
       posthog.captureException(err);
       router.navigate({ to: "/activity/$id", params: { id: activity.id } });
     }
@@ -64,7 +84,11 @@ function Record() {
 
   function closeAndReset(action: "log_another" | "dismiss") {
     if (summary) {
-      posthog.capture("activity_celebration_action", { activity_id: summary.activity.id, action });
+      posthog.capture("activity_celebration_action", {
+        activity_id: summary.activity.id,
+        entry_mode: mode,
+        action,
+      });
     }
     setOpen(false);
     setFormKey((key) => key + 1);
@@ -78,6 +102,7 @@ function Record() {
     if (!summary) return;
     posthog.capture("activity_celebration_action", {
       activity_id: summary.activity.id,
+      entry_mode: mode,
       action: "view_activity",
     });
     setOpen(false);
@@ -264,12 +289,7 @@ function ManualForm({ sport, onSaved }: { sport: Sport; onSaved: OnSaved }) {
       });
       await onSaved(activity);
     } catch (err) {
-      posthog.captureException(err);
-      setError(
-        err instanceof ApiError && err.status === 400
-          ? err.message
-          : "Couldn't save activity. Try again.",
-      );
+      setError(reportSaveFailure(posthog, err, "manual", sport));
       setBusy(false);
     }
   }
@@ -613,12 +633,7 @@ function TimerMode({ sport, onSaved }: { sport: Sport; onSaved: OnSaved }) {
       });
       await onSaved(activity);
     } catch (err) {
-      posthog.captureException(err);
-      setError(
-        err instanceof ApiError && err.status === 400
-          ? err.message
-          : "Couldn't save activity. Try again.",
-      );
+      setError(reportSaveFailure(posthog, err, "timer", sport));
       setSaving(false);
     }
   };
