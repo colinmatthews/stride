@@ -72,6 +72,8 @@ export interface Challenge {
   participants: number;
   endsAt: string;
   badge: string;
+  metricType: "distance_km" | "elevation_m";
+  ended: boolean;
   joined?: boolean;
 }
 
