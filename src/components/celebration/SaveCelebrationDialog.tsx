@@ -57,7 +57,14 @@ export function SaveCelebrationDialog({
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="max-h-[92vh] max-w-xl gap-0 overflow-y-auto border-border p-0 sm:rounded-lg [&>button:last-child]:text-secondary-foreground">
+      <DialogContent
+        // Focusing the first button would scroll the footer into view and hide the recap header.
+        onOpenAutoFocus={(event) => {
+          event.preventDefault();
+          (event.currentTarget as HTMLElement).focus();
+        }}
+        className="max-h-[92vh] max-w-xl gap-0 overflow-y-auto border-border p-0 outline-none sm:rounded-lg [&>button:last-child]:text-secondary-foreground"
+      >
         <div className="relative overflow-hidden bg-secondary px-8 pb-8 pt-10 text-secondary-foreground">
           <Confetti />
           <div className="relative flex flex-col items-center text-center">
