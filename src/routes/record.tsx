@@ -44,25 +44,42 @@ function Record() {
   // The activity is already saved here, so a failed summary must never surface as a save error.
   async function handleSaved(activity: Activity) {
     try {
-      setSummary(await fetchSaveSummary(activity.id));
+      const next = await fetchSaveSummary(activity.id);
+      setSummary(next);
       setOpen(true);
+      posthog.capture("activity_celebration_shown", {
+        activity_id: next.activity.id,
+        sport: next.activity.sport,
+        ordinal: next.ordinal,
+        sport_ordinal: next.sportOrdinal,
+        streak_days: next.streakDays,
+        highlight_ids: next.highlights.map((highlight) => highlight.id),
+        challenge_count: next.challenges.length,
+      });
     } catch (err) {
       posthog.captureException(err);
       router.navigate({ to: "/activity/$id", params: { id: activity.id } });
     }
   }
 
-  function closeAndReset() {
+  function closeAndReset(action: "log_another" | "dismiss") {
+    if (summary) {
+      posthog.capture("activity_celebration_action", { activity_id: summary.activity.id, action });
+    }
     setOpen(false);
     setFormKey((key) => key + 1);
   }
 
   function handleOpenChange(next: boolean) {
-    if (!next) closeAndReset();
+    if (!next) closeAndReset("dismiss");
   }
 
   function viewActivity() {
     if (!summary) return;
+    posthog.capture("activity_celebration_action", {
+      activity_id: summary.activity.id,
+      action: "view_activity",
+    });
     setOpen(false);
     router.navigate({ to: "/activity/$id", params: { id: summary.activity.id } });
   }
@@ -114,7 +131,7 @@ function Record() {
         open={open}
         onOpenChange={handleOpenChange}
         onViewActivity={viewActivity}
-        onLogAnother={closeAndReset}
+        onLogAnother={() => closeAndReset("log_another")}
       />
     </AppShell>
   );

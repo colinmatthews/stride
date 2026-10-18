@@ -1,5 +1,6 @@
 import {
   ACTIVITIES,
+  applyChallengeProgress,
   ATHLETES,
   CHALLENGES,
   CLUBS,
@@ -117,7 +118,13 @@ export async function saveActivity(payload: {
 
 export async function fetchSaveSummary(activityId: string) {
   const params = new URLSearchParams({ tz: Intl.DateTimeFormat().resolvedOptions().timeZone });
-  return apiFetch<SaveSummary>(`/api/activities/${activityId}/summary?${params.toString()}`);
+  const summary = await apiFetch<SaveSummary>(
+    `/api/activities/${activityId}/summary?${params.toString()}`,
+  );
+
+  mergeActivities([summary.activity]);
+  applyChallengeProgress(summary.challenges);
+  return summary;
 }
 
 export async function toggleActivityKudo(activityId: string) {

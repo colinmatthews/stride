@@ -126,6 +126,17 @@ export function mergeActivities(activities: Activity[]) {
   );
 }
 
+/** Saving an activity only adds progress, so never lower what bootstrap reported. */
+export function applyChallengeProgress(updates: { id: string; after: number }[]) {
+  for (const update of updates) {
+    const challenge = CHALLENGES.find((entry) => entry.id === update.id);
+
+    if (challenge) {
+      challenge.myProgressKm = Math.max(challenge.myProgressKm, update.after);
+    }
+  }
+}
+
 export function clearAppData() {
   ME = EMPTY_ATHLETE;
   ATHLETES = [];
