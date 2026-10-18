@@ -281,7 +281,7 @@ export function HighlightChips({
           <motion.div
             key={h.id}
             title={h.detail}
-            className="inline-flex items-center gap-1.5 rounded-md bg-pr/12 px-2.5 py-1.5 text-xs font-medium text-[oklch(0.45_0.14_145)]"
+            className="inline-flex items-center gap-1.5 rounded-md bg-pr/12 px-2.5 py-1.5 text-xs font-medium text-pr-foreground"
             initial={reduce ? false : { opacity: 0, y: 8, scale: 0.9 }}
             animate={{ opacity: 1, y: 0, scale: 1 }}
             transition={{ delay: delay + i * 0.12, type: "spring", stiffness: 400, damping: 22 }}

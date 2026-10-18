@@ -32,6 +32,7 @@
   --color-surface-2: var(--surface-2);
   --color-kudos: var(--kudos);
   --color-pr: var(--pr);
+  --color-pr-foreground: var(--pr-foreground);
   --font-display: "Space Grotesk", system-ui, sans-serif;
   --font-body: "Inter", system-ui, sans-serif;
   --font-mono: "JetBrains Mono", ui-monospace, monospace;
@@ -63,6 +64,7 @@
   --ring: oklch(0.68 0.21 38);
   --kudos: oklch(0.68 0.21 38);
   --pr: oklch(0.72 0.18 145);                  /* PR green */
+  --pr-foreground: oklch(0.45 0.14 145);       /* PR green for small text on light surfaces */
 }
 
 @font-face {

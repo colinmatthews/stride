@@ -89,7 +89,7 @@ export function compareToAverage(
 }
 
 export function deltaTone(positive: boolean | null) {
-  return positive ? "text-[oklch(0.5_0.15_145)]" : "text-muted-foreground";
+  return positive ? "text-pr-foreground" : "text-muted-foreground";
 }
 
 export function ordinal(n: number) {
