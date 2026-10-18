@@ -22,6 +22,7 @@ import {
   verifyPassword,
 } from "./auth.js";
 import { ConflictError, NotFoundError } from "./errors.js";
+import { loadSaveSummary } from "./load-save-summary.js";
 import { parseActivityInput } from "./validation.js";
 
 export function createApp() {
@@ -140,6 +141,25 @@ export function createApp() {
       }
 
       response.json(activity);
+    } catch (error) {
+      next(error);
+    }
+  });
+
+  app.get("/api/activities/:id/summary", requireAuth, async (request, response, next) => {
+    try {
+      const summary = await loadSaveSummary(
+        request.userId!,
+        String(request.params.id),
+        request.query.tz,
+      );
+
+      if (!summary) {
+        response.status(404).json({ error: "Activity not found" });
+        return;
+      }
+
+      response.json(summary);
     } catch (error) {
       next(error);
     }

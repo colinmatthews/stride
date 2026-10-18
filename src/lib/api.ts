@@ -8,6 +8,7 @@ import {
   type Activity,
   type AppData,
 } from "./mock-data";
+import type { SaveSummary } from "./save-summary";
 
 class ApiError extends Error {
   status: number;
@@ -112,6 +113,11 @@ export async function saveActivity(payload: {
 
   mergeActivities([activity]);
   return activity;
+}
+
+export async function fetchSaveSummary(activityId: string) {
+  const params = new URLSearchParams({ tz: Intl.DateTimeFormat().resolvedOptions().timeZone });
+  return apiFetch<SaveSummary>(`/api/activities/${activityId}/summary?${params.toString()}`);
 }
 
 export async function toggleActivityKudo(activityId: string) {

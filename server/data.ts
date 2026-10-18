@@ -32,7 +32,7 @@ type Sport = "Run" | "Ride" | "Swim" | "Hike" | "Walk";
 type ActivityRow = typeof activitiesTable.$inferSelect;
 type AthleteRow = typeof users.$inferSelect;
 
-type ActivityDto = {
+export type ActivityDto = {
   id: string;
   athleteId: string;
   sport: Sport;
