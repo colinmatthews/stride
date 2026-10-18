@@ -1,5 +1,5 @@
 import { createFileRoute, Link, useRouter, notFound } from "@tanstack/react-router";
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { usePostHog } from "@posthog/react";
 import {
   ResponsiveContainer,
@@ -8,8 +8,6 @@ import {
   XAxis,
   YAxis,
   Tooltip,
-  AreaChart,
-  Area,
   BarChart,
   Bar,
   CartesianGrid,
@@ -21,9 +19,9 @@ import {
   Share2,
   Flag,
   MapPin,
-  Mountain,
   Clock,
   Zap,
+  Sparkles,
 } from "lucide-react";
 import {
   ACTIVITIES,
@@ -34,9 +32,9 @@ import {
   getActivityPhoto,
   getAthlete,
   getSegment,
-  elevationProfile,
 } from "@/lib/mock-data";
 import { AppShell } from "@/components/AppShell";
+import { ElevationSection, type ElevationCorrectionState } from "@/components/ElevationSection";
 import { RouteMap } from "@/components/RouteMap";
 import { SportBadge } from "@/components/SportBadge";
 import { Stat } from "@/components/Stat";
@@ -87,8 +85,19 @@ function ActivityDetail() {
   const [comment, setComment] = useState("");
   type Comment = { id: string; athleteId: string; text: string };
   const [comments, setComments] = useState<Comment[]>(activity.comments);
+  const [elevationState, setElevationState] = useState<ElevationCorrectionState>({
+    elevationM: activity.elevationM,
+    correctedWith: null,
+  });
+  const elevationM = elevationState.elevationM;
+  // This component stays mounted when navigating between activities. Reset only on a
+  // new activity: saving a correction also updates activity.elevationM in the cache.
+  useEffect(
+    () => setElevationState({ elevationM: activity.elevationM, correctedWith: null }),
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    [activity.id],
+  );
 
-  const elev = elevationProfile(activity.routeSeed);
   const splits = activity.splits ?? [];
 
   const submitComment = async () => {
@@ -176,7 +185,15 @@ function ActivityDetail() {
                 unit="/km"
               />
             )}
-            <Stat label="Elevation" value={activity.elevationM} unit="m" />
+            <div>
+              <Stat label="Elevation" value={elevationM} unit="m" />
+              {elevationState.correctedWith && (
+                <span className="mt-2 inline-flex items-center gap-1 font-mono text-[10px] uppercase tracking-[0.18em] text-pr">
+                  <Sparkles className="h-3 w-3" />
+                  {elevationState.correctedWith === "terrain" ? "Terrain-corrected" : "Corrected"}
+                </span>
+              )}
+            </div>
           </div>
 
           {/* Map + photo */}
@@ -197,53 +214,7 @@ function ActivityDetail() {
             />
           )}
 
-          {/* Elevation */}
-          <section className="mt-8">
-            <h2 className="text-lg font-display font-semibold mb-3 flex items-center gap-2">
-              <Mountain className="h-4 w-4 text-primary" /> Elevation
-            </h2>
-            <div className="bg-surface rounded-xl border border-border p-4">
-              <div className="h-52">
-                <ResponsiveContainer width="100%" height="100%">
-                  <AreaChart data={elev}>
-                    <defs>
-                      <linearGradient id="elevGrad" x1="0" y1="0" x2="0" y2="1">
-                        <stop offset="0%" stopColor="var(--primary)" stopOpacity={0.4} />
-                        <stop offset="100%" stopColor="var(--primary)" stopOpacity={0} />
-                      </linearGradient>
-                    </defs>
-                    <CartesianGrid stroke="var(--border)" vertical={false} />
-                    <XAxis
-                      dataKey="x"
-                      tick={{ fontSize: 11, fill: "var(--muted-foreground)" }}
-                      axisLine={false}
-                      tickLine={false}
-                    />
-                    <YAxis
-                      tick={{ fontSize: 11, fill: "var(--muted-foreground)" }}
-                      axisLine={false}
-                      tickLine={false}
-                      width={32}
-                    />
-                    <Tooltip
-                      contentStyle={{
-                        background: "var(--surface)",
-                        border: "1px solid var(--border)",
-                        borderRadius: 8,
-                        fontSize: 12,
-                      }}
-                    />
-                    <Area
-                      dataKey="elev"
-                      stroke="var(--primary)"
-                      strokeWidth={2}
-                      fill="url(#elevGrad)"
-                    />
-                  </AreaChart>
-                </ResponsiveContainer>
-              </div>
-            </div>
-          </section>
+          <ElevationSection activity={activity} onCorrectionChange={setElevationState} />
 
           {/* Splits */}
           {splits.length > 0 && (
@@ -463,7 +434,7 @@ function ActivityDetail() {
               />
               <Row
                 label="Relative effort"
-                value={`${Math.min(100, Math.round(activity.movingSeconds / 60 + activity.elevationM / 10))}`}
+                value={`${Math.min(100, Math.round(activity.movingSeconds / 60 + elevationM / 10))}`}
               />
             </div>
           </div>

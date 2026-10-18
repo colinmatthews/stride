@@ -4,6 +4,8 @@ import { db } from "./db.js";
 import {
   activities as activitiesTable,
   activityComments,
+  activityElevationCorrections,
+  activityStreams,
   activityKudos,
   activitySegments,
   activitySplits,
@@ -16,6 +18,22 @@ import {
   users,
 } from "./db/schema.js";
 import { USER_AVATARS } from "./seed.js";
+import {
+  CORRECTABLE_SPORTS,
+  correctElevation,
+  correctWithTerrain,
+  detectFlatline,
+  directionOf,
+  interpolateByDistance,
+  percentChange,
+  removeSpikes,
+  robustElevationGain,
+  terrainSampleIndices,
+  type Direction,
+  type ElevationStream,
+  type ErrorType,
+} from "./elevation.js";
+import { getTerrainProvider, terrainSampleLimit, TerrainUnavailableError } from "./terrain.js";
 
 const BOOTSTRAP_ACTIVITY_LIMIT = 40;
 const MAX_ACTIVITY_PAGE_LIMIT = 100;
@@ -449,31 +467,55 @@ export async function createActivity(input: {
   description?: string;
   distanceKm: number;
   movingSeconds: number;
-  elevationM: number;
+  /** The device's own total ascent. Derived from the stream only when not reported. */
+  elevationM?: number;
   avgHr?: number;
   avgPaceSecPerKm?: number;
   avgSpeedKmh?: number;
   routeSeed: number;
+  date?: Date;
+  device?: DeviceInput;
+  elevationStream?: RecordedStream;
 }) {
   const id = `act-${randomUUID()}`;
+  const stream = input.elevationStream;
 
-  await db.insert(activitiesTable).values({
-    id,
-    athleteId: input.userId,
-    sport: input.sport,
-    title: input.title,
-    description: input.description ?? null,
-    date: new Date(),
-    distanceKm: String(input.distanceKm),
-    movingSeconds: input.movingSeconds,
-    elevationM: input.elevationM,
-    avgHr: input.avgHr ?? null,
-    avgPaceSecPerKm: input.avgPaceSecPerKm ?? null,
-    avgSpeedKmh: input.avgSpeedKmh === undefined ? null : String(input.avgSpeedKmh),
-    kudos: 0,
-    achievements: 0,
-    photo: null,
-    routeSeed: input.routeSeed,
+  await db.transaction(async (tx) => {
+    await tx.insert(activitiesTable).values({
+      id,
+      athleteId: input.userId,
+      sport: input.sport,
+      title: input.title,
+      description: input.description ?? null,
+      date: input.date ?? new Date(),
+      distanceKm: String(input.distanceKm),
+      movingSeconds: input.movingSeconds,
+      // Keep what the device reported (users compare against it). Without one, count the
+      // stream the same way corrections are counted, so a clean recording needs no fix.
+      elevationM: input.elevationM ?? (stream ? robustElevationGain(stream) : 0),
+      avgHr: input.avgHr ?? null,
+      avgPaceSecPerKm: input.avgPaceSecPerKm ?? null,
+      avgSpeedKmh: input.avgSpeedKmh === undefined ? null : String(input.avgSpeedKmh),
+      kudos: 0,
+      achievements: 0,
+      photo: null,
+      routeSeed: input.routeSeed,
+      deviceName: input.device?.name ?? null,
+      deviceManufacturer: input.device?.manufacturer ?? null,
+      deviceModel: input.device?.model ?? null,
+      deviceFirmware: input.device?.firmware ?? null,
+      elevationSource: input.device?.elevationSource ?? null,
+    });
+
+    if (stream) {
+      await tx.insert(activityStreams).values({
+        activityId: id,
+        distanceKm: stream.distanceKm,
+        elevationM: stream.elevationM,
+        latitude: stream.latitude ?? null,
+        longitude: stream.longitude ?? null,
+      });
+    }
   });
 
   return id;
@@ -657,4 +699,388 @@ export async function toggleChallengeEntry(userId: string, challengeId: string) 
     joined: existing.length === 0,
     participants,
   };
+}
+
+/* ============================== Elevation correction ============================== */
+
+export type ElevationSource = "barometric" | "gps";
+
+export type DeviceInput = {
+  name?: string;
+  manufacturer?: string;
+  model?: string;
+  firmware?: string;
+  elevationSource?: ElevationSource;
+};
+
+/** A recorded stream as uploaded: elevation by distance, optionally with the GPS track. */
+export type RecordedStream = ElevationStream & { latitude?: number[]; longitude?: number[] };
+
+export type KeptVersion = "corrected" | "original";
+export type CorrectionTrigger = "self" | "prompted";
+export type CorrectionMethod = "terrain" | "cleanup";
+/** Why a detected problem can't be fixed right now. */
+export type BlockedReason = "needs_gps" | "terrain_off";
+
+export type ElevationErrorCode =
+  | "not_found"
+  | "forbidden"
+  | "unsupported_sport"
+  | "no_stream"
+  | "terrain_unavailable";
+
+export class ElevationError extends Error {
+  code: ElevationErrorCode;
+
+  constructor(code: ElevationErrorCode) {
+    super(code);
+    this.code = code;
+  }
+}
+
+// Charts don't need more points than this; spikes and regions are returned separately.
+const MAX_CHART_POINTS = 500;
+// The cleanup method only removes noise, so a 2% drop is already meaningful.
+const CLEANUP_MIN_DELTA_PCT = 2;
+
+type ElevationPoint = { km: number; elev: number };
+type StreamRow = typeof activityStreams.$inferSelect;
+
+type CorrectionPlan = {
+  method: CorrectionMethod;
+  correctedElevationM: number[];
+  elevationAfterM: number;
+  deltaPct: number;
+  direction: Direction;
+  errorType: ErrorType;
+  flatRegion: { fromKm: number; toKm: number } | null;
+  spikeIndices: number[];
+  changed: boolean;
+  blockedReason: BlockedReason | null;
+};
+
+function toPoints(distanceKm: number[], elevationM: number[]): ElevationPoint[] {
+  return elevationM.map((elev, i) => ({ km: distanceKm[i], elev }));
+}
+
+function downsample(points: ElevationPoint[], max = MAX_CHART_POINTS) {
+  if (points.length <= max) return points;
+  const step = (points.length - 1) / (max - 1);
+  return Array.from({ length: max }, (_, i) => points[Math.round(i * step)]);
+}
+
+function hasGps(stream: StreamRow) {
+  return (
+    Array.isArray(stream.latitude) &&
+    Array.isArray(stream.longitude) &&
+    stream.latitude.length === stream.elevationM.length &&
+    stream.longitude.length === stream.elevationM.length
+  );
+}
+
+function cachedTerrain(stream: StreamRow) {
+  return stream.terrainElevationM?.length === stream.elevationM.length
+    ? stream.terrainElevationM
+    : null;
+}
+
+/**
+ * Terrain along the track, from the cache or the configured provider (then cached).
+ * Null when the stream has no GPS or terrain lookups are disabled.
+ */
+async function loadTerrain(stream: StreamRow) {
+  if (!hasGps(stream)) return null;
+  const cached = cachedTerrain(stream);
+  if (cached) return cached;
+
+  const provider = getTerrainProvider();
+  if (!provider) return null;
+
+  const indices = terrainSampleIndices(stream.elevationM.length, terrainSampleLimit());
+  let values: number[];
+  try {
+    values = await provider.elevations(
+      indices.map((i) => ({ lat: stream.latitude![i], lng: stream.longitude![i] })),
+    );
+  } catch (error) {
+    if (error instanceof TerrainUnavailableError) {
+      console.error("Terrain lookup failed", error.message);
+      throw new ElevationError("terrain_unavailable");
+    }
+    throw error;
+  }
+  const terrain = interpolateByDistance(stream.distanceKm, indices, values).map(
+    (value) => Math.round(value * 10) / 10,
+  );
+
+  await db
+    .update(activityStreams)
+    .set({ terrainElevationM: terrain, terrainSource: provider.name, terrainFetchedAt: new Date() })
+    .where(eq(activityStreams.activityId, stream.activityId));
+  return terrain;
+}
+
+function planCorrection(
+  stream: StreamRow,
+  elevationBeforeM: number,
+  terrain: number[] | null,
+): CorrectionPlan {
+  const recorded = { distanceKm: stream.distanceKm, elevationM: stream.elevationM };
+
+  if (terrain) {
+    const result = correctWithTerrain(recorded, terrain, elevationBeforeM);
+    return {
+      method: "terrain",
+      correctedElevationM: result.correctedElevationM,
+      elevationAfterM: result.correctedGainM,
+      deltaPct: result.deltaPct,
+      direction: result.direction,
+      errorType: result.errorType,
+      flatRegion: result.flatRegion,
+      spikeIndices: result.spikeIndices,
+      changed: result.changed,
+      blockedReason: null,
+    };
+  }
+
+  // Without terrain we can only remove climbing; missing climbing needs a reference.
+  const flatRegion = detectFlatline(recorded);
+  const result = correctElevation(recorded);
+  const cleanupDirection = directionOf(
+    elevationBeforeM,
+    result.correctedGainM,
+    CLEANUP_MIN_DELTA_PCT,
+  );
+  // A frozen altimeter means climbing is missing: shaving noise off the rest would
+  // move the number the wrong way, so offer nothing and say why.
+  const blockedReason: BlockedReason | null = flatRegion
+    ? hasGps(stream)
+      ? "terrain_off"
+      : "needs_gps"
+    : null;
+  const removesClimbing = !blockedReason && cleanupDirection === "down";
+
+  return {
+    method: "cleanup",
+    correctedElevationM: result.correctedElevationM,
+    elevationAfterM: removesClimbing ? result.correctedGainM : elevationBeforeM,
+    deltaPct: removesClimbing ? percentChange(elevationBeforeM, result.correctedGainM) : 0,
+    direction: removesClimbing ? "down" : "none",
+    errorType: blockedReason
+      ? "flatline"
+      : removesClimbing
+        ? result.spikeIndices.length > 0
+          ? "spikes"
+          : "other"
+        : "none",
+    flatRegion: blockedReason ? flatRegion : null,
+    spikeIndices: removesClimbing ? result.spikeIndices : [],
+    changed: removesClimbing,
+    blockedReason,
+  };
+}
+
+async function loadElevationContext(
+  executor: Pick<typeof db, "select">,
+  activityId: string,
+  options: { forUpdate?: boolean } = {},
+) {
+  const activityQuery = executor
+    .select()
+    .from(activitiesTable)
+    .where(eq(activitiesTable.id, activityId))
+    .limit(1);
+  const [activityRows, streamRows, correctionRows] = await Promise.all([
+    options.forUpdate ? activityQuery.for("update") : activityQuery,
+    executor
+      .select()
+      .from(activityStreams)
+      .where(eq(activityStreams.activityId, activityId))
+      .limit(1),
+    executor
+      .select()
+      .from(activityElevationCorrections)
+      .where(eq(activityElevationCorrections.activityId, activityId))
+      .limit(1),
+  ]);
+
+  return {
+    activity: activityRows[0] ?? null,
+    stream: streamRows[0] ?? null,
+    correction: correctionRows[0] ?? null,
+  };
+}
+
+function deviceOf(activity: ActivityRow) {
+  return activity.deviceName
+    ? {
+        name: activity.deviceName,
+        manufacturer: activity.deviceManufacturer ?? undefined,
+        model: activity.deviceModel ?? undefined,
+        firmware: activity.deviceFirmware ?? undefined,
+      }
+    : null;
+}
+
+function assertCorrectable(
+  userId: string,
+  context: Awaited<ReturnType<typeof loadElevationContext>>,
+) {
+  const { activity, stream } = context;
+  if (!activity) throw new ElevationError("not_found");
+  if (activity.athleteId !== userId) throw new ElevationError("forbidden");
+  if (!CORRECTABLE_SPORTS.has(activity.sport)) throw new ElevationError("unsupported_sport");
+  if (!stream || stream.elevationM.length === 0) throw new ElevationError("no_stream");
+  return { activity, stream };
+}
+
+/**
+ * A likely problem spotted from the recording alone (no terrain lookup), used to
+ * prompt the athlete. Terrain confirms or dismisses it when they open the fix.
+ */
+function detectIssue(stream: StreamRow) {
+  const recorded = { distanceKm: stream.distanceKm, elevationM: stream.elevationM };
+  const flatRegion = detectFlatline(recorded);
+  if (flatRegion) return { errorType: "flatline" as const, flatRegion, spikeCount: 0 };
+  const spikeCount = removeSpikes(stream.elevationM).spikeIndices.length;
+  if (spikeCount > 0) return { errorType: "spikes" as const, flatRegion: null, spikeCount };
+  return null;
+}
+
+/** Elevation chart data for any viewer. Shows the corrected profile if the owner kept it. */
+export async function getActivityElevation(userId: string, activityId: string) {
+  const { activity, stream, correction } = await loadElevationContext(db, activityId);
+
+  if (!activity) throw new ElevationError("not_found");
+
+  let samples: ElevationPoint[] = [];
+  if (stream) {
+    let elevations = stream.elevationM;
+    if (correction?.keptVersion === "corrected") {
+      const terrain = correction.method === "terrain" ? cachedTerrain(stream) : null;
+      const plan = planCorrection(stream, correction.originalElevationM, terrain);
+      if (plan.method === correction.method) elevations = plan.correctedElevationM;
+    }
+    samples = downsample(toPoints(stream.distanceKm, elevations));
+  }
+
+  const isOwner = activity.athleteId === userId;
+  const canCorrect = isOwner && CORRECTABLE_SPORTS.has(activity.sport) && samples.length > 0;
+
+  return {
+    elevationM: activity.elevationM,
+    elevationSource: (activity.elevationSource as ElevationSource | null) ?? null,
+    device: deviceOf(activity),
+    samples,
+    hasGps: stream ? hasGps(stream) : false,
+    correction: correction
+      ? {
+          keptVersion: correction.keptVersion as KeptVersion,
+          method: correction.method as CorrectionMethod,
+          direction: correction.direction as Direction,
+          originalElevationM: correction.originalElevationM,
+          correctedElevationM: correction.correctedElevationM,
+        }
+      : null,
+    canCorrect,
+    // Only for the owner, and only until they've reviewed a correction.
+    issue: canCorrect && stream && !correction ? detectIssue(stream) : null,
+  };
+}
+
+/** Computes the correction without saving the athlete's choice. Owner only. */
+export async function previewElevationCorrection(userId: string, activityId: string) {
+  const context = await loadElevationContext(db, activityId);
+  const { activity, stream } = assertCorrectable(userId, context);
+  const elevationBeforeM = context.correction?.originalElevationM ?? activity.elevationM;
+  const plan = planCorrection(stream, elevationBeforeM, await loadTerrain(stream));
+
+  return {
+    method: plan.method,
+    original: downsample(toPoints(stream.distanceKm, stream.elevationM)),
+    corrected: downsample(toPoints(stream.distanceKm, plan.correctedElevationM)),
+    spikes: plan.spikeIndices.map((i) => ({
+      km: stream.distanceKm[i],
+      elev: stream.elevationM[i],
+    })),
+    flatRegion: plan.flatRegion,
+    elevationBeforeM,
+    elevationAfterM: plan.elevationAfterM,
+    deltaPct: plan.deltaPct,
+    direction: plan.direction,
+    errorType: plan.errorType,
+    spikeCount: plan.spikeIndices.length,
+    changed: plan.changed,
+    blockedReason: plan.blockedReason,
+    device: deviceOf(activity),
+    elevationSource: (activity.elevationSource as ElevationSource | null) ?? null,
+  };
+}
+
+/**
+ * Records the athlete's choice and updates the activity's elevation. Idempotent; the
+ * device-reported value is kept from the first correction so "original" always restores it.
+ */
+export async function saveElevationCorrection(
+  userId: string,
+  activityId: string,
+  keptVersion: KeptVersion,
+) {
+  // Fetch (or reuse cached) terrain before taking the row lock: it's a network call.
+  const precheck = await loadElevationContext(db, activityId);
+  const terrain = await loadTerrain(assertCorrectable(userId, precheck).stream);
+
+  return db.transaction(async (tx) => {
+    const context = await loadElevationContext(tx, activityId, { forUpdate: true });
+    const { activity, stream } = assertCorrectable(userId, context);
+    const originalElevationM = context.correction?.originalElevationM ?? activity.elevationM;
+    const plan = planCorrection(stream, originalElevationM, terrain);
+    const elevationM = keptVersion === "corrected" ? plan.elevationAfterM : originalElevationM;
+    const values = {
+      correctedElevationM: plan.elevationAfterM,
+      spikeCount: plan.spikeIndices.length,
+      method: plan.method,
+      errorType: plan.errorType,
+      direction: plan.direction,
+      keptVersion,
+    };
+
+    await tx
+      .insert(activityElevationCorrections)
+      .values({ activityId, userId, originalElevationM, ...values })
+      .onConflictDoUpdate({
+        target: activityElevationCorrections.activityId,
+        set: { ...values, updatedAt: new Date() },
+      });
+    await tx.update(activitiesTable).set({ elevationM }).where(eq(activitiesTable.id, activityId));
+
+    return {
+      elevationM,
+      keptVersion,
+      method: plan.method,
+      direction: plan.direction,
+      errorType: plan.errorType,
+      flatlineFromKm: plan.flatRegion?.fromKm ?? null,
+      elevationBeforeM: originalElevationM,
+      elevationAfterM: plan.elevationAfterM,
+      deltaPct: plan.deltaPct,
+      spikeCount: plan.spikeIndices.length,
+      sampleCount: stream.elevationM.length,
+      sport: activity.sport as Sport,
+      distanceKm: Number(activity.distanceKm),
+      movingSeconds: activity.movingSeconds,
+      device: deviceOf(activity),
+      elevationSource: (activity.elevationSource as ElevationSource | null) ?? null,
+    };
+  });
+}
+
+/** The id the web client identifies with in PostHog (email), so server events join up. */
+export async function getAnalyticsDistinctId(userId: string) {
+  const rows = await db
+    .select({ email: users.email })
+    .from(users)
+    .where(eq(users.id, userId))
+    .limit(1);
+  return rows[0]?.email ?? userId;
 }

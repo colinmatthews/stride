@@ -1,4 +1,5 @@
 import { Outlet, Link, createRootRoute, HeadContent } from "@tanstack/react-router";
+import { Toaster } from "@/components/ui/sonner";
 import { PostHogProvider } from "@posthog/react";
 
 function NotFoundComponent() {
@@ -72,5 +73,10 @@ function RootShell({ children }: { children: React.ReactNode }) {
 }
 
 function RootComponent() {
-  return <Outlet />;
+  return (
+    <>
+      <Outlet />
+      <Toaster position="bottom-left" />
+    </>
+  );
 }

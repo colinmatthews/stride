@@ -19,6 +19,7 @@
     "synth:linear": "tsx scripts/synth/seed-linear.ts",
     "synth:weekly": "tsx scripts/synth/weekly.ts",
     "check:keys": "tsx scripts/synth/check-keys.ts",
+    "demo:elevation": "tsx scripts/elevation-demo.ts",
     "preview": "vite preview",
     "start": "node dist-server/index.js",
     "test": "vitest run",

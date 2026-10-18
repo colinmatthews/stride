@@ -39,6 +39,9 @@ Client: <http://localhost:5173> — Server: <http://localhost:3002>
 | `INTERCOM_ACCESS_TOKEN` / `INTERCOM_REGION` / `INTERCOM_TICKET_TYPE_ID` | For Intercom seeding |
 | `ANTHROPIC_API_KEY`                | Used by content generators        |
 | `SYNTH_USER_COUNT` / `SYNTH_RNG_SEED` / `SYNTH_COHORT_ID` | Synth config |
+| `TERRAIN_PROVIDER`                 | Optional. `open-meteo` enables terrain-based elevation correction (sends GPS coordinates to Open-Meteo). Unset = off |
+| `OPEN_METEO_ELEVATION_URL`         | Optional. Self-hosted Open-Meteo elevation endpoint |
+| `POSTHOG_PROJECT_TOKEN` / `POSTHOG_HOST` | Optional. Server-side events (`activity_corrected`); falls back to `VITE_PUBLIC_POSTHOG_PROJECT_TOKEN` |
 
 Read-only keys (`*_READ_*`) are used by discovery scripts that shouldn't mutate
 third-party state.
