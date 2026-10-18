@@ -279,13 +279,3 @@ export function routePath(seed: number, width = 600, height = 300): string {
     .map((point, index) => (index === 0 ? `M${point[0]},${point[1]}` : `L${point[0]},${point[1]}`))
     .join(" ");
 }
-
-export function elevationProfile(seed: number, points = 60) {
-  const random = rnd(seed * 23 + 7);
-  let value = 100 + random() * 200;
-  return Array.from({ length: points }, (_, index) => {
-    value += (random() - 0.45) * 40;
-    value = Math.max(20, value);
-    return { x: index, elev: Math.round(value) };
-  });
-}

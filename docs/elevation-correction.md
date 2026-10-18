@@ -70,9 +70,23 @@ Corrected activities show a "Terrain-corrected" (or "Corrected") tag to everyone
   `elevation_delta_pct`, `kept_version`, `method`, `correction_direction`, `error_type`,
   `flatline_from_km`, `trigger`, `spike_count`, `sample_count`, `moving_seconds`,
   `distance_km`.
-- `elevation_fix_opened` and `elevation_prompt_dismissed` (client): device,
-  `has_gps`, `suspected_error`, `trigger`.
+- Client events (`src/lib/elevation-analytics.ts`), all with `activity_id`, `sport`,
+  device fields, `has_gps` and `suspected_error`:
+
+  | Event | When | Extra properties |
+  |---|---|---|
+  | `elevation_prompt_shown` | The proactive prompt appears (once per activity view) | |
+  | `elevation_prompt_dismissed` | The athlete closes the prompt | |
+  | `elevation_fix_opened` | Fix my elevation / Review fix / Compare again | `trigger`, `reopened` |
+  | `elevation_fix_previewed` | The preview returns | `outcome` (`compare`, `accurate`, `blocked`, `error`), `method`, `error_type`, `correction_direction`, `blocked_reason`, before/after, `error_code` |
+  | `elevation_fix_closed` | Cancel / Close without choosing | `outcome`, `method`, `error_type` |
+
+  Funnel: prompt shown → fix opened → previewed (compare) → `activity_corrected`.
+  `elevation_fix_previewed` by device shows how often each device has a real problem,
+  a false alarm, or one we can't fix (no GPS).
 - Feature flag `elevation-fix-prompt`: shows the proactive prompt. Off = button only.
+  Compare click-through as `elevation_fix_opened` (trigger `prompted`) /
+  `elevation_prompt_shown`.
 
 ## Configuration
 
@@ -109,6 +123,8 @@ Corrected activities show a "Terrain-corrected" (or "Corrected") tag to everyone
   Apple need partner programs or a native app).
 - Mapping FIT manufacturer/product ids to readable device names.
 - Barometric drift correction without a GPS track.
+- UI component tests: the repo has no React testing setup. Event properties are unit
+  tested in `src/lib/elevation-analytics.test.ts`; the flows were checked by hand.
 - Pre-existing issues noticed: `src/utils/posthog-server.ts` reads `import.meta.env` and
   would fail under Node (unused); the activity page keeps stale kudos/comment state when
   navigating between activities.

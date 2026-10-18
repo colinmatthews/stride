@@ -1,29 +1,6 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import { useFeatureFlagEnabled, usePostHog } from "@posthog/react";
-import {
-  Area,
-  AreaChart,
-  CartesianGrid,
-  ReferenceArea,
-  ReferenceDot,
-  ResponsiveContainer,
-  Tooltip,
-  XAxis,
-  YAxis,
-} from "recharts";
-import {
-  AlertTriangle,
-  ArrowDown,
-  ArrowRight,
-  CheckCircle2,
-  Crosshair,
-  Loader2,
-  Mountain,
-  Sparkles,
-  Watch,
-  Waves,
-  X,
-} from "lucide-react";
+import { AlertTriangle, ArrowRight, Loader2, Mountain, Sparkles, Watch, X } from "lucide-react";
 import { toast } from "sonner";
 import {
   ApiError,
@@ -32,12 +9,19 @@ import {
   saveElevationCorrection,
   type ActivityElevation,
   type ElevationFixTrigger,
-  type ElevationPoint,
   type ElevationPreview,
-  type FlatRegion,
   type KeptElevationVersion,
 } from "@/lib/api";
+import {
+  ELEVATION_EVENTS,
+  elevationEventBase,
+  previewedEventProperties,
+  previewOutcome,
+} from "@/lib/elevation-analytics";
 import type { Activity } from "@/lib/mock-data";
+import { ChartLabel, ElevationChart } from "@/components/ElevationChart";
+import { CorrectionExplainer, NoFixNotice } from "@/components/ElevationExplainer";
+import { formatKm } from "@/lib/utils";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
@@ -54,11 +38,6 @@ export type ElevationCorrectionState = {
 
 function errorMessage(error: unknown) {
   return error instanceof ApiError ? error.message : "Something went wrong. Try again.";
-}
-
-// "km 0.5" near the start, "km 12" further on.
-function formatKm(km: number) {
-  return km < 10 ? km.toFixed(1).replace(/\.0$/, "") : String(Math.round(km));
 }
 
 function dismissKey(activityId: string) {
@@ -128,36 +107,64 @@ export function ElevationSection({
     return () => cancelAnimationFrame(frame);
   }, [phase]);
 
-  const eventBase = {
-    activity_id: activity.id,
-    sport: activity.sport,
-    device: elevation?.device?.name ?? null,
-    device_model: elevation?.device?.model ?? null,
-    elevation_source: elevation?.elevationSource ?? null,
-    has_gps: elevation?.hasGps ?? false,
-    suspected_error: elevation?.issue?.errorType ?? null,
-  };
+  const eventBase = elevationEventBase(activity, elevation);
+  const correction = elevation?.correction ?? null;
+  const issue = elevation?.issue ?? null;
+  const showPrompt =
+    promptEnabled && phase === "idle" && !!issue && !correction && !promptDismissed;
+
+  // Once per activity view: the denominator for the prompt's click-through rate.
+  const promptReportedFor = useRef<string | null>(null);
+  useEffect(() => {
+    if (!showPrompt || promptReportedFor.current === activity.id) return;
+    promptReportedFor.current = activity.id;
+    posthog.capture(ELEVATION_EVENTS.promptShown, eventBase);
+    // eventBase is derived from the state that drives showPrompt.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [showPrompt, activity.id]);
 
   const openFix = async (source: ElevationFixTrigger) => {
     setTrigger(source);
-    posthog.capture("elevation_fix_opened", {
+    posthog.capture(ELEVATION_EVENTS.fixOpened, {
       ...eventBase,
       trigger: source,
-      reopened: elevation?.correction != null,
+      reopened: correction != null,
     });
     setPhase("processing");
     try {
       const result = await previewElevationCorrection(activity.id);
+      posthog.capture(ELEVATION_EVENTS.fixPreviewed, {
+        ...eventBase,
+        ...previewedEventProperties(source, { preview: result }),
+      });
       setPreview(result);
       setPhase(result.changed ? "compare" : "nothing-to-fix");
     } catch (error) {
+      posthog.capture(ELEVATION_EVENTS.fixPreviewed, {
+        ...eventBase,
+        ...previewedEventProperties(source, {
+          errorCode: error instanceof ApiError ? error.code : null,
+        }),
+      });
       toast.error(errorMessage(error));
       setPhase("idle");
     }
   };
 
+  // Leaving the comparison without choosing a version.
+  const closeFix = () => {
+    posthog.capture(ELEVATION_EVENTS.fixClosed, {
+      ...eventBase,
+      trigger,
+      outcome: preview ? previewOutcome(preview) : null,
+      method: preview?.method ?? null,
+      error_type: preview?.errorType ?? null,
+    });
+    setPhase("idle");
+  };
+
   const dismissPrompt = () => {
-    posthog.capture("elevation_prompt_dismissed", eventBase);
+    posthog.capture(ELEVATION_EVENTS.promptDismissed, eventBase);
     setPromptDismissed(true);
     try {
       window.localStorage.setItem(dismissKey(activity.id), "1");
@@ -221,11 +228,7 @@ export function ElevationSection({
     );
   }
 
-  const correction = elevation?.correction ?? null;
-  const issue = elevation?.issue ?? null;
   const deviceName = preview?.device?.name ?? elevation?.device?.name;
-  const showPrompt =
-    promptEnabled && phase === "idle" && !!issue && !correction && !promptDismissed;
   const gapM = preview ? Math.abs(preview.elevationAfterM - preview.elevationBeforeM) : 0;
   const correctedTag = correction?.method === "terrain" ? "Terrain-corrected" : "Corrected";
 
@@ -249,7 +252,7 @@ export function ElevationSection({
           </div>
         )}
         {(phase === "compare" || phase === "nothing-to-fix") && (
-          <Button size="sm" variant="ghost" onClick={() => setPhase("idle")} disabled={!!saving}>
+          <Button size="sm" variant="ghost" onClick={closeFix} disabled={!!saving}>
             <X className="h-3.5 w-3.5" /> {phase === "compare" ? "Cancel" : "Close"}
           </Button>
         )}
@@ -408,242 +411,5 @@ function SectionTitle() {
     <h2 className="text-lg font-display font-semibold flex items-center gap-2">
       <Mountain className="h-4 w-4 text-primary" /> Elevation
     </h2>
-  );
-}
-
-function NoFixNotice({ preview }: { preview: ElevationPreview }) {
-  if (preview.blockedReason) {
-    const fromKm = preview.flatRegion ? formatKm(preview.flatRegion.fromKm) : null;
-    return (
-      <div className="bg-surface rounded-xl border border-border p-5 flex items-start gap-3">
-        <AlertTriangle className="h-5 w-5 shrink-0 text-destructive" />
-        <div>
-          <div className="text-sm font-semibold">Some climbing looks missing</div>
-          <p className="mt-1 text-sm text-muted-foreground">
-            Your altimeter seems to have stopped updating
-            {fromKm !== null ? ` at km ${fromKm}` : ""}.{" "}
-            {preview.blockedReason === "needs_gps"
-              ? "This activity has no GPS track, so we can't look up the terrain to fill in the climbing."
-              : "Terrain correction isn't available right now, so we can't fill in the climbing yet."}
-          </p>
-        </div>
-      </div>
-    );
-  }
-  return (
-    <div className="bg-surface rounded-xl border border-border p-5 flex items-start gap-3">
-      <CheckCircle2 className="h-5 w-5 shrink-0 text-pr" />
-      <div>
-        <div className="text-sm font-semibold">Your elevation looks accurate</div>
-        <p className="mt-1 text-sm text-muted-foreground">
-          {preview.method === "terrain"
-            ? `Terrain data along your route matches your recording (${preview.elevationBeforeM} m vs. ${preview.elevationAfterM} m). Nothing to fix.`
-            : `We found no spikes or sensor noise worth removing. Your ${preview.elevationBeforeM} m stays as it is.`}
-        </p>
-      </div>
-    </div>
-  );
-}
-
-function ElevationChart({
-  id,
-  data,
-  color,
-  domain,
-  heightClass,
-  syncId,
-  markers = [],
-  flatRegion,
-}: {
-  id: string;
-  data: ElevationPoint[];
-  color: string;
-  domain: number[];
-  heightClass: string;
-  syncId?: string;
-  markers?: ElevationPoint[];
-  flatRegion?: FlatRegion | null;
-}) {
-  const gradientId = `elevGrad-${id}`;
-  return (
-    <div className={heightClass}>
-      <ResponsiveContainer width="100%" height="100%">
-        <AreaChart data={data} syncId={syncId}>
-          <defs>
-            <linearGradient id={gradientId} x1="0" y1="0" x2="0" y2="1">
-              <stop offset="0%" stopColor={color} stopOpacity={0.35} />
-              <stop offset="100%" stopColor={color} stopOpacity={0} />
-            </linearGradient>
-          </defs>
-          <CartesianGrid stroke="var(--border)" vertical={false} />
-          <XAxis
-            dataKey="km"
-            type="number"
-            domain={["dataMin", "dataMax"]}
-            tickFormatter={(value) => `${Math.round(value)} km`}
-            tick={{ fontSize: 11, fill: "var(--muted-foreground)" }}
-            axisLine={false}
-            tickLine={false}
-          />
-          <YAxis
-            domain={domain}
-            tick={{ fontSize: 11, fill: "var(--muted-foreground)" }}
-            axisLine={false}
-            tickLine={false}
-            width={40}
-          />
-          <Tooltip
-            contentStyle={{
-              background: "var(--surface)",
-              border: "1px solid var(--border)",
-              borderRadius: 8,
-              fontSize: 12,
-            }}
-            labelFormatter={(value) => `${Number(value).toFixed(2)} km`}
-            formatter={(value) => [`${Math.round(Number(value))} m`, "Elevation"]}
-          />
-          {flatRegion && (
-            <ReferenceArea
-              x1={flatRegion.fromKm}
-              x2={flatRegion.toKm}
-              fill="var(--destructive)"
-              fillOpacity={0.08}
-              stroke="var(--destructive)"
-              strokeOpacity={0.3}
-              strokeDasharray="3 3"
-              label={{
-                value: "Altimeter stopped",
-                position: "insideTopLeft",
-                fill: "var(--destructive)",
-                fontSize: 10,
-              }}
-            />
-          )}
-          <Area
-            dataKey="elev"
-            stroke={color}
-            strokeWidth={2}
-            fill={`url(#${gradientId})`}
-            isAnimationActive={false}
-          />
-          {markers.map((marker) => (
-            <ReferenceDot
-              key={marker.km}
-              x={marker.km}
-              y={marker.elev}
-              r={3.5}
-              fill="var(--destructive)"
-              stroke="var(--surface)"
-              strokeWidth={1.5}
-            />
-          ))}
-        </AreaChart>
-      </ResponsiveContainer>
-    </div>
-  );
-}
-
-function ChartLabel({
-  tone,
-  title,
-  detail,
-}: {
-  tone: "muted" | "primary";
-  title: string;
-  detail: string;
-}) {
-  return (
-    <div className="flex items-center gap-2 mb-1.5">
-      <span
-        className={`h-2 w-2 rounded-full ${tone === "primary" ? "bg-primary" : "bg-muted-foreground"}`}
-      />
-      <span className="font-mono text-[10px] uppercase tracking-[0.18em] text-foreground">
-        {title}
-      </span>
-      <span className="text-xs text-muted-foreground">{detail}</span>
-    </div>
-  );
-}
-
-// Sits between Original and Corrected: what went wrong, what changes, what doesn't.
-function CorrectionExplainer({
-  preview,
-  deviceName,
-}: {
-  preview: ElevationPreview;
-  deviceName?: string;
-}) {
-  const recorder = deviceName ?? "Your device";
-  const fromKm = preview.flatRegion ? formatKm(preview.flatRegion.fromKm) : null;
-  const terrain = preview.method === "terrain";
-
-  let wentWrong: React.ReactNode;
-  if (preview.errorType === "flatline") {
-    wentWrong = (
-      <>
-        {recorder}'s altimeter{" "}
-        <b className="font-medium text-foreground">stopped updating at km {fromKm}</b> (shaded),
-        often a sensor port blocked by sweat or rain. The climbing after that wasn't recorded.
-      </>
-    );
-  } else if (preview.errorType === "spikes") {
-    wentWrong = (
-      <>
-        {recorder} logged <b className="font-medium text-foreground">{preview.spikeCount} spikes</b>{" "}
-        (red dots), adding climbing you didn't do.
-      </>
-    );
-  } else {
-    wentWrong = `${recorder} recorded ${preview.direction === "up" ? "less" : "more"} climbing than the ${terrain ? "terrain along your route shows" : "recording supports once sensor noise is removed"}.`;
-  }
-
-  const items = [
-    {
-      icon:
-        preview.errorType === "flatline" ? (
-          <span className="mt-1 h-2.5 w-2.5 shrink-0 rounded-sm border border-dashed border-destructive/60 bg-destructive/10" />
-        ) : (
-          <span className="mt-1 h-2 w-2 shrink-0 rounded-full bg-destructive" />
-        ),
-      title: "What went wrong",
-      body: wentWrong,
-    },
-    {
-      icon: terrain ? (
-        <Crosshair className="h-3.5 w-3.5 shrink-0 text-primary" />
-      ) : (
-        <Waves className="h-3.5 w-3.5 shrink-0 text-primary" />
-      ),
-      title: "What we'll correct",
-      body: terrain
-        ? "We keep your exact GPS track and take the altitude at every point from terrain elevation data."
-        : "We remove the spikes and smooth out sensor noise in your recorded elevation.",
-    },
-    {
-      icon: <CheckCircle2 className="h-3.5 w-3.5 shrink-0 text-pr" />,
-      title: "What stays the same",
-      body: `Route, distance, pace, splits and segment times. The activity shows a ${terrain ? "Terrain-corrected" : "Corrected"} tag.`,
-    },
-  ];
-  return (
-    <div className="mx-5 my-3 rounded-lg border border-border bg-surface-2">
-      <div className="flex items-center gap-2 px-4 pt-3">
-        <ArrowDown className="h-3.5 w-3.5 text-muted-foreground" />
-        <span className="font-mono text-[10px] uppercase tracking-[0.18em] text-muted-foreground">
-          What's changing
-        </span>
-      </div>
-      <div className="grid gap-5 px-4 pt-2 pb-3 sm:grid-cols-3">
-        {items.map((item) => (
-          <div key={item.title} className="flex gap-2">
-            {item.icon}
-            <div className="min-w-0">
-              <div className="text-xs font-semibold text-foreground">{item.title}</div>
-              <p className="mt-0.5 text-xs leading-relaxed text-muted-foreground">{item.body}</p>
-            </div>
-          </div>
-        ))}
-      </div>
-    </div>
   );
 }

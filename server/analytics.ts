@@ -10,6 +10,8 @@ function getClient() {
       process.env.POSTHOG_PROJECT_TOKEN || process.env.VITE_PUBLIC_POSTHOG_PROJECT_TOKEN;
     client = token
       ? new PostHog(token, {
+          // Same ingestion host the web client's /ingest proxy targets (vite.config.ts).
+          // VITE_PUBLIC_POSTHOG_HOST is the UI host, not an ingestion endpoint.
           host: process.env.POSTHOG_HOST || "https://us.i.posthog.com",
           flushAt: 1,
           flushInterval: 0,
@@ -17,6 +19,10 @@ function getClient() {
       : null;
   }
   return client;
+}
+
+export function resetAnalyticsForTests() {
+  client = undefined;
 }
 
 export function captureServerEvent(

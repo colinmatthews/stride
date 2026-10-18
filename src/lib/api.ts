@@ -11,10 +11,13 @@ import {
 
 class ApiError extends Error {
   status: number;
+  /** Machine-readable reason, when the server sends one (e.g. "terrain_unavailable"). */
+  code: string | null;
 
-  constructor(message: string, status: number) {
+  constructor(message: string, status: number, code: string | null = null) {
     super(message);
     this.status = status;
+    this.code = code;
   }
 }
 
@@ -30,7 +33,7 @@ async function apiFetch<T>(input: string, init?: RequestInit): Promise<T> {
 
   if (!response.ok) {
     const payload = await response.json().catch(() => null);
-    throw new ApiError(payload?.error ?? "Request failed", response.status);
+    throw new ApiError(payload?.error ?? "Request failed", response.status, payload?.code ?? null);
   }
 
   if (response.status === 204) {
