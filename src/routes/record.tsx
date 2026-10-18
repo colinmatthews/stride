@@ -4,6 +4,7 @@ import { fmtDuration, fmtPace, type Activity, type Sport } from "@/lib/mock-data
 import type { SaveSummary } from "@/lib/save-summary";
 import { AppShell } from "@/components/AppShell";
 import { SaveCelebrationDialog } from "@/components/celebration/SaveCelebrationDialog";
+import { sportNoun } from "@/components/celebration/format";
 import { usePostHog } from "@posthog/react";
 import {
   Play,
@@ -547,17 +548,7 @@ function defaultTitle(sport: Sport, date: Date) {
           : hour < 18
             ? "Afternoon"
             : "Evening";
-  const noun =
-    sport === "Ride"
-      ? "ride"
-      : sport === "Swim"
-        ? "swim"
-        : sport === "Hike"
-          ? "hike"
-          : sport === "Walk"
-            ? "walk"
-            : "run";
-  return `${window} ${noun}`;
+  return `${window} ${sportNoun(sport)}`;
 }
 
 /* -----------------------------------------------------------------------

@@ -8,8 +8,10 @@ export type WeekBucket = {
   isCurrent: boolean;
 };
 
+export type HighlightId = "first" | "longest" | "fastest" | "climb" | "busier" | "streak";
+
 export type Highlight = {
-  id: string;
+  id: HighlightId;
   label: string;
   detail: string;
 };

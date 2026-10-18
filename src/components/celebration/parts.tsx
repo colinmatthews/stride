@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useState } from "react";
 import { animate, motion, useReducedMotion } from "framer-motion";
 import { Check, Flame, Medal, Mountain, TrendingUp, Zap, Star } from "lucide-react";
-import type { ChallengeProgress, Highlight, WeekBucket } from "@/lib/save-summary";
+import type { ChallengeProgress, Highlight, HighlightId, WeekBucket } from "@/lib/save-summary";
 import { fmtMinutes } from "./format";
 
 export function CountUp({
@@ -255,7 +255,7 @@ export function ChallengeBar({
   );
 }
 
-const HIGHLIGHT_ICONS: Record<string, typeof Medal> = {
+const HIGHLIGHT_ICONS: Record<HighlightId, typeof Medal> = {
   first: Star,
   longest: Medal,
   fastest: Zap,
