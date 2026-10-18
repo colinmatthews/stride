@@ -21,6 +21,7 @@ import {
   requireAuth,
   verifyPassword,
 } from "./auth.js";
+import { parseActivityInput } from "./validation.js";
 
 export function createApp() {
   const app = express();
@@ -145,21 +146,14 @@ export function createApp() {
 
   app.post("/api/activities", requireAuth, async (request, response, next) => {
     try {
-      const activityId = await createActivity({
-        userId: request.userId!,
-        sport: request.body.sport,
-        title: String(request.body.title ?? ""),
-        description: request.body.description ? String(request.body.description) : undefined,
-        distanceKm: Number(request.body.distanceKm ?? 0),
-        movingSeconds: Number(request.body.movingSeconds ?? 0),
-        elevationM: Number(request.body.elevationM ?? 0),
-        avgHr: request.body.avgHr ? Number(request.body.avgHr) : undefined,
-        avgPaceSecPerKm: request.body.avgPaceSecPerKm
-          ? Number(request.body.avgPaceSecPerKm)
-          : undefined,
-        avgSpeedKmh: request.body.avgSpeedKmh ? Number(request.body.avgSpeedKmh) : undefined,
-        routeSeed: Number(request.body.routeSeed ?? 1),
-      });
+      const parsed = parseActivityInput(request.body);
+
+      if (!parsed.ok) {
+        response.status(400).json({ error: parsed.error });
+        return;
+      }
+
+      const activityId = await createActivity({ userId: request.userId!, ...parsed.value });
 
       const activity = await getActivityById(request.userId!, activityId);
 

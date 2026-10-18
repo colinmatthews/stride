@@ -14,7 +14,7 @@ import {
   ArrowRight,
   LoaderCircle,
 } from "lucide-react";
-import { saveActivity } from "@/lib/api";
+import { ApiError, saveActivity } from "@/lib/api";
 
 export const Route = createFileRoute("/record")({
   head: () => ({
@@ -488,6 +488,7 @@ function TimerMode({ sport }: { sport: Sport }) {
   const [title, setTitle] = useState("");
   const [description, setDescription] = useState("");
   const [saving, setSaving] = useState(false);
+  const [error, setError] = useState("");
   const ref = useRef<number | null>(null);
 
   useEffect(() => {
@@ -517,8 +518,10 @@ function TimerMode({ sport }: { sport: Sport }) {
     setDistance(0);
     setTitle("");
     setDescription("");
+    setError("");
   };
   const save = async () => {
+    setError("");
     setSaving(true);
     try {
       const pace =
@@ -547,6 +550,11 @@ function TimerMode({ sport }: { sport: Sport }) {
       router.navigate({ to: "/activity/$id", params: { id: activity.id } });
     } catch (err) {
       posthog.captureException(err);
+      setError(
+        err instanceof ApiError && err.status === 400
+          ? err.message
+          : "Couldn't save activity. Try again.",
+      );
       setSaving(false);
     }
   };
@@ -636,6 +644,11 @@ function TimerMode({ sport }: { sport: Sport }) {
               />
             </label>
           </div>
+          {error && (
+            <div className="mt-6 border border-destructive/30 bg-destructive/8 px-4 py-3 text-sm text-destructive">
+              {error}
+            </div>
+          )}
           <div className="mt-6 flex items-center justify-end gap-3">
             <button
               onClick={reset}
