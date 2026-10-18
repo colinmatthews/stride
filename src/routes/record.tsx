@@ -250,7 +250,7 @@ function ManualForm({ sport, onSaved }: { sport: Sport; onSaved: OnSaved }) {
         distanceKm: Math.round(distanceKm * 100) / 100,
         movingSeconds: totalSeconds,
         elevationM: Number(elevation) || 0,
-        avgHr: avgHr ? Number(avgHr) : undefined,
+        avgHr: Number(avgHr) || undefined,
         avgPaceSecPerKm: paceSecPerKm,
         avgSpeedKmh: speedKmh,
         routeSeed: Math.floor(Math.random() * 1000),
@@ -265,7 +265,11 @@ function ManualForm({ sport, onSaved }: { sport: Sport; onSaved: OnSaved }) {
       await onSaved(activity);
     } catch (err) {
       posthog.captureException(err);
-      setError("Couldn't save activity. Try again.");
+      setError(
+        err instanceof ApiError && err.status === 400
+          ? err.message
+          : "Couldn't save activity. Try again.",
+      );
       setBusy(false);
     }
   }
