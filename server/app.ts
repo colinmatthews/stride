@@ -21,6 +21,7 @@ import {
   requireAuth,
   verifyPassword,
 } from "./auth.js";
+import { ConflictError, NotFoundError } from "./errors.js";
 import { parseActivityInput } from "./validation.js";
 
 export function createApp() {
@@ -230,6 +231,11 @@ export function createApp() {
       response: express.Response,
       _next: express.NextFunction,
     ) => {
+      if (error instanceof NotFoundError || error instanceof ConflictError) {
+        response.status(error.status).json({ error: error.message });
+        return;
+      }
+
       console.error(error);
       response.status(500).json({ error: "Internal server error" });
     },

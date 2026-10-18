@@ -1,5 +1,5 @@
 import { randomUUID } from "node:crypto";
-import { and, asc, desc, eq, gt, gte, inArray, lt, min, type SQL } from "drizzle-orm";
+import { and, asc, desc, eq, gt, gte, inArray, lt, min, sql, type SQL } from "drizzle-orm";
 import {
   computeChallengeProgress,
   isChallengeEnded,
@@ -7,6 +7,7 @@ import {
   type ProgressChallenge,
 } from "./challenge-progress.js";
 import { db } from "./db.js";
+import { ConflictError, NotFoundError } from "./errors.js";
 import {
   activities as activitiesTable,
   activityComments,
@@ -654,38 +655,66 @@ export async function toggleClubMembership(userId: string, clubId: string) {
 }
 
 export async function toggleChallengeEntry(userId: string, challengeId: string) {
-  const existing = await db
-    .select({ challengeId: challengeEntries.challengeId })
-    .from(challengeEntries)
-    .where(and(eq(challengeEntries.userId, userId), eq(challengeEntries.challengeId, challengeId)))
-    .limit(1);
-  const challengeRows = await db
-    .select({ participants: challengesTable.participants })
-    .from(challengesTable)
-    .where(eq(challengesTable.id, challengeId))
-    .limit(1);
-  const challenge = challengeRows[0];
+  return db.transaction(async (tx) => {
+    const challengeRows = await tx
+      .select({ endsAt: challengesTable.endsAt, participants: challengesTable.participants })
+      .from(challengesTable)
+      .where(eq(challengesTable.id, challengeId))
+      .limit(1);
+    const challenge = challengeRows[0];
 
-  if (!challenge) {
-    throw new Error("Challenge not found");
-  }
+    if (!challenge) {
+      throw new NotFoundError("Challenge not found");
+    }
 
-  if (existing.length > 0) {
-    await db
-      .delete(challengeEntries)
-      .where(
-        and(eq(challengeEntries.userId, userId), eq(challengeEntries.challengeId, challengeId)),
-      );
-  } else {
-    await db.insert(challengeEntries).values({ userId, challengeId });
-  }
+    const entryFilter = and(
+      eq(challengeEntries.userId, userId),
+      eq(challengeEntries.challengeId, challengeId),
+    );
+    const existing = await tx
+      .select({ challengeId: challengeEntries.challengeId })
+      .from(challengeEntries)
+      .where(entryFilter)
+      .limit(1);
+    const joining = existing.length === 0;
 
-  const participants =
-    existing.length > 0 ? Math.max(challenge.participants - 1, 0) : challenge.participants + 1;
-  await db.update(challengesTable).set({ participants }).where(eq(challengesTable.id, challengeId));
+    if (joining && isChallengeEnded(challenge.endsAt)) {
+      throw new ConflictError("This challenge has ended and can no longer be joined");
+    }
 
-  return {
-    joined: existing.length === 0,
-    participants,
-  };
+    // A concurrent request may have already inserted or removed the entry, in which case
+    // these touch no rows and the participant count must stay as it is.
+    const changed = joining
+      ? await tx
+          .insert(challengeEntries)
+          .values({ userId, challengeId })
+          .onConflictDoNothing()
+          .returning({ challengeId: challengeEntries.challengeId })
+      : await tx
+          .delete(challengeEntries)
+          .where(entryFilter)
+          .returning({ challengeId: challengeEntries.challengeId });
+
+    if (changed.length === 0) {
+      const current = await tx
+        .select({ participants: challengesTable.participants })
+        .from(challengesTable)
+        .where(eq(challengesTable.id, challengeId))
+        .limit(1);
+
+      return { joined: joining, participants: current[0]?.participants ?? challenge.participants };
+    }
+
+    const updated = await tx
+      .update(challengesTable)
+      .set({
+        participants: joining
+          ? sql`${challengesTable.participants} + 1`
+          : sql`GREATEST(${challengesTable.participants} - 1, 0)`,
+      })
+      .where(eq(challengesTable.id, challengeId))
+      .returning({ participants: challengesTable.participants });
+
+    return { joined: joining, participants: updated[0].participants };
+  });
 }
