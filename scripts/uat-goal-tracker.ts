@@ -3,9 +3,11 @@
 //
 //   npx tsx scripts/uat-goal-tracker.ts <email> <day> [--holdout] [--clear-activities]
 //
-// Shifts the account's signup and its activities together, puts it in the
-// treatment cohort (or holdout), and clears check-in and completion state.
-// --clear-activities deletes the account's activities first, for a clean run.
+// Shifts the account's signup and its activities together and puts it in the
+// treatment cohort (or holdout). Check-in and completion state carry over, so
+// stepping forward through the days behaves like real time.
+// --clear-activities deletes the account's activities and clears that state,
+// for a clean run.
 import "dotenv/config";
 import { Pool } from "pg";
 
@@ -51,9 +53,12 @@ try {
     [user.id, String(shiftMs)],
   );
   await pool.query(
-    `INSERT INTO goal_trackers (user_id, cohort) VALUES ($1, $2)
-     ON CONFLICT (user_id) DO UPDATE SET cohort = $2, check_in_sent_at = NULL,
-       check_in_dismissed_at = NULL, completed_seen_at = NULL`,
+    clearActivities
+      ? `INSERT INTO goal_trackers (user_id, cohort) VALUES ($1, $2)
+         ON CONFLICT (user_id) DO UPDATE SET cohort = $2, check_in_sent_at = NULL,
+           check_in_dismissed_at = NULL, completed_seen_at = NULL`
+      : `INSERT INTO goal_trackers (user_id, cohort) VALUES ($1, $2)
+         ON CONFLICT (user_id) DO UPDATE SET cohort = $2`,
     [user.id, cohort],
   );
 
