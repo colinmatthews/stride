@@ -1,7 +1,7 @@
 ---
 version: alpha
 name: Stride
-description: Editorial, athletic design system for an endurance training product. Bold ink + bone + signal-orange palette; display serif-style geometric + utilitarian mono; spacious, data-dense, ticker-uppercase eyebrows.
+description: Editorial, athletic design system for an endurance training product. Bold ink + bone + signal-blue palette; display serif-style geometric + utilitarian mono; spacious, data-dense, ticker-uppercase eyebrows.
 colors:
   background: "#FAFAF7"
   foreground: "#2A241E"
@@ -11,7 +11,7 @@ colors:
   card-foreground: "#2A241E"
   popover: "#FFFFFF"
   popover-foreground: "#2A241E"
-  primary: "#E76A2D"            # signal orange
+  primary: "#2563EB"            # signal blue
   primary-foreground: "#FCFCFC"
   secondary: "#332E27"           # deep ink
   secondary-foreground: "#FAFAF7"
@@ -23,8 +23,8 @@ colors:
   destructive-foreground: "#FCFCFC"
   border: "#E2DDD4"
   input: "#E2DDD4"
-  ring: "#E76A2D"
-  kudos: "#E76A2D"
+  ring: "#2563EB"
+  kudos: "#2563EB"
   pr: "#5DB57A"                  # PR green
 typography:
   display-hero:
@@ -149,7 +149,7 @@ components:
 Stride is a training home for runners, riders, and endurance athletes. The brand voice is **editorial, plain-spoken, and faintly competitive** — closer to a well-designed long-form magazine (think field-notes layouts, ticker mastheads, eyebrow labels) than a typical consumer fitness app. Nothing is decorative; every number has a reason.
 
 Visual register:
-- **Quiet bone background**, **deep ink** for gravitas, **signal orange** reserved for the single thing that matters per screen (KOM, CTA, primary action).
+- **Quiet bone background**, **deep ink** for gravitas, **signal blue** reserved for the single thing that matters per screen (KOM, CTA, primary action).
 - **Typography does most of the work.** Huge display headlines, tight tracking, mono eyebrows in uppercase with `0.22em` letter-spacing. Body copy stays generous and calm.
 - **Generous whitespace, section breaks are borders, not shadows.** Cards are rounded but elevation is light — the `:root` block has no `boxShadow` scale on purpose.
 - **Numbers are first-class.** Tabular numerals are applied everywhere a metric appears (`.stat-num`, `.num`). Times, distances, paces, ranks must not shift width across rows.
@@ -159,7 +159,7 @@ _Best-effort draft — needs human review on brand voice and edge-case tone._
 ## Colors
 
 Palette roles:
-- **`primary` (signal orange, `oklch(0.68 0.21 38)`)** — the one color that means "this is the thing." KOM/QOM indicators, the single primary CTA on a screen, active tab accents, progress fills, eyebrow accents on editorial pages. Never use for body text or as a background for more than ~10% of the screen.
+- **`primary` (signal blue, `oklch(0.546 0.245 262.881)`)** — the one color that means "this is the thing." KOM/QOM indicators, the single primary CTA on a screen, active tab accents, progress fills, eyebrow accents on editorial pages. Never use for body text or as a background for more than ~10% of the screen.
 - **`secondary` (deep ink, `oklch(0.22 0.02 60)`)** — gravitas. Landing-page CTAs, course-record callouts, marquee bars. Paired with `secondary-foreground` (near-white) for high contrast.
 - **`accent` (warm yellow)** — rarely used; reserved for secondary highlights or achievement affordances.
 - **`kudos` / `pr`** — domain-specific semantic colors. `kudos` mirrors primary (the social-positive signal). `pr` is green — reserved for personal-record moments and "readiness: high" states.
@@ -219,7 +219,7 @@ Shadcn default `shadow` / `shadow-sm` are accepted on interactive elements (butt
 
 Brand-level guidance. The Shadcn primitive source in `src/components/ui/*.tsx` owns exact styling — this is _when_ and _why_, not _how_.
 
-- **Button** — variants `default` (primary orange), `secondary` (ink), `outline`, `ghost`, `link`. One `default` button per screen max; use `outline` or `ghost` for secondary actions.
+- **Button** — variants `default` (primary blue), `secondary` (ink), `outline`, `ghost`, `link`. One `default` button per screen max; use `outline` or `ghost` for secondary actions.
 - **Dialog** — centered modal, 1px border, `bg-background`, `p-6`, `sm:rounded-lg`, overlay `bg-black/80`. Title in `text-lg font-semibold`. Description `text-sm text-muted-foreground`. X close in top-right.
 - **Tabs** — horizontal tab list uses `bg-muted` with active tab `bg-background text-foreground shadow`. Eyebrow mono labels appear _above_ tabs, not inside them.
 - **Avatar** — `h-10 w-10 rounded-full`; scales down to `h-7 w-7` inside dense table rows, up to `h-14 w-14` in testimonial figures.
@@ -231,14 +231,14 @@ _The Components section draws from real `cva` variants; specific styling is owne
 ## Do's and Don'ts
 
 **Do:**
-- Reserve signal orange for the single most important thing per screen (CTA, KOM indicator, primary stat).
+- Reserve signal blue for the single most important thing per screen (CTA, KOM indicator, primary stat).
 - Use mono uppercase eyebrows (`tracking-[0.22em]`) above every major block of content — it's the clearest Stride tic.
 - Put `.stat-num` or `.num` on every displayed metric, no exceptions.
 - Let borders and tonal shifts carry hierarchy. Prefer a border + tint to a drop shadow.
 - Keep the deep-ink `secondary` block for moments that earn gravitas (course record, hero CTA, marquee).
 
 **Don't:**
-- Don't use primary orange as a field-level background (banners, full cards, hero panels). It overwhelms and loses its signal value.
+- Don't use primary blue as a field-level background (banners, full cards, hero panels). It overwhelms and loses its signal value.
 - Don't mix rounded-xl cards with sharp-cornered editorial blocks on the same surface — pick one register per section.
 - Don't use non-tabular numerals in tables or leaderboards. Ranks shifting width across rows is a bug.
 - Don't rely on icon-only affordances without mono eyebrow context — this app talks to athletes who scan text faster than icons.
