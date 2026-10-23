@@ -4,10 +4,13 @@ import {
   CHALLENGES,
   CLUBS,
   ME,
+  challengeSportMatches,
+  getChallengeMetricUnit,
   mergeActivities,
   type Activity,
   type AppData,
 } from "./mock-data";
+import { announceChallengeCompletion } from "./challenge-celebration";
 
 class ApiError extends Error {
   status: number;
@@ -105,12 +108,36 @@ export async function saveActivity(payload: {
   avgSpeedKmh?: number;
   routeSeed: number;
 }) {
+  // Snapshot joined, sport-matching, not-yet-complete challenges before the
+  // save, so we can tell afterward whether this activity just completed one
+  // — the client's CHALLENGES cache doesn't otherwise get refreshed.
+  const candidates = CHALLENGES.filter(
+    (c) => c.joined && challengeSportMatches(payload.sport, c.sport),
+  )
+    .map((challenge) => ({
+      challenge,
+      unit: getChallengeMetricUnit(challenge),
+      pct: Math.min(100, (challenge.myProgressKm / challenge.goalKm) * 100),
+    }))
+    .filter(({ pct }) => pct < 100);
+
   const activity = await apiFetch<Activity>("/api/activities", {
     method: "POST",
     body: JSON.stringify(payload),
   });
 
   mergeActivities([activity]);
+
+  for (const { challenge, unit, pct } of candidates) {
+    const delta = unit === "m" ? activity.elevationM : activity.distanceKm;
+    const newProgress = challenge.myProgressKm + delta;
+    if (newProgress >= challenge.goalKm) {
+      challenge.myProgressKm = newProgress;
+      announceChallengeCompletion({ challenge, fromPct: pct });
+      break;
+    }
+  }
+
   return activity;
 }
 

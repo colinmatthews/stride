@@ -289,3 +289,48 @@ export function elevationProfile(seed: number, points = 60) {
     return { x: index, elev: Math.round(value) };
   });
 }
+
+export function challengeSportMatches(sport: Sport, challengeSport: Sport | "Multisport"): boolean {
+  return challengeSport === "Multisport" || sport === challengeSport;
+}
+
+// Climb-style challenges track elevation (goalKm is reused as meters); every
+// other challenge tracks distance.
+export function getChallengeMetricUnit(challenge: Challenge): "km" | "m" {
+  return challenge.sport === "Ride" && challenge.goalKm > 1000 ? "m" : "km";
+}
+
+// Whole days remaining until (and including) a challenge's end date.
+export function daysUntil(dateStr: string): number {
+  const end = new Date(dateStr).getTime() + 86_400_000 - 1;
+  return Math.ceil((end - Date.now()) / 86_400_000);
+}
+
+export interface ChallengeReminder {
+  challenge: Challenge;
+  reason: "deadline" | "goal";
+  daysLeft: number;
+  progress: number;
+  unit: "km" | "m";
+  pct: number;
+  remaining: number;
+}
+
+// Joined, incomplete challenges worth nudging the athlete about — either the
+// deadline is close, or the goal itself is nearly within reach. Progress
+// comes straight from the server-computed `myProgressKm` field rather than
+// being re-derived client-side. Sorted most urgent first.
+export function getChallengeReminders(): ChallengeReminder[] {
+  return CHALLENGES.filter((c) => c.joined)
+    .map((challenge) => {
+      const unit = getChallengeMetricUnit(challenge);
+      const progress = challenge.myProgressKm;
+      const pct = Math.min(100, (progress / challenge.goalKm) * 100);
+      const daysLeft = daysUntil(challenge.endsAt);
+      const remaining = Math.max(0, challenge.goalKm - progress);
+      return { challenge, unit, progress, pct, daysLeft, remaining };
+    })
+    .filter((c) => c.pct < 100 && c.daysLeft >= 0 && (c.daysLeft <= 7 || c.pct >= 80))
+    .map((c) => ({ ...c, reason: c.daysLeft <= 7 ? ("deadline" as const) : ("goal" as const) }))
+    .sort((a, b) => a.daysLeft - b.daysLeft || b.pct - a.pct);
+}
