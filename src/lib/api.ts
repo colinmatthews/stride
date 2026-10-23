@@ -93,6 +93,68 @@ export async function logout() {
   });
 }
 
+/* ===== Retention queue (staff only) ===== */
+
+export type RetentionChannel = "Email" | "In-app" | "Coach call";
+export type RetentionStatus = "new" | "contacted" | "snoozed" | "dismissed";
+
+export type RetentionLastAction = {
+  action: "contacted" | "snoozed" | "dismissed" | "reopened";
+  channel: string | null;
+  note: string | null;
+  createdAt: string;
+  actorName: string;
+};
+
+export type RetentionEntry = {
+  id: string;
+  name: string;
+  handle: string;
+  avatar: string;
+  city: string;
+  sport: Activity["sport"];
+  memberMonths: number;
+  renewsInDays: number | null;
+  weekly: number[];
+  prior28: number;
+  last28: number;
+  drop: number;
+  baseline: number;
+  fadeWeeksAgo: number;
+  weeksLeft: number;
+  dormantPath: number[];
+  lastActiveDaysAgo: number | null;
+  signals: string[];
+  drafts: Record<RetentionChannel, string>;
+  status: RetentionStatus;
+  lastAction: RetentionLastAction | null;
+};
+
+export type RetentionQueue = {
+  weekOf: string;
+  activePremium: number;
+  flagged: number;
+  medianDrop: number;
+  entries: RetentionEntry[];
+};
+
+export type RetentionActionInput =
+  | { action: "contacted"; channel: RetentionChannel; message: string }
+  | { action: "snoozed" }
+  | { action: "dismissed"; note: string }
+  | { action: "reopened" };
+
+export async function fetchRetentionQueue() {
+  return apiFetch<RetentionQueue>("/api/retention/queue");
+}
+
+export async function recordRetentionAction(athleteId: string, input: RetentionActionInput) {
+  return apiFetch<{ status: RetentionStatus; lastAction: RetentionLastAction | null }>(
+    `/api/retention/${encodeURIComponent(athleteId)}/actions`,
+    { method: "POST", body: JSON.stringify(input) },
+  );
+}
+
 export async function saveActivity(payload: {
   sport: Activity["sport"];
   title: string;
