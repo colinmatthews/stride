@@ -200,4 +200,46 @@ export async function toggleChallengeJoin(challengeId: string) {
   return payload;
 }
 
+export type MomentumBoardRow = {
+  athleteId: string;
+  name: string;
+  avatar: string;
+  value: number;
+  isMe: boolean;
+  isFollowing: boolean;
+  rank: number;
+};
+
+export type ActivityMomentum = {
+  activityId: string;
+  windowDays: number;
+  challenge: {
+    id: string;
+    name: string;
+    sport: string;
+    badge: string;
+    goalKm: number;
+    endsAt: string;
+    participants: number;
+    joined: boolean;
+    unit: string;
+    daysLeft: number;
+  };
+  carried: {
+    total: number;
+    prior: number;
+    fromThisActivity: number;
+  };
+  myRank: number;
+  gapToNext: number;
+  aheadName: string | null;
+  followedCount: number;
+  board: MomentumBoardRow[];
+};
+
+/** Resolves to null when no challenge matches the activity's sport. */
+export async function fetchActivityMomentum(activityId: string) {
+  return apiFetch<ActivityMomentum | null>(`/api/activities/${activityId}/momentum`);
+}
+
 export { ApiError };

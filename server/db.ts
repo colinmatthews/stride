@@ -113,7 +113,22 @@ async function seedDatabase() {
           badge: challenge.badge,
           metricType: challenge.metricType,
         })
-        .onConflictDoNothing();
+        // Unlike the other seeds, challenges refresh on every boot. Their end
+        // dates are relative to seed time, so a database seeded weeks ago would
+        // otherwise keep serving challenges that have since expired — and an
+        // expired challenge is never pitched. Joins live in challenge_entries,
+        // so nothing an athlete did is touched here.
+        .onConflictDoUpdate({
+          target: schema.challenges.id,
+          set: {
+            name: challenge.name,
+            sport: challenge.sport,
+            goalKm: String(challenge.goalKm),
+            endsAt: challenge.endsAt,
+            badge: challenge.badge,
+            metricType: challenge.metricType,
+          },
+        });
     }
 
     const activities = generateSeedActivities();

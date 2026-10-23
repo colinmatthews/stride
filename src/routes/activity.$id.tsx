@@ -1,5 +1,5 @@
 import { createFileRoute, Link, useRouter, notFound } from "@tanstack/react-router";
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { usePostHog } from "@posthog/react";
 import {
   ResponsiveContainer,
@@ -15,6 +15,7 @@ import {
   CartesianGrid,
 } from "recharts";
 import {
+  Check,
   Heart,
   MessageCircle,
   Trophy,
@@ -37,12 +38,27 @@ import {
   elevationProfile,
 } from "@/lib/mock-data";
 import { AppShell } from "@/components/AppShell";
+import { ChallengeMomentum } from "@/components/ChallengeMomentum";
 import { RouteMap } from "@/components/RouteMap";
 import { SportBadge } from "@/components/SportBadge";
 import { Stat } from "@/components/Stat";
-import { addActivityComment, fetchActivity, toggleActivityKudo } from "@/lib/api";
+import {
+  addActivityComment,
+  fetchActivity,
+  fetchActivityMomentum,
+  toggleActivityKudo,
+  type ActivityMomentum,
+} from "@/lib/api";
 
 export const Route = createFileRoute("/activity/$id")({
+  // `?saved=1` marks the arrival straight from /record. The post-run nudge is
+  // tied to that moment rather than the activity, so revisiting an old
+  // activity later doesn't re-pitch a challenge.
+  validateSearch: (search: Record<string, unknown>): { saved?: boolean } => {
+    const saved = search.saved === true || search.saved === "true" || search.saved === "1";
+
+    return saved ? { saved: true } : {};
+  },
   loader: async ({ params }) => {
     const activity =
       getActivity(params.id) ??
@@ -79,9 +95,11 @@ export const Route = createFileRoute("/activity/$id")({
 
 function ActivityDetail() {
   const { activity } = Route.useLoaderData() as { activity: import("@/lib/mock-data").Activity };
+  const justSaved = Route.useSearch().saved === true;
   const posthog = usePostHog();
   const router = useRouter();
   const ath = getAthlete(activity.athleteId);
+  const [momentum, setMomentum] = useState<ActivityMomentum | null>(null);
   const [kudoed, setKudoed] = useState(activity.kudoed ?? false);
   const [kudosCount, setKudosCount] = useState(activity.kudos);
   const [comment, setComment] = useState("");
@@ -90,6 +108,27 @@ function ActivityDetail() {
 
   const elev = elevationProfile(activity.routeSeed);
   const splits = activity.splits ?? [];
+
+  useEffect(() => {
+    if (!justSaved) {
+      setMomentum(null);
+      return;
+    }
+
+    let cancelled = false;
+
+    // The nudge is additive — if it can't be built, the activity page is
+    // still the thing the athlete came for, so failures stay silent.
+    fetchActivityMomentum(activity.id)
+      .then((data) => {
+        if (!cancelled) setMomentum(data);
+      })
+      .catch(() => {});
+
+    return () => {
+      cancelled = true;
+    };
+  }, [justSaved, activity.id]);
 
   const submitComment = async () => {
     if (!comment.trim()) return;
@@ -119,6 +158,17 @@ function ActivityDetail() {
     <AppShell>
       <div className="grid grid-cols-[1fr_360px] gap-8">
         <div className="min-w-0">
+          {justSaved && (
+            <div className="mb-6 flex items-center gap-3 border border-pr/30 bg-pr/5 px-4 py-3">
+              <div className="grid h-8 w-8 shrink-0 place-items-center rounded-full bg-pr/15 text-pr">
+                <Check className="h-4 w-4" />
+              </div>
+              <div className="font-mono text-[10px] uppercase tracking-[0.22em] text-pr">
+                Activity saved
+              </div>
+            </div>
+          )}
+
           {/* Header */}
           <div className="flex items-start gap-4 mb-6">
             <Link to="/athlete/$id" params={{ id: ath.id }}>
@@ -195,6 +245,14 @@ function ActivityDetail() {
               alt={activity.title}
               className="w-full h-[380px] object-cover border border-border mt-4"
             />
+          )}
+
+          {/* The run comes first — the athlete sees what they just did before
+              being asked for anything. */}
+          {momentum && (
+            <div className="mt-8">
+              <ChallengeMomentum momentum={momentum} />
+            </div>
           )}
 
           {/* Elevation */}
