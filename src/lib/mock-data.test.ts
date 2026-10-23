@@ -33,6 +33,8 @@ function minimalAppData(overrides: Partial<AppData> = {}): AppData {
     segments: [],
     clubs: [],
     challenges: [],
+    featuredChallengeId: null,
+    challengeStreaks: [],
     ...overrides,
   };
 }
