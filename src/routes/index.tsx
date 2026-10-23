@@ -1,5 +1,5 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
-import { useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { usePostHog } from "@posthog/react";
 import {
   ArrowRight,
@@ -14,6 +14,16 @@ import { ACTIVITIES, ATHLETES, CHALLENGES, ME, fmtDuration, getAthlete } from "@
 import { AppShell } from "@/components/AppShell";
 import { ActivityCard } from "@/components/ActivityCard";
 import { FollowButton } from "@/components/FollowButton";
+import { GoalTracker } from "@/components/GoalTracker";
+import { Toaster } from "@/components/ui/sonner";
+import { toast } from "sonner";
+import { dismissGoalCheckIn, fetchGoalTracker, saveActivity } from "@/lib/api";
+import {
+  effortToActivity,
+  progressToast,
+  type Effort,
+  type TreatmentTracker,
+} from "@/lib/goal-tracker";
 
 export const Route = createFileRoute("/")({
   head: () => ({
@@ -44,6 +54,7 @@ function FeedPage() {
   const posthog = usePostHog();
   const [filter, setFilter] = useState<Filter>("Following");
   const [feedRevision, setFeedRevision] = useState(0);
+  const goal = useGoalTracker();
   const visible = useMemo(() => {
     if (filter === "You") return ACTIVITIES.filter((activity) => activity.athleteId === "me");
     if (filter === "Clubs")
@@ -95,6 +106,21 @@ function FeedPage() {
               ))}
             </div>
           </div>
+
+          {goal.tracker && (
+            <div className="mb-5">
+              <GoalTracker
+                tracker={goal.tracker}
+                busy={goal.busy}
+                onLog={async (effort, source) => {
+                  const saved = await goal.log(effort, source);
+                  if (saved) setFeedRevision((revision) => revision + 1);
+                  return saved;
+                }}
+                onDismissCheckIn={goal.dismissCheckIn}
+              />
+            </div>
+          )}
 
           <div className="space-y-5">
             {visible.length > 0 ? (
@@ -205,8 +231,97 @@ function FeedPage() {
           </section>
         </aside>
       </div>
+      <Toaster position="top-center" />
     </AppShell>
   );
+}
+
+// Loads the "5 in your first two weeks" tracker from the server. Holdout
+// athletes see nothing, but are still recorded as eligible for comparison.
+function useGoalTracker() {
+  const posthog = usePostHog();
+  const [tracker, setTracker] = useState<TreatmentTracker | null>(null);
+  const [busy, setBusy] = useState(false);
+  const exposed = useRef(false);
+
+  const load = useCallback(async () => {
+    try {
+      const response = await fetchGoalTracker();
+      const view = response?.view ?? null;
+
+      if (view && !exposed.current) {
+        exposed.current = true;
+        posthog.capture("goal_tracker_eligible", { cohort: view.cohort, day: view.day });
+        if (view.cohort === "treatment") {
+          posthog.capture("goal_tracker_shown", {
+            logged: view.count,
+            days_left: view.windowDays - view.day + 1,
+          });
+        }
+      }
+      if (view?.cohort === "treatment" && response?.checkInJustSent) {
+        posthog.capture("goal_checkin_sent", { logged: view.count, day: view.day });
+      }
+      if (view?.cohort === "treatment" && response?.completedJustNow) {
+        posthog.capture("goal_completed", { day: view.day });
+      }
+
+      setTracker(view?.cohort === "treatment" ? view : null);
+      return view;
+    } catch (error) {
+      posthog.captureException(error);
+      return null;
+    }
+  }, [posthog]);
+
+  useEffect(() => {
+    void load();
+  }, [load]);
+
+  async function log(effort: Effort, source: "goal_block" | "checkin_inline") {
+    if (!tracker) return false;
+    setBusy(true);
+    try {
+      await saveActivity(effortToActivity(effort, Math.floor(Math.random() * 1000)));
+      const total = tracker.count + 1;
+      posthog.capture("activity_saved", {
+        sport: effort.sport,
+        distance_km: effort.km,
+        moving_seconds: effort.minutes * 60,
+        entry_mode: "quick_log",
+      });
+      posthog.capture("goal_activity_quick_logged", {
+        source,
+        sport: effort.sport,
+        minutes: effort.minutes,
+        day: tracker.day,
+        logged: total,
+      });
+      posthog.capture("goal_progress_shown", { logged: total });
+      toast(`${effort.title} logged`, { description: progressToast(total, tracker.goal) });
+      await load();
+      return true;
+    } catch (error) {
+      posthog.captureException(error);
+      toast("Couldn't save that activity", { description: "Check your connection and try again." });
+      return false;
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  async function dismissCheckIn() {
+    if (!tracker) return;
+    setTracker({ ...tracker, checkIn: "none" });
+    posthog.capture("goal_checkin_dismissed", { logged: tracker.count, day: tracker.day });
+    try {
+      await dismissGoalCheckIn();
+    } catch (error) {
+      posthog.captureException(error);
+    }
+  }
+
+  return { tracker, busy, log, dismissCheckIn };
 }
 
 function EmptyFeed({ filter }: { filter: Filter }) {

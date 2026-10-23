@@ -1,5 +1,19 @@
 import { randomUUID } from "node:crypto";
-import { and, asc, desc, eq, gt, inArray, lt, min, sum, type SQL } from "drizzle-orm";
+import {
+  and,
+  asc,
+  desc,
+  eq,
+  gt,
+  gte,
+  inArray,
+  isNotNull,
+  isNull,
+  lt,
+  min,
+  sum,
+  type SQL,
+} from "drizzle-orm";
 import { db } from "./db.js";
 import {
   activities as activitiesTable,
@@ -12,9 +26,11 @@ import {
   clubMemberships,
   clubs as clubsTable,
   follows,
+  goalTrackers,
   segments as segmentsTable,
   users,
 } from "./db/schema.js";
+import { cohortFor, evaluateGoalTracker, inWindow, WINDOW_DAYS } from "./goal-tracker.js";
 import { USER_AVATARS } from "./seed.js";
 
 const BOOTSTRAP_ACTIVITY_LIMIT = 40;
@@ -657,4 +673,96 @@ export async function toggleChallengeEntry(userId: string, challengeId: string) 
     joined: existing.length === 0,
     participants,
   };
+}
+
+export async function getGoalTracker(userId: string, now = new Date()) {
+  const userRows = await db
+    .select({ createdAt: users.createdAt, email: users.email })
+    .from(users)
+    .where(eq(users.id, userId))
+    .limit(1);
+  const user = userRows[0];
+
+  // Only athletes who registered themselves, and only in their first two weeks.
+  if (!user?.email || !inWindow(user.createdAt, now)) {
+    return null;
+  }
+
+  await db
+    .insert(goalTrackers)
+    .values({ userId, cohort: cohortFor(userId) })
+    .onConflictDoNothing();
+
+  const [record] = await db.select().from(goalTrackers).where(eq(goalTrackers.userId, userId));
+  const day = Math.floor((now.getTime() - user.createdAt.getTime()) / 86_400_000) + 1;
+
+  if (record.cohort === "holdout") {
+    return {
+      view: { cohort: "holdout" as const, day },
+      checkInJustSent: false,
+      completedJustNow: false,
+    };
+  }
+
+  const windowEnd = new Date(user.createdAt.getTime() + WINDOW_DAYS * 86_400_000);
+  const activityRows = await db
+    .select({
+      id: activitiesTable.id,
+      sport: activitiesTable.sport,
+      title: activitiesTable.title,
+      date: activitiesTable.date,
+    })
+    .from(activitiesTable)
+    .where(
+      and(
+        eq(activitiesTable.athleteId, userId),
+        gte(activitiesTable.date, user.createdAt),
+        lt(activitiesTable.date, windowEnd),
+      ),
+    )
+    .orderBy(asc(activitiesTable.date));
+
+  const result = evaluateGoalTracker({
+    registeredAt: user.createdAt,
+    now,
+    activities: activityRows,
+    record,
+  });
+
+  // Guarded updates keep the one-check-in cap even when two requests race.
+  const [sentRows, completedRows] = await Promise.all([
+    result.markCheckInSent
+      ? db
+          .update(goalTrackers)
+          .set({ checkInSentAt: now })
+          .where(and(eq(goalTrackers.userId, userId), isNull(goalTrackers.checkInSentAt)))
+          .returning({ userId: goalTrackers.userId })
+      : [],
+    result.markCompletedSeen
+      ? db
+          .update(goalTrackers)
+          .set({ completedSeenAt: now })
+          .where(and(eq(goalTrackers.userId, userId), isNull(goalTrackers.completedSeenAt)))
+          .returning({ userId: goalTrackers.userId })
+      : [],
+  ]);
+
+  return {
+    view: result.view,
+    checkInJustSent: sentRows.length > 0,
+    completedJustNow: completedRows.length > 0,
+  };
+}
+
+export async function dismissGoalCheckIn(userId: string) {
+  await db
+    .update(goalTrackers)
+    .set({ checkInDismissedAt: new Date() })
+    .where(
+      and(
+        eq(goalTrackers.userId, userId),
+        isNotNull(goalTrackers.checkInSentAt),
+        isNull(goalTrackers.checkInDismissedAt),
+      ),
+    );
 }
