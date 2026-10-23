@@ -224,6 +224,24 @@ export function getSegment(id: string): Segment | undefined {
   return SEGMENTS.find((segment) => segment.id === id);
 }
 
+export function isChallengeActive(challenge: Challenge, ref: Date = new Date()): boolean {
+  return new Date(`${challenge.endsAt}T23:59:59`).getTime() >= ref.getTime();
+}
+
+// Surfaces up to `count` relevant *active* challenges for an activity that was
+// just logged: same sport first, then other active challenges to fill any
+// remaining slots so the prompt isn't empty just because the athlete's sport
+// doesn't have its own challenge running.
+export function pickRelevantChallenges(
+  activity: Pick<Activity, "sport" | "distanceKm" | "elevationM">,
+  count = 2,
+): Challenge[] {
+  const active = CHALLENGES.filter((challenge) => isChallengeActive(challenge));
+  const sameSport = active.filter((challenge) => challenge.sport === activity.sport);
+  const rest = active.filter((challenge) => challenge.sport !== activity.sport);
+  return [...sameSport, ...rest].slice(0, count);
+}
+
 export function weeklyStats(athleteId: string = "me") {
   const activities = ACTIVITIES.filter((activity) => activity.athleteId === athleteId);
   const weeks: { label: string; km: number; time: number; elev: number }[] = [];

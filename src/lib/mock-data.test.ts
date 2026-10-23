@@ -6,8 +6,11 @@ import {
   fmtTimeAgo,
   getAthlete,
   initializeAppData,
+  isChallengeActive,
+  pickRelevantChallenges,
   type Athlete,
   type AppData,
+  type Challenge,
 } from "./mock-data";
 
 function athlete(overrides: Partial<Athlete> = {}): Athlete {
@@ -21,6 +24,21 @@ function athlete(overrides: Partial<Athlete> = {}): Athlete {
     followers: 0,
     following: 0,
     bio: "",
+    ...overrides,
+  };
+}
+
+function challenge(overrides: Partial<Challenge> = {}): Challenge {
+  return {
+    id: "ch1",
+    name: "Test Challenge",
+    sport: "Run",
+    goalKm: 100,
+    myProgressKm: 0,
+    participants: 100,
+    endsAt: "2099-01-01",
+    badge: "RUN",
+    joined: false,
     ...overrides,
   };
 }
@@ -98,5 +116,84 @@ describe("getAthlete", () => {
 
   it("falls back to ME when id is unknown", () => {
     expect(getAthlete("nope").id).toBe("me");
+  });
+});
+
+describe("isChallengeActive", () => {
+  const ref = new Date("2026-08-05T12:00:00.000Z");
+
+  it("is active when endsAt is in the future", () => {
+    expect(isChallengeActive(challenge({ endsAt: "2026-08-06" }), ref)).toBe(true);
+  });
+
+  it("is inactive when endsAt is in the past", () => {
+    expect(isChallengeActive(challenge({ endsAt: "2026-08-04" }), ref)).toBe(false);
+  });
+
+  it("stays active through the end of the endsAt day", () => {
+    expect(isChallengeActive(challenge({ endsAt: "2026-08-05" }), ref)).toBe(true);
+  });
+});
+
+describe("pickRelevantChallenges", () => {
+  beforeEach(() => {
+    vi.useFakeTimers();
+    vi.setSystemTime(new Date("2026-08-05T12:00:00.000Z"));
+  });
+
+  afterEach(() => {
+    vi.useRealTimers();
+    clearAppData();
+  });
+
+  it("prioritizes challenges matching the activity's sport", () => {
+    initializeAppData(
+      minimalAppData({
+        challenges: [
+          challenge({ id: "ride1", sport: "Ride", endsAt: "2026-09-01" }),
+          challenge({ id: "run1", sport: "Run", endsAt: "2026-09-01" }),
+        ],
+      }),
+    );
+
+    const picks = pickRelevantChallenges({ sport: "Run", distanceKm: 10, elevationM: 0 });
+    expect(picks[0].id).toBe("run1");
+  });
+
+  it("falls back to other active challenges when the sport has none", () => {
+    initializeAppData(
+      minimalAppData({
+        challenges: [challenge({ id: "ride1", sport: "Ride", endsAt: "2026-09-01" })],
+      }),
+    );
+
+    const picks = pickRelevantChallenges({ sport: "Swim", distanceKm: 2, elevationM: 0 });
+    expect(picks.map((c) => c.id)).toEqual(["ride1"]);
+  });
+
+  it("excludes expired challenges entirely", () => {
+    initializeAppData(
+      minimalAppData({
+        challenges: [challenge({ id: "expired", sport: "Run", endsAt: "2026-07-01" })],
+      }),
+    );
+
+    expect(pickRelevantChallenges({ sport: "Run", distanceKm: 10, elevationM: 0 })).toEqual([]);
+  });
+
+  it("respects the count limit", () => {
+    initializeAppData(
+      minimalAppData({
+        challenges: [
+          challenge({ id: "a", sport: "Run", endsAt: "2026-09-01" }),
+          challenge({ id: "b", sport: "Run", endsAt: "2026-09-01" }),
+          challenge({ id: "c", sport: "Run", endsAt: "2026-09-01" }),
+        ],
+      }),
+    );
+
+    expect(pickRelevantChallenges({ sport: "Run", distanceKm: 10, elevationM: 0 }, 2)).toHaveLength(
+      2,
+    );
   });
 });
