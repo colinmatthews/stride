@@ -1,4 +1,13 @@
-import { date, integer, numeric, pgTable, primaryKey, text, timestamp } from "drizzle-orm/pg-core";
+import {
+  date,
+  integer,
+  jsonb,
+  numeric,
+  pgTable,
+  primaryKey,
+  text,
+  timestamp,
+} from "drizzle-orm/pg-core";
 
 export const users = pgTable("users", {
   id: text("id").primaryKey(),
@@ -60,6 +69,54 @@ export const activities = pgTable("activities", {
   achievements: integer("achievements").notNull().default(0),
   photo: text("photo"),
   routeSeed: integer("route_seed").notNull(),
+  // Recording device. Null for manually entered activities.
+  deviceName: text("device_name"),
+  deviceManufacturer: text("device_manufacturer"),
+  deviceModel: text("device_model"),
+  deviceFirmware: text("device_firmware"),
+  // "barometric" | "gps" | null (unknown / manual entry)
+  elevationSource: text("elevation_source"),
+});
+
+// Recorded sample streams, one row per activity. Arrays are index-aligned.
+export const activityStreams = pgTable("activity_streams", {
+  activityId: text("activity_id")
+    .primaryKey()
+    .references(() => activities.id, { onDelete: "cascade" }),
+  distanceKm: jsonb("distance_km").$type<number[]>().notNull(),
+  elevationM: jsonb("elevation_m").$type<number[]>().notNull(),
+  // GPS track. Null when the recording has no coordinates (terrain correction unavailable).
+  latitude: jsonb("latitude").$type<number[]>(),
+  longitude: jsonb("longitude").$type<number[]>(),
+  // Cached terrain lookup along the track, index-aligned with the samples.
+  terrainElevationM: jsonb("terrain_elevation_m").$type<number[]>(),
+  terrainSource: text("terrain_source"),
+  terrainFetchedAt: timestamp("terrain_fetched_at", { withTimezone: true }),
+  createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+});
+
+// The athlete's choice after reviewing an elevation correction. originalElevationM
+// is the device-reported value, kept so "original" can always be restored.
+export const activityElevationCorrections = pgTable("activity_elevation_corrections", {
+  activityId: text("activity_id")
+    .primaryKey()
+    .references(() => activities.id, { onDelete: "cascade" }),
+  userId: text("user_id")
+    .notNull()
+    .references(() => users.id, { onDelete: "cascade" }),
+  originalElevationM: integer("original_elevation_m").notNull(),
+  correctedElevationM: integer("corrected_elevation_m").notNull(),
+  spikeCount: integer("spike_count").notNull(),
+  // "terrain" | "cleanup"
+  method: text("method").notNull(),
+  // "flatline" | "spikes" | "none"
+  errorType: text("error_type").notNull(),
+  // "up" | "down" | "none"
+  direction: text("direction").notNull(),
+  // "corrected" | "original"
+  keptVersion: text("kept_version").notNull(),
+  createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+  updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow(),
 });
 
 export const activityComments = pgTable("activity_comments", {

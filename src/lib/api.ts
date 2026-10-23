@@ -11,10 +11,13 @@ import {
 
 class ApiError extends Error {
   status: number;
+  /** Machine-readable reason, when the server sends one (e.g. "terrain_unavailable"). */
+  code: string | null;
 
-  constructor(message: string, status: number) {
+  constructor(message: string, status: number, code: string | null = null) {
     super(message);
     this.status = status;
+    this.code = code;
   }
 }
 
@@ -30,7 +33,7 @@ async function apiFetch<T>(input: string, init?: RequestInit): Promise<T> {
 
   if (!response.ok) {
     const payload = await response.json().catch(() => null);
-    throw new ApiError(payload?.error ?? "Request failed", response.status);
+    throw new ApiError(payload?.error ?? "Request failed", response.status, payload?.code ?? null);
   }
 
   if (response.status === 204) {
@@ -195,6 +198,94 @@ export async function toggleChallengeJoin(challengeId: string) {
   if (challenge) {
     challenge.joined = payload.joined;
     challenge.participants = payload.participants;
+  }
+
+  return payload;
+}
+
+export type ElevationPoint = { km: number; elev: number };
+
+export type ElevationDevice = {
+  name: string;
+  manufacturer?: string;
+  model?: string;
+  firmware?: string;
+};
+
+export type KeptElevationVersion = "corrected" | "original";
+export type ElevationCorrectionMethod = "terrain" | "cleanup";
+export type ElevationDirection = "up" | "down" | "none";
+export type ElevationErrorType = "flatline" | "spikes" | "other" | "none";
+export type ElevationFixTrigger = "self" | "prompted";
+export type FlatRegion = { fromKm: number; toKm: number };
+
+export type ActivityElevation = {
+  elevationM: number;
+  elevationSource: "barometric" | "gps" | null;
+  device: ElevationDevice | null;
+  samples: ElevationPoint[];
+  hasGps: boolean;
+  correction: {
+    keptVersion: KeptElevationVersion;
+    method: ElevationCorrectionMethod;
+    direction: ElevationDirection;
+    originalElevationM: number;
+    correctedElevationM: number;
+  } | null;
+  canCorrect: boolean;
+  /** A likely problem spotted from the recording alone (owner only, before any review). */
+  issue: {
+    errorType: "flatline" | "spikes";
+    flatRegion: FlatRegion | null;
+    spikeCount: number;
+  } | null;
+};
+
+export type ElevationPreview = {
+  method: ElevationCorrectionMethod;
+  original: ElevationPoint[];
+  corrected: ElevationPoint[];
+  spikes: ElevationPoint[];
+  flatRegion: FlatRegion | null;
+  elevationBeforeM: number;
+  elevationAfterM: number;
+  deltaPct: number;
+  direction: ElevationDirection;
+  errorType: ElevationErrorType;
+  spikeCount: number;
+  changed: boolean;
+  /** Set when a problem was found but can't be corrected right now. */
+  blockedReason: "needs_gps" | "terrain_off" | null;
+  device: ElevationDevice | null;
+  elevationSource: "barometric" | "gps" | null;
+};
+
+export async function fetchActivityElevation(activityId: string) {
+  return apiFetch<ActivityElevation>(`/api/activities/${activityId}/elevation`);
+}
+
+export async function previewElevationCorrection(activityId: string) {
+  return apiFetch<ElevationPreview>(`/api/activities/${activityId}/elevation/preview`, {
+    method: "POST",
+  });
+}
+
+export async function saveElevationCorrection(
+  activityId: string,
+  keptVersion: KeptElevationVersion,
+  trigger: ElevationFixTrigger,
+) {
+  const payload = await apiFetch<{ elevationM: number; keptVersion: KeptElevationVersion }>(
+    `/api/activities/${activityId}/elevation/correction`,
+    {
+      method: "PUT",
+      body: JSON.stringify({ keptVersion, trigger }),
+    },
+  );
+  const activity = ACTIVITIES.find((entry) => entry.id === activityId);
+
+  if (activity) {
+    activity.elevationM = payload.elevationM;
   }
 
   return payload;

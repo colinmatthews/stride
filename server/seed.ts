@@ -33,6 +33,16 @@ export interface SeedActivity {
   routeSeed: number;
   splits?: { km: number; paceSec: number; hr: number; elev: number }[];
   segments?: { id: string; rank: number; effortSeconds: number }[];
+  device?: SeedDevice;
+  elevationStream?: { distanceKm: number[]; elevationM: number[] };
+}
+
+export interface SeedDevice {
+  name: string;
+  manufacturer: string;
+  model: string;
+  firmware: string;
+  elevationSource: "barometric" | "gps";
 }
 
 export interface SeedSegment {
@@ -417,6 +427,95 @@ function rnd(seed: number) {
   };
 }
 
+const WATCH_DEVICES: SeedDevice[] = [
+  {
+    name: "Garmin Forerunner 965",
+    manufacturer: "garmin",
+    model: "forerunner_965",
+    firmware: "18.16",
+    elevationSource: "barometric",
+  },
+  {
+    name: "Apple Watch Series 9",
+    manufacturer: "apple",
+    model: "watch_series_9",
+    firmware: "11.2",
+    elevationSource: "barometric",
+  },
+  {
+    name: "iPhone 15",
+    manufacturer: "apple",
+    model: "iphone_15",
+    firmware: "18.1",
+    elevationSource: "gps",
+  },
+  {
+    name: "Pixel 8",
+    manufacturer: "google",
+    model: "pixel_8",
+    firmware: "15",
+    elevationSource: "gps",
+  },
+];
+
+const BIKE_DEVICES: SeedDevice[] = [
+  {
+    name: "Garmin Edge 840",
+    manufacturer: "garmin",
+    model: "edge_840",
+    firmware: "21.19",
+    elevationSource: "barometric",
+  },
+  {
+    name: "Wahoo ELEMNT Bolt",
+    manufacturer: "wahoo",
+    model: "elemnt_bolt_v2",
+    firmware: "WB34",
+    elevationSource: "barometric",
+  },
+  WATCH_DEVICES[2],
+];
+
+/**
+ * A recorded elevation stream as the device would upload it: terrain plus sensor
+ * noise and occasional single-sample spikes (worse on GPS-only devices). Scaled so
+ * the raw climb matches the activity's reported elevation.
+ */
+function seedElevationStream(
+  seed: number,
+  distanceKm: number,
+  elevationM: number,
+  source: SeedDevice["elevationSource"],
+) {
+  const random = rnd(seed * 7919 + 13);
+  const samples = Math.min(400, Math.max(40, Math.round(distanceKm * 10)));
+  const phases = [random() * 6, random() * 6];
+  const terrain = Array.from(
+    { length: samples },
+    (_, i) =>
+      120 * Math.sin(i / (samples / 3) + phases[0]) + 45 * Math.sin(i / (samples / 11) + phases[1]),
+  );
+  const noise = source === "gps" ? 3 : 1;
+  const spikeChance = source === "gps" ? 0.04 : 0.015;
+  const recorded = terrain.map((value) => {
+    const spike = random() < spikeChance ? (random() > 0.3 ? 1 : -1) * (12 + random() * 18) : 0;
+    return value + (random() - 0.5) * noise + spike;
+  });
+
+  let gain = 0;
+  for (let i = 1; i < recorded.length; i += 1) {
+    gain += Math.max(0, recorded[i] - recorded[i - 1]);
+  }
+  const scale = gain > 0 ? elevationM / gain : 0;
+  const base = 1200 + random() * 600;
+  const low = Math.min(...recorded);
+
+  return {
+    distanceKm: recorded.map((_, i) => Math.round((i / (samples - 1)) * distanceKm * 1000) / 1000),
+    elevationM: recorded.map((value) => Math.round((base + (value - low) * scale) * 10) / 10),
+  };
+}
+
 export function generateSeedActivities(): SeedActivity[] {
   const sports: Sport[] = ["Run", "Ride", "Swim", "Hike", "Walk"];
   const now = Date.now();
@@ -460,8 +559,22 @@ export function generateSeedActivities(): SeedActivity[] {
         ? segmentCandidates[index % segmentCandidates.length]
         : undefined;
 
+    // Separate random sequence so the fields above keep their existing seeded values.
+    const deviceRandom = rnd(index * 104729 + 7);
+    const devicePool = sport === "Ride" ? BIKE_DEVICES : WATCH_DEVICES;
+    const device =
+      sport === "Swim"
+        ? WATCH_DEVICES[Math.floor(deviceRandom() * 2)]
+        : devicePool[Math.floor(deviceRandom() * devicePool.length)];
+    const roundedDistance = Math.round(distance * 100) / 100;
+
     activities.push({
       id: `act-${index + 1}`,
+      device,
+      elevationStream:
+        sport === "Swim"
+          ? undefined
+          : seedElevationStream(index + 1, roundedDistance, elevation, device.elevationSource),
       athleteId: athlete.id,
       sport,
       title,

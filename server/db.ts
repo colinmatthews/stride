@@ -138,8 +138,34 @@ async function seedDatabase() {
           achievements: activity.achievements,
           photo: activity.photo ?? null,
           routeSeed: activity.routeSeed,
+          deviceName: activity.device?.name ?? null,
+          deviceManufacturer: activity.device?.manufacturer ?? null,
+          deviceModel: activity.device?.model ?? null,
+          deviceFirmware: activity.device?.firmware ?? null,
+          elevationSource: activity.device?.elevationSource ?? null,
         })
-        .onConflictDoNothing();
+        // Backfill device fields on databases seeded before they existed; leave the rest.
+        .onConflictDoUpdate({
+          target: schema.activities.id,
+          set: {
+            deviceName: activity.device?.name ?? null,
+            deviceManufacturer: activity.device?.manufacturer ?? null,
+            deviceModel: activity.device?.model ?? null,
+            deviceFirmware: activity.device?.firmware ?? null,
+            elevationSource: activity.device?.elevationSource ?? null,
+          },
+        });
+
+      if (activity.elevationStream) {
+        await tx
+          .insert(schema.activityStreams)
+          .values({
+            activityId: activity.id,
+            distanceKm: activity.elevationStream.distanceKm,
+            elevationM: activity.elevationStream.elevationM,
+          })
+          .onConflictDoNothing();
+      }
 
       for (const [position, split] of (activity.splits ?? []).entries()) {
         await tx
