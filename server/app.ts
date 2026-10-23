@@ -4,12 +4,13 @@ import express from "express";
 import {
   addComment,
   buildBootstrap,
+  ChallengeEntryError,
   createActivity,
   createUser,
   findUserForAuth,
   getActivityById,
   listActivities,
-  toggleChallengeEntry,
+  setChallengeEntry,
   toggleClubMembership,
   toggleFollow,
   toggleKudo,
@@ -209,10 +210,26 @@ export function createApp() {
     }
   });
 
-  app.post("/api/challenges/:id/join", requireAuth, async (request, response, next) => {
+  app.put("/api/challenges/:id/join", requireAuth, async (request, response, next) => {
     try {
-      response.json(await toggleChallengeEntry(request.userId!, String(request.params.id)));
+      response.json(await setChallengeEntry(request.userId!, String(request.params.id), true));
     } catch (error) {
+      if (error instanceof ChallengeEntryError) {
+        response.status(error.status).json({ error: error.message });
+        return;
+      }
+      next(error);
+    }
+  });
+
+  app.delete("/api/challenges/:id/join", requireAuth, async (request, response, next) => {
+    try {
+      response.json(await setChallengeEntry(request.userId!, String(request.params.id), false));
+    } catch (error) {
+      if (error instanceof ChallengeEntryError) {
+        response.status(error.status).json({ error: error.message });
+        return;
+      }
       next(error);
     }
   });
