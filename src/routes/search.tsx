@@ -3,6 +3,7 @@ import type { ReactNode } from "react";
 import { Search } from "lucide-react";
 import { AppShell } from "@/components/AppShell";
 import { ATHLETES, CHALLENGES, CLUBS, SEGMENTS } from "@/lib/mock-data";
+import { useUnits } from "@/lib/units-context";
 
 export const Route = createFileRoute("/search")({
   validateSearch: (search: Record<string, unknown>) => ({
@@ -17,13 +18,20 @@ function includesQuery(query: string, values: Array<string | number>) {
 }
 
 function SearchPage() {
+  const units = useUnits();
   const { q } = Route.useSearch();
   const query = q.trim().toLowerCase();
   const athletes = query
     ? ATHLETES.filter(
         (athlete) =>
           athlete.id !== "me" &&
-          includesQuery(query, [athlete.name, athlete.handle, athlete.city, athlete.country, athlete.bio]),
+          includesQuery(query, [
+            athlete.name,
+            athlete.handle,
+            athlete.city,
+            athlete.country,
+            athlete.bio,
+          ]),
       )
     : [];
   const segments = query
@@ -32,7 +40,9 @@ function SearchPage() {
       )
     : [];
   const clubs = query
-    ? CLUBS.filter((club) => includesQuery(query, [club.name, club.city, club.sport, club.description]))
+    ? CLUBS.filter((club) =>
+        includesQuery(query, [club.name, club.city, club.sport, club.description]),
+      )
     : [];
   const challenges = query
     ? CHALLENGES.filter((challenge) => includesQuery(query, [challenge.name, challenge.sport]))
@@ -56,7 +66,12 @@ function SearchPage() {
       ) : (
         <div className="space-y-8">
           {athletes.length > 0 && (
-            <ResultSection title="Athletes" count={athletes.length} action="View all" actionTo="/athletes">
+            <ResultSection
+              title="Athletes"
+              count={athletes.length}
+              action="View all"
+              actionTo="/athletes"
+            >
               <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
                 {athletes.slice(0, 6).map((athlete) => (
                   <Link
@@ -65,10 +80,16 @@ function SearchPage() {
                     params={{ id: athlete.id }}
                     className="flex items-center gap-3 rounded-lg border border-border bg-surface p-4 hover:border-foreground/30"
                   >
-                    <img src={athlete.avatar} alt="" className="h-10 w-10 rounded-full object-cover" />
+                    <img
+                      src={athlete.avatar}
+                      alt=""
+                      className="h-10 w-10 rounded-full object-cover"
+                    />
                     <div className="min-w-0">
                       <p className="truncate text-sm font-medium">{athlete.name}</p>
-                      <p className="truncate text-xs text-muted-foreground">@{athlete.handle} · {athlete.city}</p>
+                      <p className="truncate text-xs text-muted-foreground">
+                        @{athlete.handle} · {athlete.city}
+                      </p>
                     </div>
                   </Link>
                 ))}
@@ -82,7 +103,7 @@ function SearchPage() {
                 items={segments.slice(0, 6).map((segment) => ({
                   id: segment.id,
                   title: segment.name,
-                  detail: `${segment.sport} · ${segment.location} · ${segment.distanceKm.toFixed(1)} km`,
+                  detail: `${segment.sport} · ${segment.location} · ${units.distance(segment.distanceKm, 1)}`,
                   to: `/segment/${segment.id}`,
                 }))}
               />
@@ -136,19 +157,33 @@ function ResultSection({
   return (
     <section>
       <div className="mb-3 flex items-center justify-between">
-        <h2 className="font-display text-lg font-semibold">{title} <span className="text-sm font-normal text-muted-foreground">{count}</span></h2>
-        {action && actionTo && <Link to={actionTo} className="text-xs text-muted-foreground hover:text-foreground">{action}</Link>}
+        <h2 className="font-display text-lg font-semibold">
+          {title} <span className="text-sm font-normal text-muted-foreground">{count}</span>
+        </h2>
+        {action && actionTo && (
+          <Link to={actionTo} className="text-xs text-muted-foreground hover:text-foreground">
+            {action}
+          </Link>
+        )}
       </div>
       {children}
     </section>
   );
 }
 
-function ResultList({ items }: { items: Array<{ id: string; title: string; detail: string; to: string }> }) {
+function ResultList({
+  items,
+}: {
+  items: Array<{ id: string; title: string; detail: string; to: string }>;
+}) {
   return (
     <div className="overflow-hidden rounded-xl border border-border bg-surface">
       {items.map((item) => (
-        <a key={item.id} href={item.to} className="flex items-center justify-between border-b border-border px-4 py-3 last:border-b-0 hover:bg-surface-2">
+        <a
+          key={item.id}
+          href={item.to}
+          className="flex items-center justify-between border-b border-border px-4 py-3 last:border-b-0 hover:bg-surface-2"
+        >
           <span className="text-sm font-medium">{item.title}</span>
           <span className="text-xs text-muted-foreground">{item.detail}</span>
         </a>

@@ -2,8 +2,9 @@ import { Link } from "@tanstack/react-router";
 import { useState } from "react";
 import { Heart, MessageCircle, Trophy, MapPin, Clock } from "lucide-react";
 import type { Activity } from "@/lib/mock-data";
-import { fmtDuration, fmtPace, fmtTimeAgo, getActivityPhoto, getAthlete } from "@/lib/mock-data";
+import { fmtDuration, fmtTimeAgo, getActivityPhoto, getAthlete } from "@/lib/mock-data";
 import { toggleActivityKudo } from "@/lib/api";
+import { useUnits } from "@/lib/units-context";
 import { RouteMap } from "./RouteMap";
 import { SportBadge } from "./SportBadge";
 
@@ -12,6 +13,7 @@ interface Props {
 }
 export function ActivityCard({ activity }: Props) {
   const ath = getAthlete(activity.athleteId);
+  const units = useUnits();
   const [kudoed, setKudoed] = useState(activity.kudoed ?? false);
   const [count, setCount] = useState(activity.kudos);
 
@@ -67,12 +69,18 @@ export function ActivityCard({ activity }: Props) {
       </Link>
 
       <div className="grid grid-cols-3 gap-0 border-y border-border/70 mx-5 mt-4">
-        <CardStat label="Distance" value={activity.distanceKm.toFixed(2)} unit="km" />
+        <CardStat
+          label="Distance"
+          value={units.distanceValue(activity.distanceKm)}
+          unit={units.distanceUnit}
+        />
         {activity.sport === "Ride" ? (
           <CardStat
             label="Avg speed"
-            value={activity.avgSpeedKmh?.toFixed(1) ?? "—"}
-            unit="km/h"
+            value={
+              activity.avgSpeedKmh !== undefined ? units.speedValue(activity.avgSpeedKmh) : "—"
+            }
+            unit={units.speedUnit}
             border
           />
         ) : activity.sport === "Swim" ? (
@@ -80,14 +88,17 @@ export function ActivityCard({ activity }: Props) {
         ) : (
           <CardStat
             label="Pace"
-            value={
-              activity.avgPaceSecPerKm ? fmtPace(activity.avgPaceSecPerKm).replace("/km", "") : "—"
-            }
-            unit="/km"
+            value={activity.avgPaceSecPerKm ? units.paceValue(activity.avgPaceSecPerKm) : "—"}
+            unit={units.paceUnit}
             border
           />
         )}
-        <CardStat label="Elev" value={activity.elevationM} unit="m" border />
+        <CardStat
+          label="Elev"
+          value={units.elevationValue(activity.elevationM)}
+          unit={units.elevationUnit}
+          border
+        />
       </div>
 
       <Link to="/activity/$id" params={{ id: activity.id }} className="mt-5 block">

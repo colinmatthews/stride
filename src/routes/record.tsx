@@ -1,8 +1,9 @@
 import { createFileRoute, useRouter } from "@tanstack/react-router";
 import { useEffect, useRef, useState } from "react";
-import { fmtDuration, fmtPace, type Sport } from "@/lib/mock-data";
+import { fmtDuration, type Sport } from "@/lib/mock-data";
 import { AppShell } from "@/components/AppShell";
 import { usePostHog } from "@posthog/react";
+import { useUnits } from "@/lib/units-context";
 import {
   Play,
   Pause,
@@ -145,6 +146,7 @@ function SportPicker({ sport, setSport }: { sport: Sport; setSport: (s: Sport) =
 
 function ManualForm({ sport }: { sport: Sport }) {
   const posthog = usePostHog();
+  const units = useUnits();
   const router = useRouter();
   const [title, setTitle] = useState("");
   const [description, setDescription] = useState("");
@@ -157,7 +159,10 @@ function ManualForm({ sport }: { sport: Sport }) {
   const [error, setError] = useState("");
   const [busy, setBusy] = useState(false);
 
-  const distanceKm = Number(distance) || 0;
+  // The athlete types in whichever units they've chosen; everything downstream
+  // of here is metric.
+  const distanceKm = units.fromDistance(Number(distance) || 0);
+  const elevationM = Math.round(units.fromElevation(Number(elevation) || 0));
   const totalSeconds =
     (Number(hours) || 0) * 3600 + (Number(minutes) || 0) * 60 + (Number(seconds) || 0);
   const isValid = distanceKm > 0 && totalSeconds > 0;
@@ -165,10 +170,10 @@ function ManualForm({ sport }: { sport: Sport }) {
   const derivedPace =
     sport === "Ride"
       ? distanceKm > 0 && totalSeconds > 0
-        ? `${(distanceKm / (totalSeconds / 3600)).toFixed(1)} km/h`
+        ? units.speed(distanceKm / (totalSeconds / 3600))
         : "—"
       : distanceKm > 0 && totalSeconds > 0
-        ? fmtPace(totalSeconds / distanceKm)
+        ? units.pace(totalSeconds / distanceKm)
         : "—";
 
   async function save() {
@@ -188,7 +193,7 @@ function ManualForm({ sport }: { sport: Sport }) {
         description: description.trim() || undefined,
         distanceKm: Math.round(distanceKm * 100) / 100,
         movingSeconds: totalSeconds,
-        elevationM: Number(elevation) || 0,
+        elevationM,
         avgHr: avgHr ? Number(avgHr) : undefined,
         avgPaceSecPerKm: paceSecPerKm,
         avgSpeedKmh: speedKmh,
@@ -198,7 +203,7 @@ function ManualForm({ sport }: { sport: Sport }) {
         sport,
         distance_km: Math.round(distanceKm * 100) / 100,
         moving_seconds: totalSeconds,
-        elevation_m: Number(elevation) || 0,
+        elevation_m: elevationM,
         entry_mode: "manual",
       });
       router.navigate({ to: "/activity/$id", params: { id: activity.id } });
@@ -217,8 +222,8 @@ function ManualForm({ sport }: { sport: Sport }) {
         </div>
         <div className="mt-4 grid gap-6 sm:grid-cols-2">
           <NumberField
-            label={sport === "Swim" ? "Distance (km)" : "Distance"}
-            unit="km"
+            label={sport === "Swim" ? `Distance (${units.distanceUnit})` : "Distance"}
+            unit={units.distanceUnit}
             value={distance}
             onChange={setDistance}
             placeholder="10.0"
@@ -275,7 +280,7 @@ function ManualForm({ sport }: { sport: Sport }) {
         <div className="mt-4 grid gap-4 sm:grid-cols-2">
           <NumberField
             label="Elevation gain"
-            unit="m"
+            unit={units.elevationUnit}
             value={elevation}
             onChange={setElevation}
             placeholder="120"
@@ -480,6 +485,7 @@ function defaultTitle(sport: Sport, date: Date) {
  * ---------------------------------------------------------------------*/
 function TimerMode({ sport }: { sport: Sport }) {
   const posthog = usePostHog();
+  const units = useUnits();
   const router = useRouter();
   const [running, setRunning] = useState(false);
   const [paused, setPaused] = useState(false);
@@ -554,10 +560,10 @@ function TimerMode({ sport }: { sport: Sport }) {
   const pace =
     sport === "Ride"
       ? distance > 0
-        ? `${(distance / (elapsed / 3600 || 1)).toFixed(1)} km/h`
-        : "0.0 km/h"
+        ? units.speed(distance / (elapsed / 3600 || 1))
+        : units.speed(0)
       : distance > 0
-        ? fmtPace(elapsed / distance)
+        ? units.pace(elapsed / distance)
         : "—";
 
   const finished = !running && elapsed > 0;
@@ -571,7 +577,7 @@ function TimerMode({ sport }: { sport: Sport }) {
         </div>
         <div className="stat-num mt-4 text-7xl text-primary">{fmtDuration(elapsed)}</div>
         <div className="mt-8 grid grid-cols-3 gap-6">
-          <TimerStat label="Distance" value={`${distance.toFixed(2)} km`} />
+          <TimerStat label="Distance" value={units.distance(distance)} />
           <TimerStat label={sport === "Ride" ? "Speed" : "Pace"} value={pace} />
           <TimerStat label="Calories" value={`${Math.round((elapsed / 60) * 10)}`} />
         </div>

@@ -14,6 +14,7 @@ import { ACTIVITIES, ATHLETES, CHALLENGES, ME, fmtDuration, getAthlete } from "@
 import { AppShell } from "@/components/AppShell";
 import { ActivityCard } from "@/components/ActivityCard";
 import { FollowButton } from "@/components/FollowButton";
+import { useUnits } from "@/lib/units-context";
 
 export const Route = createFileRoute("/")({
   head: () => ({
@@ -42,6 +43,7 @@ function Index() {
 
 function FeedPage() {
   const posthog = usePostHog();
+  const units = useUnits();
   const [filter, setFilter] = useState<Filter>("Following");
   const [feedRevision, setFeedRevision] = useState(0);
   const visible = useMemo(() => {
@@ -112,16 +114,22 @@ function FeedPage() {
             </div>
             <div className="mt-4 grid grid-cols-3 gap-3">
               <div>
-                <div className="stat-num text-2xl text-primary">{myWeekKm.toFixed(0)}</div>
-                <div className="text-[11px] uppercase tracking-wider opacity-70">km</div>
+                <div className="stat-num text-2xl text-primary">
+                  {units.distanceValue(myWeekKm, 0)}
+                </div>
+                <div className="text-[11px] uppercase tracking-wider opacity-70">
+                  {units.distanceUnit}
+                </div>
               </div>
               <div>
                 <div className="stat-num text-2xl">{fmtDuration(myWeekTime).split(":")[0]}h</div>
                 <div className="text-[11px] uppercase tracking-wider opacity-70">time</div>
               </div>
               <div>
-                <div className="stat-num text-2xl">{myWeekElev.toLocaleString()}</div>
-                <div className="text-[11px] uppercase tracking-wider opacity-70">m elev</div>
+                <div className="stat-num text-2xl">{units.elevationValue(myWeekElev)}</div>
+                <div className="text-[11px] uppercase tracking-wider opacity-70">
+                  {units.elevationUnit} elev
+                </div>
               </div>
             </div>
             <Link

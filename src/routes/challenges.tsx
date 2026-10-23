@@ -5,6 +5,7 @@ import { AppShell } from "@/components/AppShell";
 import { Trophy, Users, Calendar, Check } from "lucide-react";
 import { toggleChallengeJoin } from "@/lib/api";
 import { usePostHog } from "@posthog/react";
+import { useUnits } from "@/lib/units-context";
 
 export const Route = createFileRoute("/challenges")({
   head: () => ({
@@ -18,6 +19,7 @@ export const Route = createFileRoute("/challenges")({
 
 function ChallengesPage() {
   const posthog = usePostHog();
+  const units = useUnits();
   const [joined, setJoined] = useState<Record<string, boolean>>(
     Object.fromEntries(CHALLENGES.map((c) => [c.id, !!c.joined])),
   );
@@ -52,7 +54,12 @@ function ChallengesPage() {
         {CHALLENGES.map((c) => {
           const isJoined = joined[c.id];
           const pct = Math.min(100, (c.myProgressKm / c.goalKm) * 100);
-          const unit = c.sport === "Ride" && c.goalKm > 1000 ? "m" : "km";
+          // Climbing challenges ("Climb 5,000m") store metres of ascent in
+          // goalKm rather than distance, so they convert to feet, not miles.
+          const isClimb = c.sport === "Ride" && c.goalKm > 1000;
+          const unit = isClimb ? units.elevationUnit : units.distanceUnit;
+          const amount = (value: number, digits: number) =>
+            isClimb ? units.elevationValue(value) : units.distanceValue(value, digits);
           return (
             <article
               key={c.id}
@@ -92,7 +99,7 @@ function ChallengesPage() {
                       {c.name}
                     </h3>
                     <span className="stat-num shrink-0 text-base font-semibold text-primary">
-                      {c.goalKm} {unit}
+                      {amount(c.goalKm, 0)} {unit}
                     </span>
                   </div>
                 </div>
@@ -117,15 +124,15 @@ function ChallengesPage() {
                     <span className="stat-num text-sm font-semibold">
                       {isJoined ? (
                         <>
-                          {c.myProgressKm.toFixed(1)}
+                          {amount(c.myProgressKm, 1)}
                           <span className="text-muted-foreground">
                             {" "}
-                            / {c.goalKm} {unit}
+                            / {amount(c.goalKm, 0)} {unit}
                           </span>
                         </>
                       ) : (
                         <span className="text-muted-foreground">
-                          0 / {c.goalKm} {unit}
+                          0 / {amount(c.goalKm, 0)} {unit}
                         </span>
                       )}
                     </span>
@@ -140,7 +147,7 @@ function ChallengesPage() {
                     <div className="mt-2 flex justify-between font-mono text-[10px] uppercase tracking-[0.22em] text-muted-foreground">
                       <span>{Math.round(pct)}% complete</span>
                       <span>
-                        {Math.max(0, c.goalKm - c.myProgressKm).toFixed(0)} {unit} to go
+                        {amount(Math.max(0, c.goalKm - c.myProgressKm), 0)} {unit} to go
                       </span>
                     </div>
                   )}

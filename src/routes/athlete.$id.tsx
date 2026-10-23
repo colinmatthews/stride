@@ -1,13 +1,22 @@
 import { createFileRoute, Link, notFound } from "@tanstack/react-router";
 import { useState } from "react";
 import { usePostHog } from "@posthog/react";
-import { ACTIVITIES, ATHLETES, type Activity, fmtDate, fmtDuration, getAthlete, weeklyStats } from "@/lib/mock-data";
+import {
+  ACTIVITIES,
+  ATHLETES,
+  type Activity,
+  fmtDate,
+  fmtDuration,
+  getAthlete,
+  weeklyStats,
+} from "@/lib/mock-data";
 import { AppShell } from "@/components/AppShell";
 import { ActivityCard } from "@/components/ActivityCard";
 import { ResponsiveContainer, BarChart, Bar, XAxis, YAxis, Tooltip, CartesianGrid } from "recharts";
 import { MapPin, Trophy, UserPlus, Check } from "lucide-react";
 import { SportBadge } from "@/components/SportBadge";
 import { fetchActivities, toggleAthleteFollow } from "@/lib/api";
+import { useUnits } from "@/lib/units-context";
 
 export const Route = createFileRoute("/athlete/$id")({
   loader: async ({ params }) => {
@@ -38,13 +47,17 @@ function AthletePage() {
     nextCursor?: string;
   };
   const posthog = usePostHog();
+  const units = useUnits();
   const [following, setFollowing] = useState(Boolean(athlete.isFollowing));
   const [followers, setFollowers] = useState(athlete.followers);
   const [activities, setActivities] = useState(initialActivities);
   const [nextCursor, setNextCursor] = useState(initialNextCursor);
   const [loadingMore, setLoadingMore] = useState(false);
   const acts = activities;
-  const weeks = weeklyStatsForActivities(activities);
+  const weeks = weeklyStatsForActivities(activities).map((week) => ({
+    ...week,
+    km: Math.round(units.toDistance(week.km) * 10) / 10,
+  }));
   const totalKm = acts.reduce((s, a) => s + a.distanceKm, 0);
   const totalTime = acts.reduce((s, a) => s + a.movingSeconds, 0);
   const totalElev = acts.reduce((s, a) => s + a.elevationM, 0);
@@ -135,15 +148,17 @@ function AthletePage() {
         <BigStat label="Followers" value={followers.toLocaleString()} />
         <BigStat label="Following" value={athlete.following.toLocaleString()} />
         <BigStat label="Activities" value={acts.length} />
-        <BigStat label="Distance" value={`${totalKm.toFixed(0)} km`} />
-        <BigStat label="Elevation" value={`${totalElev.toLocaleString()} m`} />
+        <BigStat label="Distance" value={units.distance(totalKm, 0)} />
+        <BigStat label="Elevation" value={units.elevation(totalElev)} />
       </div>
 
       <div className="grid grid-cols-[1fr_320px] gap-8 mt-10">
         <div className="min-w-0">
           {/* Weekly chart */}
           <section className="bg-surface rounded-xl border border-border p-5 mb-8">
-            <h2 className="text-base font-display font-semibold mb-4">Last 8 weeks</h2>
+            <h2 className="text-base font-display font-semibold mb-4">
+              Last 8 weeks ({units.distanceUnit})
+            </h2>
             <div className="h-56">
               <ResponsiveContainer width="100%" height="100%">
                 <BarChart data={weeks}>
@@ -211,11 +226,11 @@ function AthletePage() {
               </li>
               <li className="flex justify-between">
                 <span className="text-muted-foreground">Distance</span>
-                <span className="font-mono">{totalKm.toFixed(1)} km</span>
+                <span className="font-mono">{units.distance(totalKm, 1)}</span>
               </li>
               <li className="flex justify-between">
                 <span className="text-muted-foreground">Elevation</span>
-                <span className="font-mono">{totalElev.toLocaleString()} m</span>
+                <span className="font-mono">{units.elevation(totalElev)}</span>
               </li>
               <li className="flex justify-between">
                 <span className="text-muted-foreground">Activities</span>

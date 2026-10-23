@@ -17,6 +17,7 @@ import {
   Legend,
 } from "recharts";
 import { SportBadge } from "@/components/SportBadge";
+import { useUnits } from "@/lib/units-context";
 
 export const Route = createFileRoute("/training")({
   head: () => ({
@@ -38,11 +39,19 @@ const SPORT_COLORS: Record<Sport, string> = {
 };
 
 function Training() {
+  const units = useUnits();
   const initialPage = Route.useLoaderData() as { activities: Activity[]; nextCursor?: string };
   const [my, setMy] = useState(initialPage.activities);
   const [nextCursor, setNextCursor] = useState(initialPage.nextCursor);
   const [loadingMore, setLoadingMore] = useState(false);
-  const weeks = useMemo(() => weeklyStatsForActivities(my), [my]);
+  const weeks = useMemo(
+    () =>
+      weeklyStatsForActivities(my).map((week) => ({
+        ...week,
+        km: Math.round(units.toDistance(week.km) * 10) / 10,
+      })),
+    [my, units],
+  );
   const [sport, setSport] = useState<"All" | Sport>("All");
 
   const sportBreakdown = useMemo(() => {
@@ -50,9 +59,9 @@ function Training() {
     my.forEach((a) => map.set(a.sport, (map.get(a.sport) ?? 0) + a.distanceKm));
     return Array.from(map.entries()).map(([s, km]) => ({
       name: s,
-      value: Math.round(km * 10) / 10,
+      value: Math.round(units.toDistance(km) * 10) / 10,
     }));
-  }, [my]);
+  }, [my, units]);
 
   const filtered = sport === "All" ? my : my.filter((a) => a.sport === sport);
   const totals = filtered.reduce(
@@ -85,14 +94,16 @@ function Training() {
 
       <div className="grid grid-cols-4 gap-4 mb-8">
         <Card label="Activities" value={totals.count} />
-        <Card label="Distance" value={`${totals.km.toFixed(1)} km`} />
+        <Card label="Distance" value={units.distance(totals.km, 1)} />
         <Card label="Time" value={fmtDuration(totals.time)} />
-        <Card label="Elevation" value={`${totals.elev.toLocaleString()} m`} />
+        <Card label="Elevation" value={units.elevation(totals.elev)} />
       </div>
 
       <div className="grid grid-cols-3 gap-6 mb-10">
         <section className="bg-surface border border-border rounded-xl p-5 col-span-2">
-          <h2 className="text-base font-display font-semibold mb-4">Weekly volume (km)</h2>
+          <h2 className="text-base font-display font-semibold mb-4">
+            Weekly volume ({units.distanceUnit})
+          </h2>
           <div className="h-64">
             <ResponsiveContainer width="100%" height="100%">
               <BarChart data={weeks}>
@@ -180,7 +191,7 @@ function Training() {
               <th className="text-left font-medium px-4 py-3">Date</th>
               <th className="text-left font-medium px-4 py-3">Activity</th>
               <th className="text-left font-medium px-4 py-3">Sport</th>
-              <th className="text-right font-medium px-4 py-3">Distance</th>
+              <th className="text-right font-medium px-4 py-3">Distance ({units.distanceUnit})</th>
               <th className="text-right font-medium px-4 py-3">Time</th>
               <th className="text-right font-medium px-4 py-3">Elev</th>
             </tr>
@@ -199,9 +210,11 @@ function Training() {
                 <td className="px-4 py-3">
                   <SportBadge sport={a.sport} />
                 </td>
-                <td className="px-4 py-3 text-right font-mono">{a.distanceKm.toFixed(2)}</td>
+                <td className="px-4 py-3 text-right font-mono">
+                  {units.distanceValue(a.distanceKm)}
+                </td>
                 <td className="px-4 py-3 text-right font-mono">{fmtDuration(a.movingSeconds)}</td>
-                <td className="px-4 py-3 text-right font-mono">{a.elevationM} m</td>
+                <td className="px-4 py-3 text-right font-mono">{units.elevation(a.elevationM)}</td>
               </tr>
             ))}
             {filtered.length === 0 && (
