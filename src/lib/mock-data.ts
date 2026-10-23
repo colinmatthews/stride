@@ -1,3 +1,5 @@
+import type { WorkoutSync } from "./workout-syncs";
+
 export type Sport = "Run" | "Ride" | "Swim" | "Hike" | "Walk";
 
 export interface Athlete {
@@ -82,6 +84,7 @@ export interface AppData {
   segments: Segment[];
   clubs: Club[];
   challenges: Challenge[];
+  workoutSyncs?: WorkoutSync[];
 }
 
 const EMPTY_ATHLETE: Athlete = {

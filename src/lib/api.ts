@@ -8,13 +8,16 @@ import {
   type Activity,
   type AppData,
 } from "./mock-data";
+import type { WorkoutSync } from "./workout-syncs";
 
 class ApiError extends Error {
   status: number;
+  payload?: unknown;
 
-  constructor(message: string, status: number) {
+  constructor(message: string, status: number, payload?: unknown) {
     super(message);
     this.status = status;
+    this.payload = payload;
   }
 }
 
@@ -30,7 +33,7 @@ async function apiFetch<T>(input: string, init?: RequestInit): Promise<T> {
 
   if (!response.ok) {
     const payload = await response.json().catch(() => null);
-    throw new ApiError(payload?.error ?? "Request failed", response.status);
+    throw new ApiError(payload?.error ?? "Request failed", response.status, payload);
   }
 
   if (response.status === 204) {
@@ -198,6 +201,13 @@ export async function toggleChallengeJoin(challengeId: string) {
   }
 
   return payload;
+}
+
+export async function retryWorkoutSyncRequest(syncId: string) {
+  return apiFetch<{ sync: WorkoutSync; activity?: Activity }>(
+    `/api/syncs/${encodeURIComponent(syncId)}/retry`,
+    { method: "POST" },
+  );
 }
 
 export { ApiError };

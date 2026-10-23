@@ -21,6 +21,8 @@ import {
   requireAuth,
   verifyPassword,
 } from "./auth.js";
+import { parseIngestBody } from "./sync.js";
+import { listWorkoutSyncs, recordWorkoutSync, retryWorkoutSync } from "./sync-data.js";
 
 export function createApp() {
   const app = express();
@@ -108,7 +110,50 @@ export function createApp() {
 
   app.get("/api/bootstrap", requireAuth, async (request, response, next) => {
     try {
-      response.json(await buildBootstrap(request.userId!));
+      const [bootstrap, workoutSyncs] = await Promise.all([
+        buildBootstrap(request.userId!),
+        listWorkoutSyncs(request.userId!),
+      ]);
+      response.json({ ...bootstrap, workoutSyncs });
+    } catch (error) {
+      next(error);
+    }
+  });
+
+  // Called by a device integration on the athlete's behalf, whether or not
+  // the workout data arrived intact.
+  app.post("/api/syncs", requireAuth, async (request, response, next) => {
+    try {
+      const input = parseIngestBody(request.body);
+
+      if (!input) {
+        response
+          .status(400)
+          .json({ error: "externalId, deviceName, title, sport and startedAt are required" });
+        return;
+      }
+
+      response.status(201).json({ sync: await recordWorkoutSync(request.userId!, input) });
+    } catch (error) {
+      next(error);
+    }
+  });
+
+  app.post("/api/syncs/:id/retry", requireAuth, async (request, response, next) => {
+    try {
+      const result = await retryWorkoutSync(request.userId!, String(request.params.id));
+
+      if (result.kind === "not_found") {
+        response.status(404).json({ error: "Sync not found" });
+        return;
+      }
+
+      if (result.kind === "retry_exhausted") {
+        response.status(409).json({ error: "Retry limit reached", sync: result.sync });
+        return;
+      }
+
+      response.json({ sync: result.sync, activity: result.activity ?? undefined });
     } catch (error) {
       next(error);
     }

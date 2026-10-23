@@ -1,6 +1,6 @@
 import { randomUUID } from "node:crypto";
 import { and, asc, desc, eq, gt, inArray, lt, min, sum, type SQL } from "drizzle-orm";
-import { db } from "./db.js";
+import { db, type DbExecutor } from "./db.js";
 import {
   activities as activitiesTable,
   activityComments,
@@ -442,28 +442,32 @@ export async function buildBootstrap(userId: string) {
   };
 }
 
-export async function createActivity(input: {
-  userId: string;
-  sport: Sport;
-  title: string;
-  description?: string;
-  distanceKm: number;
-  movingSeconds: number;
-  elevationM: number;
-  avgHr?: number;
-  avgPaceSecPerKm?: number;
-  avgSpeedKmh?: number;
-  routeSeed: number;
-}) {
+export async function createActivity(
+  input: {
+    userId: string;
+    sport: Sport;
+    title: string;
+    description?: string;
+    date?: Date;
+    distanceKm: number;
+    movingSeconds: number;
+    elevationM: number;
+    avgHr?: number;
+    avgPaceSecPerKm?: number;
+    avgSpeedKmh?: number;
+    routeSeed: number;
+  },
+  executor: DbExecutor = db,
+) {
   const id = `act-${randomUUID()}`;
 
-  await db.insert(activitiesTable).values({
+  await executor.insert(activitiesTable).values({
     id,
     athleteId: input.userId,
     sport: input.sport,
     title: input.title,
     description: input.description ?? null,
-    date: new Date(),
+    date: input.date ?? new Date(),
     distanceKm: String(input.distanceKm),
     movingSeconds: input.movingSeconds,
     elevationM: input.elevationM,

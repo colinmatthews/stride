@@ -4,6 +4,7 @@ import { RouterProvider } from "@tanstack/react-router";
 import { getRouter } from "./router";
 import { clearAppData, initializeAppData } from "./lib/mock-data";
 import { fetchBootstrap } from "./lib/api";
+import { initializeWorkoutSyncs } from "./lib/workout-syncs";
 import "./styles.css";
 
 async function bootstrap() {
@@ -17,6 +18,7 @@ async function bootstrap() {
     if (!isAuthRoute) {
       const data = await fetchBootstrap();
       initializeAppData(data);
+      initializeWorkoutSyncs(data.workoutSyncs ?? []);
     }
   } catch (error) {
     clearAppData();
