@@ -1,7 +1,10 @@
 import { createFileRoute, useRouter } from "@tanstack/react-router";
 import { useEffect, useRef, useState } from "react";
-import { fmtDuration, fmtPace, type Sport } from "@/lib/mock-data";
+import { fmtDuration, fmtPace, type Activity, type Sport } from "@/lib/mock-data";
+import type { SaveSummary } from "@/lib/save-summary";
 import { AppShell } from "@/components/AppShell";
+import { SaveCelebrationDialog } from "@/components/celebration/SaveCelebrationDialog";
+import { sportNoun } from "@/components/celebration/format";
 import { usePostHog } from "@posthog/react";
 import {
   Play,
@@ -14,7 +17,7 @@ import {
   ArrowRight,
   LoaderCircle,
 } from "lucide-react";
-import { saveActivity } from "@/lib/api";
+import { ApiError, fetchSaveSummary, isClientError, saveActivity } from "@/lib/api";
 
 export const Route = createFileRoute("/record")({
   head: () => ({
@@ -28,10 +31,84 @@ export const Route = createFileRoute("/record")({
 
 const SPORTS: Sport[] = ["Run", "Ride", "Swim", "Hike", "Walk"];
 type Mode = "manual" | "timer";
+type OnSaved = (activity: Activity) => Promise<void>;
+type PostHogClient = ReturnType<typeof usePostHog>;
+
+// Rejected input is a user mistake, not a bug, so only server and network failures reach error tracking.
+function reportSaveFailure(posthog: PostHogClient, err: unknown, entryMode: Mode, sport: Sport) {
+  posthog.capture("activity_save_failed", {
+    entry_mode: entryMode,
+    sport,
+    status: err instanceof ApiError ? err.status : null,
+    reason: isClientError(err) ? err.message : null,
+  });
+  if (isClientError(err)) return err.message;
+  posthog.captureException(err);
+  return "Couldn't save activity. Try again.";
+}
 
 function Record() {
+  const posthog = usePostHog();
+  const router = useRouter();
   const [mode, setMode] = useState<Mode>("manual");
   const [sport, setSport] = useState<Sport>("Run");
+  const [summary, setSummary] = useState<SaveSummary | null>(null);
+  const [open, setOpen] = useState(false);
+  const [formKey, setFormKey] = useState(0);
+
+  // The activity is already saved here, so a failed summary must never surface as a save error.
+  async function handleSaved(activity: Activity) {
+    try {
+      const next = await fetchSaveSummary(activity.id);
+      setSummary(next);
+      setOpen(true);
+      posthog.capture("activity_celebration_shown", {
+        activity_id: next.activity.id,
+        entry_mode: mode,
+        sport: next.activity.sport,
+        ordinal: next.ordinal,
+        sport_ordinal: next.sportOrdinal,
+        streak_days: next.streakDays,
+        highlight_ids: next.highlights.map((highlight) => highlight.id),
+        challenge_count: next.challenges.length,
+      });
+    } catch (err) {
+      posthog.capture("activity_celebration_failed", {
+        activity_id: activity.id,
+        entry_mode: mode,
+        status: err instanceof ApiError ? err.status : null,
+      });
+      posthog.captureException(err);
+      router.navigate({ to: "/activity/$id", params: { id: activity.id } });
+    }
+  }
+
+  function closeAndReset(action: "log_another" | "dismiss") {
+    if (summary) {
+      posthog.capture("activity_celebration_action", {
+        activity_id: summary.activity.id,
+        entry_mode: mode,
+        action,
+      });
+    }
+    setOpen(false);
+    setFormKey((key) => key + 1);
+  }
+
+  function handleOpenChange(next: boolean) {
+    if (!next) closeAndReset("dismiss");
+  }
+
+  function viewActivity() {
+    if (!summary) return;
+    posthog.capture("activity_celebration_action", {
+      activity_id: summary.activity.id,
+      entry_mode: mode,
+      action: "view_activity",
+    });
+    setOpen(false);
+    router.navigate({ to: "/activity/$id", params: { id: summary.activity.id } });
+  }
 
   return (
     <AppShell>
@@ -69,8 +146,19 @@ function Record() {
 
         <SportPicker sport={sport} setSport={setSport} />
 
-        {mode === "manual" ? <ManualForm sport={sport} /> : <TimerMode sport={sport} />}
+        {mode === "manual" ? (
+          <ManualForm key={formKey} sport={sport} onSaved={handleSaved} />
+        ) : (
+          <TimerMode key={formKey} sport={sport} onSaved={handleSaved} />
+        )}
       </div>
+      <SaveCelebrationDialog
+        summary={summary}
+        open={open}
+        onOpenChange={handleOpenChange}
+        onViewActivity={viewActivity}
+        onLogAnother={() => closeAndReset("log_another")}
+      />
     </AppShell>
   );
 }
@@ -143,9 +231,8 @@ function SportPicker({ sport, setSport }: { sport: Sport; setSport: (s: Sport) =
   );
 }
 
-function ManualForm({ sport }: { sport: Sport }) {
+function ManualForm({ sport, onSaved }: { sport: Sport; onSaved: OnSaved }) {
   const posthog = usePostHog();
-  const router = useRouter();
   const [title, setTitle] = useState("");
   const [description, setDescription] = useState("");
   const [distance, setDistance] = useState("");
@@ -189,7 +276,7 @@ function ManualForm({ sport }: { sport: Sport }) {
         distanceKm: Math.round(distanceKm * 100) / 100,
         movingSeconds: totalSeconds,
         elevationM: Number(elevation) || 0,
-        avgHr: avgHr ? Number(avgHr) : undefined,
+        avgHr: Number(avgHr) || undefined,
         avgPaceSecPerKm: paceSecPerKm,
         avgSpeedKmh: speedKmh,
         routeSeed: Math.floor(Math.random() * 1000),
@@ -201,10 +288,9 @@ function ManualForm({ sport }: { sport: Sport }) {
         elevation_m: Number(elevation) || 0,
         entry_mode: "manual",
       });
-      router.navigate({ to: "/activity/$id", params: { id: activity.id } });
+      await onSaved(activity);
     } catch (err) {
-      posthog.captureException(err);
-      setError("Couldn't save activity. Try again.");
+      setError(reportSaveFailure(posthog, err, "manual", sport));
       setBusy(false);
     }
   }
@@ -462,25 +548,14 @@ function defaultTitle(sport: Sport, date: Date) {
           : hour < 18
             ? "Afternoon"
             : "Evening";
-  const noun =
-    sport === "Ride"
-      ? "ride"
-      : sport === "Swim"
-        ? "swim"
-        : sport === "Hike"
-          ? "hike"
-          : sport === "Walk"
-            ? "walk"
-            : "run";
-  return `${window} ${noun}`;
+  return `${window} ${sportNoun(sport)}`;
 }
 
 /* -----------------------------------------------------------------------
  *   Timer mode — existing live-tracking flow, restyled to match aesthetic
  * ---------------------------------------------------------------------*/
-function TimerMode({ sport }: { sport: Sport }) {
+function TimerMode({ sport, onSaved }: { sport: Sport; onSaved: OnSaved }) {
   const posthog = usePostHog();
-  const router = useRouter();
   const [running, setRunning] = useState(false);
   const [paused, setPaused] = useState(false);
   const [elapsed, setElapsed] = useState(0);
@@ -488,6 +563,7 @@ function TimerMode({ sport }: { sport: Sport }) {
   const [title, setTitle] = useState("");
   const [description, setDescription] = useState("");
   const [saving, setSaving] = useState(false);
+  const [error, setError] = useState("");
   const ref = useRef<number | null>(null);
 
   useEffect(() => {
@@ -517,8 +593,10 @@ function TimerMode({ sport }: { sport: Sport }) {
     setDistance(0);
     setTitle("");
     setDescription("");
+    setError("");
   };
   const save = async () => {
+    setError("");
     setSaving(true);
     try {
       const pace =
@@ -544,9 +622,9 @@ function TimerMode({ sport }: { sport: Sport }) {
         elevation_m: Math.floor(distance * 12),
         entry_mode: "timer",
       });
-      router.navigate({ to: "/activity/$id", params: { id: activity.id } });
+      await onSaved(activity);
     } catch (err) {
-      posthog.captureException(err);
+      setError(reportSaveFailure(posthog, err, "timer", sport));
       setSaving(false);
     }
   };
@@ -636,6 +714,11 @@ function TimerMode({ sport }: { sport: Sport }) {
               />
             </label>
           </div>
+          {error && (
+            <div className="mt-6 border border-destructive/30 bg-destructive/8 px-4 py-3 text-sm text-destructive">
+              {error}
+            </div>
+          )}
           <div className="mt-6 flex items-center justify-end gap-3">
             <button
               onClick={reset}

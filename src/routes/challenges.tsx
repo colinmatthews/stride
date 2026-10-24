@@ -2,8 +2,8 @@ import { createFileRoute } from "@tanstack/react-router";
 import { useState } from "react";
 import { CHALLENGES } from "@/lib/mock-data";
 import { AppShell } from "@/components/AppShell";
-import { Trophy, Users, Calendar, Check } from "lucide-react";
-import { toggleChallengeJoin } from "@/lib/api";
+import { Trophy, Users, Calendar, Check, LoaderCircle } from "lucide-react";
+import { ApiError, isClientError, toggleChallengeJoin } from "@/lib/api";
 import { usePostHog } from "@posthog/react";
 
 export const Route = createFileRoute("/challenges")({
@@ -24,6 +24,8 @@ function ChallengesPage() {
   const [participants, setParticipants] = useState<Record<string, number>>(
     Object.fromEntries(CHALLENGES.map((c) => [c.id, c.participants])),
   );
+  const [pending, setPending] = useState<Record<string, boolean>>({});
+  const [errors, setErrors] = useState<Record<string, string>>({});
 
   const joinedCount = Object.values(joined).filter(Boolean).length;
 
@@ -52,7 +54,9 @@ function ChallengesPage() {
         {CHALLENGES.map((c) => {
           const isJoined = joined[c.id];
           const pct = Math.min(100, (c.myProgressKm / c.goalKm) * 100);
-          const unit = c.sport === "Ride" && c.goalKm > 1000 ? "m" : "km";
+          const unit = c.metricType === "elevation_m" ? "m" : "km";
+          const isPending = !!pending[c.id];
+          const joinClosed = c.ended && !isJoined;
           return (
             <article
               key={c.id}
@@ -78,7 +82,7 @@ function ChallengesPage() {
                     </div>
                   ) : (
                     <div className="font-mono text-[10px] uppercase tracking-[0.22em] text-secondary-foreground/50">
-                      Open
+                      {c.ended ? "Ended" : "Open"}
                     </div>
                   )}
                 </div>
@@ -148,25 +152,54 @@ function ChallengesPage() {
 
                 <button
                   onClick={async () => {
-                    const result = await toggleChallengeJoin(c.id);
-                    setJoined((state) => ({ ...state, [c.id]: result.joined }));
-                    setParticipants((state) => ({ ...state, [c.id]: result.participants }));
-                    posthog.capture(result.joined ? "challenge_joined" : "challenge_left", {
-                      challenge_id: c.id,
-                      challenge_name: c.name,
-                      sport: c.sport,
-                      goal_km: c.goalKm,
-                    });
+                    setPending((state) => ({ ...state, [c.id]: true }));
+                    setErrors((state) => ({ ...state, [c.id]: "" }));
+                    try {
+                      const result = await toggleChallengeJoin(c.id);
+                      setJoined((state) => ({ ...state, [c.id]: result.joined }));
+                      setParticipants((state) => ({ ...state, [c.id]: result.participants }));
+                      posthog.capture(result.joined ? "challenge_joined" : "challenge_left", {
+                        challenge_id: c.id,
+                        challenge_name: c.name,
+                        sport: c.sport,
+                        goal_km: c.goalKm,
+                      });
+                    } catch (err) {
+                      posthog.capture("challenge_join_failed", {
+                        challenge_id: c.id,
+                        action: isJoined ? "leave" : "join",
+                        status: err instanceof ApiError ? err.status : null,
+                      });
+                      if (!isClientError(err)) posthog.captureException(err);
+                      setErrors((state) => ({
+                        ...state,
+                        [c.id]: isClientError(err)
+                          ? err.message
+                          : "Couldn't update challenge. Try again.",
+                      }));
+                    } finally {
+                      setPending((state) => ({ ...state, [c.id]: false }));
+                    }
                   }}
-                  className={`mt-6 inline-flex h-11 w-full items-center justify-center gap-2 text-sm font-medium transition-opacity hover:opacity-95 ${
-                    isJoined
+                  disabled={joinClosed || isPending}
+                  className={`mt-6 inline-flex h-11 w-full items-center justify-center gap-2 text-sm font-medium transition-opacity hover:opacity-95 disabled:cursor-not-allowed disabled:opacity-50 ${
+                    isJoined || joinClosed
                       ? "border border-border bg-surface text-foreground"
                       : "bg-primary text-primary-foreground"
                   }`}
                 >
-                  {isJoined ? (
+                  {isPending ? (
+                    <>
+                      <LoaderCircle className="h-4 w-4 animate-spin" />{" "}
+                      {isJoined ? "Leaving" : "Joining"}
+                    </>
+                  ) : isJoined ? (
                     <>
                       <Check className="h-4 w-4" /> Leave challenge
+                    </>
+                  ) : joinClosed ? (
+                    <>
+                      <Calendar className="h-4 w-4" /> Challenge ended
                     </>
                   ) : (
                     <>
@@ -174,6 +207,11 @@ function ChallengesPage() {
                     </>
                   )}
                 </button>
+                {errors[c.id] && (
+                  <div className="mt-3 border border-destructive/30 bg-destructive/8 px-4 py-3 text-sm text-destructive">
+                    {errors[c.id]}
+                  </div>
+                )}
               </div>
             </article>
           );

@@ -21,6 +21,9 @@ import {
   requireAuth,
   verifyPassword,
 } from "./auth.js";
+import { ConflictError, NotFoundError } from "./errors.js";
+import { loadSaveSummary } from "./load-save-summary.js";
+import { parseActivityInput } from "./validation.js";
 
 export function createApp() {
   const app = express();
@@ -143,23 +146,35 @@ export function createApp() {
     }
   });
 
+  app.get("/api/activities/:id/summary", requireAuth, async (request, response, next) => {
+    try {
+      const summary = await loadSaveSummary(
+        request.userId!,
+        String(request.params.id),
+        request.query.tz,
+      );
+
+      if (!summary) {
+        response.status(404).json({ error: "Activity not found" });
+        return;
+      }
+
+      response.json(summary);
+    } catch (error) {
+      next(error);
+    }
+  });
+
   app.post("/api/activities", requireAuth, async (request, response, next) => {
     try {
-      const activityId = await createActivity({
-        userId: request.userId!,
-        sport: request.body.sport,
-        title: String(request.body.title ?? ""),
-        description: request.body.description ? String(request.body.description) : undefined,
-        distanceKm: Number(request.body.distanceKm ?? 0),
-        movingSeconds: Number(request.body.movingSeconds ?? 0),
-        elevationM: Number(request.body.elevationM ?? 0),
-        avgHr: request.body.avgHr ? Number(request.body.avgHr) : undefined,
-        avgPaceSecPerKm: request.body.avgPaceSecPerKm
-          ? Number(request.body.avgPaceSecPerKm)
-          : undefined,
-        avgSpeedKmh: request.body.avgSpeedKmh ? Number(request.body.avgSpeedKmh) : undefined,
-        routeSeed: Number(request.body.routeSeed ?? 1),
-      });
+      const parsed = parseActivityInput(request.body);
+
+      if (!parsed.ok) {
+        response.status(400).json({ error: parsed.error });
+        return;
+      }
+
+      const activityId = await createActivity({ userId: request.userId!, ...parsed.value });
 
       const activity = await getActivityById(request.userId!, activityId);
 
@@ -236,6 +251,11 @@ export function createApp() {
       response: express.Response,
       _next: express.NextFunction,
     ) => {
+      if (error instanceof NotFoundError || error instanceof ConflictError) {
+        response.status(error.status).json({ error: error.message });
+        return;
+      }
+
       console.error(error);
       response.status(500).json({ error: "Internal server error" });
     },

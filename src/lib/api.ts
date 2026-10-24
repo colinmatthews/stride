@@ -1,5 +1,6 @@
 import {
   ACTIVITIES,
+  applyChallengeProgress,
   ATHLETES,
   CHALLENGES,
   CLUBS,
@@ -8,6 +9,7 @@ import {
   type Activity,
   type AppData,
 } from "./mock-data";
+import type { SaveSummary } from "./save-summary";
 
 class ApiError extends Error {
   status: number;
@@ -16,6 +18,10 @@ class ApiError extends Error {
     super(message);
     this.status = status;
   }
+}
+
+export function isClientError(err: unknown): err is ApiError {
+  return err instanceof ApiError && err.status >= 400 && err.status < 500;
 }
 
 async function apiFetch<T>(input: string, init?: RequestInit): Promise<T> {
@@ -112,6 +118,17 @@ export async function saveActivity(payload: {
 
   mergeActivities([activity]);
   return activity;
+}
+
+export async function fetchSaveSummary(activityId: string) {
+  const params = new URLSearchParams({ tz: Intl.DateTimeFormat().resolvedOptions().timeZone });
+  const summary = await apiFetch<SaveSummary>(
+    `/api/activities/${activityId}/summary?${params.toString()}`,
+  );
+
+  mergeActivities([summary.activity]);
+  applyChallengeProgress(summary.challenges);
+  return summary;
 }
 
 export async function toggleActivityKudo(activityId: string) {

@@ -1,6 +1,13 @@
 import { randomUUID } from "node:crypto";
-import { and, asc, desc, eq, gt, inArray, lt, min, sum, type SQL } from "drizzle-orm";
+import { and, asc, desc, eq, gt, gte, inArray, lt, min, sql, type SQL } from "drizzle-orm";
+import {
+  computeChallengeProgress,
+  isChallengeEnded,
+  type ProgressActivity,
+  type ProgressChallenge,
+} from "./challenge-progress.js";
 import { db } from "./db.js";
+import { ConflictError, NotFoundError } from "./errors.js";
 import {
   activities as activitiesTable,
   activityComments,
@@ -25,7 +32,7 @@ type Sport = "Run" | "Ride" | "Swim" | "Hike" | "Walk";
 type ActivityRow = typeof activitiesTable.$inferSelect;
 type AthleteRow = typeof users.$inferSelect;
 
-type ActivityDto = {
+export type ActivityDto = {
   id: string;
   athleteId: string;
   sport: Sport;
@@ -317,6 +324,39 @@ export async function getActivityById(userId: string, activityId: string) {
   return activities[0] ?? null;
 }
 
+type ChallengeRow = typeof challengesTable.$inferSelect;
+
+export function toProgressChallenge(row: ChallengeRow): ProgressChallenge {
+  return {
+    sport: row.sport,
+    metricType: row.metricType === "elevation_m" ? "elevation_m" : "distance_km",
+    endsAt: row.endsAt,
+  };
+}
+
+/** The athlete's activities that could count toward any challenge joined at one of `joinDates`. */
+export async function listChallengeActivities(
+  userId: string,
+  joinDates: Date[],
+): Promise<ProgressActivity[]> {
+  if (joinDates.length === 0) {
+    return [];
+  }
+
+  const earliestJoin = new Date(Math.min(...joinDates.map((date) => date.getTime())));
+  const rows = await db
+    .select({
+      sport: activitiesTable.sport,
+      date: activitiesTable.date,
+      distanceKm: activitiesTable.distanceKm,
+      elevationM: activitiesTable.elevationM,
+    })
+    .from(activitiesTable)
+    .where(and(eq(activitiesTable.athleteId, userId), gte(activitiesTable.date, earliestJoin)));
+
+  return rows.map((row) => ({ ...row, distanceKm: Number(row.distanceKm) }));
+}
+
 export async function buildBootstrap(userId: string) {
   const [
     usersResult,
@@ -328,7 +368,6 @@ export async function buildBootstrap(userId: string) {
     clubMembershipsResult,
     challengesResult,
     challengeEntriesResult,
-    challengeProgressResult,
   ] = await Promise.all([
     db.select().from(users).orderBy(asc(users.createdAt)),
     db
@@ -353,23 +392,20 @@ export async function buildBootstrap(userId: string) {
       .where(eq(clubMemberships.userId, userId)),
     db.select().from(challengesTable).orderBy(asc(challengesTable.endsAt)),
     db
-      .select({ challengeId: challengeEntries.challengeId })
+      .select({ challengeId: challengeEntries.challengeId, joinedAt: challengeEntries.createdAt })
       .from(challengeEntries)
       .where(eq(challengeEntries.userId, userId)),
-    db
-      .select({
-        sport: activitiesTable.sport,
-        distanceKm: sum(activitiesTable.distanceKm),
-        elevationM: sum(activitiesTable.elevationM),
-      })
-      .from(activitiesTable)
-      .where(eq(activitiesTable.athleteId, userId))
-      .groupBy(activitiesTable.sport),
   ]);
+  const challengeActivities = await listChallengeActivities(
+    userId,
+    challengeEntriesResult.map((row) => row.joinedAt),
+  );
 
   const followedIds = new Set(followsResult.map((row) => row.followedId));
   const joinedClubIds = new Set(clubMembershipsResult.map((row) => row.clubId));
-  const joinedChallengeIds = new Set(challengeEntriesResult.map((row) => row.challengeId));
+  const joinedAtByChallenge = new Map(
+    challengeEntriesResult.map((row) => [row.challengeId, row.joinedAt]),
+  );
   const myBestBySegment = new Map(
     mySegmentBests.map((row) => [row.segmentId, row.effortSeconds ?? undefined]),
   );
@@ -379,14 +415,6 @@ export async function buildBootstrap(userId: string) {
 
   if (!me) {
     throw new Error("Authenticated user not found");
-  }
-
-  const distanceBySport = new Map<string, number>();
-  let totalElevation = 0;
-
-  for (const row of challengeProgressResult) {
-    distanceBySport.set(row.sport, (distanceBySport.get(row.sport) ?? 0) + Number(row.distanceKm));
-    totalElevation += Number(row.elevationM);
   }
 
   const segments = segmentsResult.map((row) => ({
@@ -416,20 +444,24 @@ export async function buildBootstrap(userId: string) {
     joined: joinedClubIds.has(row.id),
   }));
 
-  const challenges = challengesResult.map((row) => ({
-    id: row.id,
-    name: row.name,
-    sport: row.sport,
-    goalKm: Number(row.goalKm),
-    myProgressKm:
-      row.metricType === "elevation_m"
-        ? totalElevation
-        : Number((distanceBySport.get(row.sport) ?? 0).toFixed(1)),
-    participants: row.participants,
-    endsAt: row.endsAt,
-    badge: row.badge,
-    joined: joinedChallengeIds.has(row.id),
-  }));
+  const challenges = challengesResult.map((row) => {
+    const challenge = toProgressChallenge(row);
+    const joinedAt = joinedAtByChallenge.get(row.id) ?? null;
+
+    return {
+      id: row.id,
+      name: row.name,
+      sport: row.sport,
+      goalKm: Number(row.goalKm),
+      myProgressKm: computeChallengeProgress(challenge, joinedAt, challengeActivities),
+      participants: row.participants,
+      endsAt: row.endsAt,
+      badge: row.badge,
+      metricType: challenge.metricType,
+      ended: isChallengeEnded(row.endsAt),
+      joined: joinedAt !== null,
+    };
+  });
 
   return {
     me,
@@ -623,38 +655,66 @@ export async function toggleClubMembership(userId: string, clubId: string) {
 }
 
 export async function toggleChallengeEntry(userId: string, challengeId: string) {
-  const existing = await db
-    .select({ challengeId: challengeEntries.challengeId })
-    .from(challengeEntries)
-    .where(and(eq(challengeEntries.userId, userId), eq(challengeEntries.challengeId, challengeId)))
-    .limit(1);
-  const challengeRows = await db
-    .select({ participants: challengesTable.participants })
-    .from(challengesTable)
-    .where(eq(challengesTable.id, challengeId))
-    .limit(1);
-  const challenge = challengeRows[0];
+  return db.transaction(async (tx) => {
+    const challengeRows = await tx
+      .select({ endsAt: challengesTable.endsAt, participants: challengesTable.participants })
+      .from(challengesTable)
+      .where(eq(challengesTable.id, challengeId))
+      .limit(1);
+    const challenge = challengeRows[0];
 
-  if (!challenge) {
-    throw new Error("Challenge not found");
-  }
+    if (!challenge) {
+      throw new NotFoundError("Challenge not found");
+    }
 
-  if (existing.length > 0) {
-    await db
-      .delete(challengeEntries)
-      .where(
-        and(eq(challengeEntries.userId, userId), eq(challengeEntries.challengeId, challengeId)),
-      );
-  } else {
-    await db.insert(challengeEntries).values({ userId, challengeId });
-  }
+    const entryFilter = and(
+      eq(challengeEntries.userId, userId),
+      eq(challengeEntries.challengeId, challengeId),
+    );
+    const existing = await tx
+      .select({ challengeId: challengeEntries.challengeId })
+      .from(challengeEntries)
+      .where(entryFilter)
+      .limit(1);
+    const joining = existing.length === 0;
 
-  const participants =
-    existing.length > 0 ? Math.max(challenge.participants - 1, 0) : challenge.participants + 1;
-  await db.update(challengesTable).set({ participants }).where(eq(challengesTable.id, challengeId));
+    if (joining && isChallengeEnded(challenge.endsAt)) {
+      throw new ConflictError("This challenge has ended and can no longer be joined");
+    }
 
-  return {
-    joined: existing.length === 0,
-    participants,
-  };
+    // A concurrent request may have already inserted or removed the entry, in which case
+    // these touch no rows and the participant count must stay as it is.
+    const changed = joining
+      ? await tx
+          .insert(challengeEntries)
+          .values({ userId, challengeId })
+          .onConflictDoNothing()
+          .returning({ challengeId: challengeEntries.challengeId })
+      : await tx
+          .delete(challengeEntries)
+          .where(entryFilter)
+          .returning({ challengeId: challengeEntries.challengeId });
+
+    if (changed.length === 0) {
+      const current = await tx
+        .select({ participants: challengesTable.participants })
+        .from(challengesTable)
+        .where(eq(challengesTable.id, challengeId))
+        .limit(1);
+
+      return { joined: joining, participants: current[0]?.participants ?? challenge.participants };
+    }
+
+    const updated = await tx
+      .update(challengesTable)
+      .set({
+        participants: joining
+          ? sql`${challengesTable.participants} + 1`
+          : sql`GREATEST(${challengesTable.participants} - 1, 0)`,
+      })
+      .where(eq(challengesTable.id, challengeId))
+      .returning({ participants: challengesTable.participants });
+
+    return { joined: joining, participants: updated[0].participants };
+  });
 }

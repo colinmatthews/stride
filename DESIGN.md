@@ -26,6 +26,7 @@ colors:
   ring: "#E76A2D"
   kudos: "#E76A2D"
   pr: "#5DB57A"                  # PR green
+  pr-foreground: "#036819"       # PR green for small text on light surfaces
 typography:
   display-hero:
     fontFamily: "Space Grotesk"
@@ -162,7 +163,7 @@ Palette roles:
 - **`primary` (signal orange, `oklch(0.68 0.21 38)`)** — the one color that means "this is the thing." KOM/QOM indicators, the single primary CTA on a screen, active tab accents, progress fills, eyebrow accents on editorial pages. Never use for body text or as a background for more than ~10% of the screen.
 - **`secondary` (deep ink, `oklch(0.22 0.02 60)`)** — gravitas. Landing-page CTAs, course-record callouts, marquee bars. Paired with `secondary-foreground` (near-white) for high contrast.
 - **`accent` (warm yellow)** — rarely used; reserved for secondary highlights or achievement affordances.
-- **`kudos` / `pr`** — domain-specific semantic colors. `kudos` mirrors primary (the social-positive signal). `pr` is green — reserved for personal-record moments and "readiness: high" states.
+- **`kudos` / `pr`** — domain-specific semantic colors. `kudos` mirrors primary (the social-positive signal). `pr` is green — reserved for personal-record moments and "readiness: high" states. Use `pr-foreground` for small green text on light surfaces, where `pr` is too light to read.
 - **`surface` / `surface-2`** — the subtle two-tone layering. `surface-2` is the slightly-tinted bone used for segmented controls, table headers, soft containment.
 - **`muted` / `muted-foreground`** — disclaimer-grade text and inactive backgrounds.
 

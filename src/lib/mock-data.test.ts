@@ -1,5 +1,7 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import {
+  applyChallengeProgress,
+  CHALLENGES,
   clearAppData,
   fmtDuration,
   fmtPace,
@@ -8,6 +10,7 @@ import {
   initializeAppData,
   type Athlete,
   type AppData,
+  type Challenge,
 } from "./mock-data";
 
 function athlete(overrides: Partial<Athlete> = {}): Athlete {
@@ -98,5 +101,54 @@ describe("getAthlete", () => {
 
   it("falls back to ME when id is unknown", () => {
     expect(getAthlete("nope").id).toBe("me");
+  });
+});
+
+describe("applyChallengeProgress", () => {
+  function challenge(overrides: Partial<Challenge>): Challenge {
+    return {
+      id: "ch1",
+      name: "October 50K",
+      sport: "Run",
+      goalKm: 50,
+      myProgressKm: 10,
+      participants: 1,
+      endsAt: "2026-10-31",
+      badge: "RUN",
+      metricType: "distance_km",
+      ended: false,
+      joined: true,
+      ...overrides,
+    };
+  }
+
+  beforeEach(() => {
+    initializeAppData(
+      minimalAppData({
+        challenges: [
+          challenge({ id: "ch1" }),
+          challenge({ id: "ch2", myProgressKm: 60 }),
+          challenge({ id: "ch3" }),
+        ],
+      }),
+    );
+  });
+
+  afterEach(() => {
+    clearAppData();
+  });
+
+  it("updates matching challenges without lowering existing progress", () => {
+    applyChallengeProgress([
+      { id: "ch1", after: 18 },
+      { id: "ch2", after: 50 },
+      { id: "missing", after: 99 },
+    ]);
+
+    expect(CHALLENGES.map((entry) => [entry.id, entry.myProgressKm])).toEqual([
+      ["ch1", 18],
+      ["ch2", 60],
+      ["ch3", 10],
+    ]);
   });
 });
